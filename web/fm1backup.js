@@ -6,11 +6,18 @@
 // (the backup before the return to the official firmware).
 //
 // The file: JSON {format: "jangada-backup", version: 1, firmware, created, objects: [{id, size, crc,
-// data (base64)}]}, the 11 objects in BACKUP_IDS order. It is checked whole (sizes, CRCs, the sample
-// headers) before the first write.
-export const BACKUP_IDS = [0, 1, 2, 3, 4, 5, 6, 7, 32, 33, 34];   // working project, settings, projects 1-4, user banks, USR1-3
+// data (base64)}]}, the 13 objects in BACKUP_IDS order (a file of Jangada 0.3 / 0.4: the 11 of
+// BACKUP_IDS_V5, without the FM6 bank). It is checked whole (sizes, CRCs, the sample headers) before the
+// first write.
+export const BACKUP_IDS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 32, 33, 34];   // working project, settings, projects 1-4, user banks, FM6 bank B1-16 / B17-32, USR1-3
+export const BACKUP_IDS_V5 = BACKUP_IDS.filter((id) => id !== 8 && id !== 9);   // protocol v5 (no FM6 bank)
 export const BACKUP_CMD = { LIST: 34, GET: 35, PUT: 36 };
-export const BACKUP_PROTO = 5;                                     // INFO's last byte: v5 firmware has the backup
+export const BACKUP_PROTO = 5;                                     // INFO's protocol byte: v5 firmware has the backup
+export const BACKUP_PROTO_FM6 = 6;                                 // v6: and the FM6 bank (ids 8, 9)
+// the object ids a device of protocol version proto keeps
+export const backupIds = (proto) => (proto >= BACKUP_PROTO_FM6 ? BACKUP_IDS : BACKUP_IDS_V5);
+const sameIds = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
+const knownIds = (ids) => sameIds(ids, BACKUP_IDS) || sameIds(ids, BACKUP_IDS_V5);
 export const BACKUP_FORMAT = "jangada-backup";
 const SMP = { BEGIN: 11, WRITE: 12, END: 13, ERASE: 14, DATA: 512, HDR: 480, SLOT: 81920 };
 const OBJ_MAX = 3840;                                              // one flash object (storage.c ST_PAYLOAD_MAX)
@@ -59,11 +66,13 @@ function rcCheck(rc, code, what) {
 }
 const maxSize = (id) => (id >= 32 ? SMP.SLOT : OBJ_MAX);
 
-// LIST reply -> [{id, size, crc}]
+// LIST reply -> [{id, size, crc}] (13 objects, or 11 from a v5 device)
 export function bkManifest(a) {
   rcCheck(a[0], "bkRead", "LIST");
-  if (a[1] !== BACKUP_IDS.length || a.length !== 2 + a[1] * 11) throw new BackupError("bkRead", "incomplete list");
-  return BACKUP_IDS.map((id, i) => {
+  if (!(a[1] === BACKUP_IDS.length || a[1] === BACKUP_IDS_V5.length) || a.length !== 2 + a[1] * 11)
+    throw new BackupError("bkRead", "incomplete list");
+  const ids = a[1] === BACKUP_IDS.length ? BACKUP_IDS : BACKUP_IDS_V5;
+  return ids.map((id, i) => {
     const p = 2 + i * 11;
     if (a[p] !== id) throw new BackupError("bkRead", "unexpected object");
     const size = bkR32(a, p + 1), crc = bkR32(a, p + 6);
@@ -95,9 +104,9 @@ function sampleOk(b) {
 export function readBackup(file) {
   try { if (typeof file === "string") file = JSON.parse(file); } catch { file = null; }
   if (!file || file.format !== BACKUP_FORMAT || file.version !== 1 || !Array.isArray(file.objects) ||
-      file.objects.length !== BACKUP_IDS.length) throw new BackupError("bkBad", "not a complete Jangada backup");
+      !knownIds(file.objects.map((o) => o && o.id))) throw new BackupError("bkBad", "not a complete Jangada backup");
   const objects = file.objects.map((o, i) => {
-    const id = BACKUP_IDS[i];
+    const id = file.objects[i].id;
     if (!o || o.id !== id || !Number.isInteger(o.size) || o.size < 0 || o.size > maxSize(id) || !Number.isInteger(o.crc) ||
         o.crc < 0 || o.crc > 0xffffffff || typeof o.data !== "string" || o.data.length !== 4 * Math.ceil(o.size / 3) || !B64.test(o.data))
       throw new BackupError("bkBad", `object ${id}: invalid`);
@@ -136,15 +145,18 @@ export async function captureBackup(request, firmware, onProgress = () => {}) {
 }
 
 // the file -> the device. Every byte is checked before the first write; then the projects and the user
-// banks, the samples, the settings, and the working project last (each object commits by itself: an
-// interrupted restore leaves whole objects, some of them still the old ones)
-export async function restoreBackup(request, file, onProgress = () => {}) {
+// banks, the FM6 bank, the samples, the settings, and the working project last (each object commits by
+// itself: an interrupted restore leaves whole objects, some of them still the old ones). opt.ids: the
+// objects the device keeps (backupIds(INFO's proto)): the others are left out (a v5 device has no FM6
+// bank); a file without the FM6 bank leaves the device's as it is
+export async function restoreBackup(request, file, onProgress = () => {}, opt = {}) {
   const archive = readBackup(file);
-  const total = archive.objects.reduce((n, o) => n + o.size, 0) || 1;
+  const keep = new Set(opt.ids || BACKUP_IDS);
+  const objs = archive.objects.filter((o) => keep.has(o.id));
+  const total = objs.reduce((n, o) => n + o.size, 0) || 1;
   let done = 0;
   const ask = (r, o = {}) => request(r, { timeout: 4000, retries: 0, ...o });
   const put = async (args, what) => { const a = await ask([BACKUP_CMD.PUT, args]); rcCheck(a[2], "bkWrite", what); };
-  const objs = archive.objects;
   for (const o of [...objs.slice(2), objs[1], objs[0]]) {
     if (o.id >= 32) {
       const k = o.id - 32, name = `USR${k + 1}`;

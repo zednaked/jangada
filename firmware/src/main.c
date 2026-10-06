@@ -158,6 +158,10 @@ static void fm1_main(void)
 {
     int32_t knob = 512 * 16;
     persist_boot();
+#if FELUCCA_FLASH
+    if (flash_ok)
+        fm6_bank_boot();                                /* Jangada: which FM6 bank slots are used */
+#endif
 #if FELUCCA_OTA
     if (flash_ok)
         ota_boot_cleanup();                             /* staging area left by an update */

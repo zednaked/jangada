@@ -439,7 +439,7 @@ async function editorTrackParam() {
 async function editorBackup() {
   const A = attachMock({});
   const info = E.parse[E.CMD.INFO](await A.rq(E.req.info()));
-  ok(info.proto === BK.BACKUP_PROTO, "backup: INFO ends with the protocol version (5)");
+  ok(info.proto === BK.BACKUP_PROTO_FM6, "backup: INFO ends with the protocol version (6: the FM6 bank too)");
   /* something in every kind of object: projects 2 and 4, a user preset in bank 2, a sample in USR3 */
   await A.rq(E.req.set(1, 0, 133));
   await A.rq(E.req.project(1, 1), { timeout: 4000, retries: 0 });
@@ -455,9 +455,10 @@ async function editorBackup() {
   let prog = 0;
   const file = await BK.captureBackup(A.rq, info.version, (d, n) => { prog = d / n; });
   const text = JSON.stringify(file, null, 1);
-  ok(file.format === "jangada-backup" && file.objects.length === 11 && prog === 1 && file.objects[3].size > 0 && file.objects[4].size === 0 &&
-     file.objects[7].size > 0 && file.objects[10].size === E.SMP.DATA_OFF + data.length && file.objects[8].size === 0,
-     "backup: the mock FM-1 into one file (11 objects, empty ones as 0)");
+  ok(file.format === "jangada-backup" && file.objects.length === 13 && prog === 1 && file.objects[3].size > 0 && file.objects[4].size === 0 &&
+     file.objects[7].size > 0 && file.objects[12].size === E.SMP.DATA_OFF + data.length && file.objects[10].size === 0 &&
+     file.objects[8].id === 8 && file.objects[9].id === 9,
+     "backup: the mock FM-1 into one file (13 objects with the FM6 bank, empty ones as 0)");
   ok(/^jangada-backup-\d{4}-\d\d-\d\d\.json$/.test(BK.backupName()), "backup: the file is jangada-backup-DATE.json");
   /* into an empty FM-1: what comes back is what went in */
   const B = attachMock({});
@@ -481,7 +482,15 @@ async function editorBackup() {
   const ci = E.parse[E.CMD.INFO](await C.rq(E.req.info()));
   const none = await BK.captureBackup((r, o) => C.rq(r, { ...o, timeout: 60, retries: 0 }), "x").then(() => "ok", (e) => e.message);
   ok(ci.proto === 0 && /^timeout/.test(none), "backup: firmware without it: INFO has no version, LIST no reply");
-  A.done(); B.done(); C.done();
+  /* a v5 device (Jangada 0.4: no FM6 bank in the backup): its 11-object file, and ours into it */
+  const D = attachMock({ v5: true });
+  const di = E.parse[E.CMD.INFO](await D.rq(E.req.info()));
+  const f5 = await BK.captureBackup(D.rq, di.version);
+  await BK.restoreBackup(D.rq, text, () => {}, { ids: BK.backupIds(di.proto) });
+  await BK.restoreBackup(B.rq, f5, () => {}, { ids: BK.backupIds(6) });
+  ok(di.proto === 5 && f5.objects.length === 11 && !(D.sent[E.CMD.BK_PUT] === undefined),
+     "backup: v5 firmware: 11 objects; a v6 file restores without the FM6 bank, a v5 file into v6");
+  A.done(); B.done(); C.done(); D.done();
 }
 
 /* ------------------------------------------------- editor tabs and strings --- */

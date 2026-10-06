@@ -15,7 +15,11 @@
  * PROJ_HOST needs core.h, params.c (TP), the engines and trk_def_engine (ui.c). */
 /* Jangada: a RAM slot is today's project_t ("JNGR"); flash holds "JNG1", self-describing: the
  * stable keys of the values it stores (keys.h), then the values in that order, so a project
- * survives parameters being added or moved. FUN3 / FUN2 / FUN1 (Felucca) are read and converted. */
+ * survives parameters being added or moved. FUN3 / FUN2 / FUN1 (Felucca) are read and converted.
+ * After the tracks, "JNG1" carries tagged sections (byte 11 = their count; tag, length, data), skipped
+ * when unknown: section 1 = each track's FM6 patch (eng_fm6.c, NTRK x the 128-byte packed record, as
+ * Felucca 1.0's FUN8 keeps it). A project without it (Jangada 0.4 and before, Felucca's) loads with
+ * the patch of each track's PTCH, as it did. */
 #define PROJ_MAGIC 0x52474E4Au                 /* "JNGR": a RAM slot, today's layout */
 #define PROJ_MAGIC_JNG 0x31474E4Au             /* "JNG1": stored, keyed (proj_to_jng / proj_from_jng) */
 #define PROJ_MAGIC_V3 0x46554E33u              /* "FUN3": Felucca 0.9, 57 values a track = keys 0..56 */
@@ -36,6 +40,8 @@ typedef struct {
     int16_t g[G_COUNT];
     uint8_t sel, rsv[3];                       /* the selected track */
     proj_trk_t t[NTRK];
+    uint8_t fm6[NTRK][FM6_PACKED];             /* Jangada: each track's FM6 patch, packed (eng_fm6.c) */
+    uint8_t has_fm6, rsv2[3];                  /* 0: the project had none (each track: its PTCH's patch) */
     uint32_t sum;
 } project_t;
 typedef struct {                               /* a track of format 3 (Felucca 0.9), read only */
@@ -197,15 +203,18 @@ static int proj_from_v3(project_t *q, const project_v3_t *v3, int n)
     return 1;
 }
 
-/* "JNG1": magic, size, np, ng, sel, 0, key[np] (+ a pad byte to even), g[ng],
- * NTRK x (p[np], engine, preset, step[NSTEP]), FNV-1a of all before. Little-endian, unaligned. */
+/* "JNG1": magic, size, np, ng, sel, nsec, key[np] (+ a pad byte to even), g[ng],
+ * NTRK x (p[np], engine, preset, step[NSTEP]), nsec x (tag, length u16, data[length]), FNV-1a of all
+ * before. Little-endian, unaligned. nsec was 0 (Jangada 0.4 wrote no sections) */
 #define JNG_HDR 12u
 #define JNG_SIZE(np, ng) (JNG_HDR + (((np) + 1u) & ~1u) + 2u * (ng) + NTRK * (2u * (np) + 2u + sizeof(step_t) * NSTEP) + 4u)
+#define JNG_SEC_FM6 1u                         /* section 1: NTRK x FM6_PACKED, the tracks' FM6 patches */
+#define JNG_FM6_SIZE (3u + NTRK * FM6_PACKED)
 static uint32_t jng_size(uint32_t np, uint32_t ng) { return JNG_SIZE(np, ng); }
 
 static uint32_t proj_to_jng(const project_t *q, uint8_t *b)   /* -> bytes written */
 {
-    uint32_t n = jng_size(P_COUNT, G_COUNT), o = JNG_HDR, i, k, sum;
+    uint32_t n = jng_size(P_COUNT, G_COUNT) + (q->has_fm6 ? JNG_FM6_SIZE : 0u), o = JNG_HDR, i, k, sum;
     uint32_t m = PROJ_MAGIC_JNG;
     memset(b, 0, n);
     memcpy(b, &m, 4);
@@ -213,6 +222,7 @@ static uint32_t proj_to_jng(const project_t *q, uint8_t *b)   /* -> bytes writte
     b[8] = P_COUNT;
     b[9] = G_COUNT;
     b[10] = q->sel;
+    b[11] = q->has_fm6 ? 1u : 0u;                 /* sections */
     for (k = 0; k < P_COUNT; k++)
         b[o + k] = P_KEY[k];
     o += (P_COUNT + 1u) & ~1u;
@@ -226,6 +236,13 @@ static uint32_t proj_to_jng(const project_t *q, uint8_t *b)   /* -> bytes writte
         memcpy(b + o, q->t[i].step, sizeof q->t[i].step);
         o += sizeof q->t[i].step;
     }
+    if (q->has_fm6) {                              /* section 1: the FM6 patches */
+        b[o++] = JNG_SEC_FM6;
+        b[o++] = (uint8_t)(NTRK * FM6_PACKED);
+        b[o++] = (uint8_t)((NTRK * FM6_PACKED) >> 8);
+        memcpy(b + o, q->fm6, sizeof q->fm6);
+        o += sizeof q->fm6;
+    }
     sum = proj_hash(b, o);
     memcpy(b + o, &sum, 4);
     return n;
@@ -233,7 +250,7 @@ static uint32_t proj_to_jng(const project_t *q, uint8_t *b)   /* -> bytes writte
 
 static int proj_from_jng(project_t *q, const uint8_t *b, int n)
 {
-    uint32_t m, size, np, ng, o = JNG_HDR, i, sum;
+    uint32_t m, size, np, ng, o = JNG_HDR, i, sum, nsec, end;
     int16_t vals[KEY_MAX];
     if (n < (int)JNG_HDR + 4)
         return 0;
@@ -241,8 +258,20 @@ static int proj_from_jng(project_t *q, const uint8_t *b, int n)
     memcpy(&size, b + 4, 4);
     np = b[8];
     ng = b[9];
-    if (m != PROJ_MAGIC_JNG || size != (uint32_t)n || np > KEY_MAX || !np || jng_size(np, ng) != size)
+    nsec = b[11];
+    if (m != PROJ_MAGIC_JNG || size != (uint32_t)n || np > KEY_MAX || !np || jng_size(np, ng) > size ||
+        (!nsec && jng_size(np, ng) != size))
         return 0;
+    {   /* the sections fill the rest exactly */
+        uint32_t k, at = jng_size(np, ng) - 4u;
+        for (k = 0; k < nsec; k++) {
+            if (at + 3u > size - 4u)
+                return 0;
+            at += 3u + ((uint32_t)b[at + 1] | (uint32_t)b[at + 2] << 8);
+        }
+        if (at != size - 4u)
+            return 0;
+    }
     memcpy(&sum, b + size - 4u, 4);
     if (sum != proj_hash(b, size - 4u))
         return 0;
@@ -269,6 +298,16 @@ static int proj_from_jng(project_t *q, const uint8_t *b, int n)
             o += sizeof q->t[i].step;
         }
     }
+    for (end = size - 4u; o + 3u <= end;) {         /* sections: the known ones, the others skipped */
+        uint32_t tag = b[o], len = (uint32_t)b[o + 1] | (uint32_t)b[o + 2] << 8, k;
+        o += 3u;
+        if (tag == JNG_SEC_FM6 && len == sizeof q->fm6) {
+            for (k = 0; k < sizeof q->fm6; k++)
+                q->fm6[k / FM6_PACKED][k % FM6_PACKED] = b[o + k] & 0x7Fu;
+            q->has_fm6 = 1;
+        }
+        o += len;
+    }
     return 1;
 }
 
@@ -288,7 +327,7 @@ static int proj_import(project_t *q, const void *b, int n)
 #if FELUCCA_FLASH
 /* the stored form of a project, both ways (any format in, "JNG1" out) */
 static uint8_t proj_io[ST_PAYLOAD_MAX] __attribute__((aligned(4)));
-_Static_assert(JNG_SIZE(P_COUNT, G_COUNT) <= ST_PAYLOAD_MAX && sizeof(project_v3_t) <= ST_PAYLOAD_MAX,
+_Static_assert(JNG_SIZE(P_COUNT, G_COUNT) + JNG_FM6_SIZE <= ST_PAYLOAD_MAX && sizeof(project_v3_t) <= ST_PAYLOAD_MAX,
                "a stored project fits one flash object");
 
 /* slot from flash into RAM (format 3, or format 2 / 1 converted) */
@@ -304,6 +343,7 @@ static void proj_fetch(uint32_t slot)
 /* the working project -> p (also the autosave) */
 static void proj_capture(project_t *p)
 {
+    uint8_t pk[FM6_PACKED];
     uint32_t i;
     memset(p, 0, sizeof *p);
     p->magic = PROJ_MAGIC;
@@ -320,6 +360,12 @@ static void proj_capture(project_t *p)
         memcpy(p->t[i].step, trk[i].step, sizeof trk[i].step);
     }
     fm1_irq_on();
+    for (i = 0; i < NTRK; i++) {                       /* the tracks' FM6 patches (main loop owns fm6_patch) */
+        memset(pk, 0, sizeof pk);
+        fm6_pack(fm6_patch[i], pk);
+        memcpy(p->fm6[i], pk, sizeof pk);
+    }
+    p->has_fm6 = 1;
     p->sum = proj_sum(p);
 }
 
@@ -396,6 +442,17 @@ static void proj_apply(const project_t *p)
     }
     song.sel = (uint8_t)(p->sel < NTRK ? p->sel : 0u);
     fm1_irq_on();
+    for (k = 0; k < NTRK; k++) {                        /* Jangada: the project's own FM6 patches, PTCH as saved
+                                                         * (fm6_poll keeps them); a project without: PTCH's patch */
+        if (p->has_fm6) {
+            uint8_t v[FP_SIZE + 1u];
+            fm6_unpack(p->fm6[k], v);
+            fm6_set_patch(k, v);
+            fm6_slot[k] = (uint8_t)trk[k].p[P_E7];
+        } else {
+            fm6_slot[k] = 0xFFu;
+        }
+    }
     for (k = 0; k < NPART; k++)                         /* a format 1 project: the default sounds of tracks 2, 3 */
         if (p->t[k].preset == 0xFFu) {
             apply_preset_to(&trk[k], TRK_DEF[k][1]);

@@ -165,6 +165,37 @@ int main(void)
         buf.jng[20]++;
         bad += check("JNG1 with a bad checksum: refused", !proj_import(&q2, buf.jng, (int)n));
     }
+    {   /* JNG1 sections (Jangada 0.5): the tracks' FM6 patches; a project of 0.4 has none */
+        uint32_t n, k, sum;
+        bad += check("JNG1 of Jangada 0.4 (no sections): no FM6 patches (PTCH's patch on load)",
+                     proj_import(&q2, buf.jng, 0) == 0 && (proj_to_jng(&q, buf.jng), proj_import(&q2, buf.jng, (int)JNG_SIZE(P_COUNT, G_COUNT))) &&
+                         !q2.has_fm6 && buf.jng[11] == 0);
+        for (t = 0; t < NTRK; t++)
+            for (k = 0; k < FM6_PACKED; k++)
+                q.fm6[t][k] = (uint8_t)((t * 31u + k * 7u) & 127u);
+        q.has_fm6 = 1;
+        q.sum = proj_sum(&q);
+        n = proj_to_jng(&q, buf.jng);
+        bad += check("JNG1 with the FM6 section: stored and read back as it was",
+                     n == JNG_SIZE(P_COUNT, G_COUNT) + JNG_FM6_SIZE && buf.jng[11] == 1 && n <= 4096u - 256u &&
+                         proj_import(&q2, buf.jng, (int)n) && !memcmp(&q, &q2, sizeof q) && q2.has_fm6);
+        /* a section a later firmware may add (tag 9, 5 bytes) before the FM6 one: skipped */
+        memmove(buf.jng + JNG_SIZE(P_COUNT, G_COUNT) - 4u + 8u, buf.jng + JNG_SIZE(P_COUNT, G_COUNT) - 4u, JNG_FM6_SIZE);
+        memcpy(buf.jng + JNG_SIZE(P_COUNT, G_COUNT) - 4u, "\x09\x05\x00" "abcde", 8);
+        buf.jng[11] = 2;
+        n += 8u;
+        memcpy(buf.jng + 4, &n, 4);
+        sum = proj_hash(buf.jng, n - 4u);
+        memcpy(buf.jng + n - 4u, &sum, 4);
+        bad += check("JNG1: an unknown section skipped, the FM6 one read",
+                     proj_import(&q2, buf.jng, (int)n) && !memcmp(q2.fm6, q.fm6, sizeof q.fm6) && q2.has_fm6);
+        buf.jng[JNG_SIZE(P_COUNT, G_COUNT) - 4u + 1u] = 6;   /* its length now runs past the end */
+        sum = proj_hash(buf.jng, n - 4u);
+        memcpy(buf.jng + n - 4u, &sum, 4);
+        bad += check("JNG1: sections that do not fill it exactly: refused", !proj_import(&q2, buf.jng, (int)n));
+        q.has_fm6 = 0;
+        q.sum = proj_sum(&q);
+    }
 
     /* damaged / wrong size */
     v2.t[1].p[3]++;

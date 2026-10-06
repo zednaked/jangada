@@ -1394,7 +1394,7 @@ function makeMockDevice(opt = {}) {
         P("CINZA", [0, 60, 110, 100, -12, 70, 40, 60, 0, 0, 0, 0, 0, 0, 0, 0], [120, 90, 127, 120], 0, 0)] },
     { name: "FM6", titles: ["OPS", "PATCH"], edit: [
       D("ALG", F.INT, 0, 32, 0, ["PAT", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32"]), D("FB", F.INT, -7, 7, 0), D("MLVL", F.BIPCT, -64, 63, 0), D("MRAT", F.INT, -16, 16, 0),
-      D("MEG", F.BIPCT, -64, 63, 0), D("VMOD", F.INT, -7, 7, 0), D("DTUN", F.PCT, 0, 127, 0), D("PTCH", F.INT, 0, 7, 0, ["F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8"]),
+      D("MEG", F.BIPCT, -64, 63, 0), D("VMOD", F.INT, -7, 7, 0), D("DTUN", F.PCT, 0, 127, 0), D("PTCH", F.INT, 0, 39, 0, ["F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8", "B9", "B10", "B11", "B12", "B13", "B14", "B15", "B16", "B17", "B18", "B19", "B20", "B21", "B22", "B23", "B24", "B25", "B26", "B27", "B28", "B29", "B30", "B31", "B32"]),
       NONE, NONE, NONE, NONE,
       NONE, NONE, NONE, NONE],
       presets: [
@@ -1436,6 +1436,7 @@ function makeMockDevice(opt = {}) {
     slots: [null, null, null, null],
     smp: [0, 1, 2].map(() => ({ flash: new Uint8Array(SMP.SLOT_SIZE).fill(0xFF), zones: 0, name: "", len: 0, next: SMP.DATA_OFF })),
     bank: new Array(opt.slots || 32).fill(null),     /* user presets: {engine, name, p, pattern} */
+    fm6bank: new Array(32).fill(null),              /* the FM6 patch bank B1..B32: packed 128-byte records */
     watch: false, v4: false, lastReq: 0,
   };
   for (const k of ["engine", "preset", "p", "step"]) {
@@ -1528,6 +1529,11 @@ function makeMockDevice(opt = {}) {
     for (let i = 0; i < 16; i++) if (st.bank[h * 16 + i]) x[i] = st.bank[h * 16 + i];
     return Object.keys(x).length ? bkEnc(x) : new Uint8Array(0);
   };
+  const bkFm6 = (h) => {                          /* an FM6 bank half (B1..B16, B17..B32) as JSON {slot: record} */
+    const x = {};
+    for (let i = 0; i < 16; i++) if (st.fm6bank[h * 16 + i]) x[i] = st.fm6bank[h * 16 + i];
+    return Object.keys(x).length ? bkEnc(x) : new Uint8Array(0);
+  };
 
   function handle(cmd, a) {
     const out = [];
@@ -1608,7 +1614,7 @@ function makeMockDevice(opt = {}) {
         s(opt.legacy ? "FELUCCA 0.4 BETA (MOCK)" : "FELUCCA 0.5 BETA (MOCK)"); b(ENG.length); b(P_COUNT); b(G_COUNT); b(NSTEP); b(P_E0);
         ENG.forEach((e) => s(e.name));
         if (!opt.legacy) b(NTRK);
-        if (!opt.legacy && !opt.v3 && !opt.noBackup) b(5);   /* v5 (Jangada): backup / restore */
+        if (!opt.legacy && !opt.v3 && !opt.noBackup) b(opt.v5 ? 5 : 6);   /* v5 (Jangada): backup / restore; v6: + the FM6 bank */
         break;
       case CMD.GET: case CMD.SET: {
         if (a.length < 2) return null;
@@ -1746,7 +1752,7 @@ function makeMockDevice(opt = {}) {
         if (opt.noBackup || opt.legacy || opt.v3) return null;
         st.bkSnap = new Map([[0, bkProj(project())], [1, st.settings.slice()],
           ...[0, 1, 2, 3].map((k) => [2 + k, st.slots[k] ? bkProj(st.slots[k]) : new Uint8Array(0)]),
-          [6, bkBank(0)], [7, bkBank(1)],
+          [6, bkBank(0)], [7, bkBank(1)], ...(opt.v5 ? [] : [[8, bkFm6(0)], [9, bkFm6(1)]]),
           ...[0, 1, 2].map((k) => [32 + k, st.smp[k].zones ? st.smp[k].flash.slice(0, SMP.DATA_OFF + st.smp[k].len) : new Uint8Array(0)])]);
         st.bkPut = null;
         b(0); b(st.bkSnap.size);
@@ -1768,7 +1774,7 @@ function makeMockDevice(opt = {}) {
         let rc = 1;
         if (op === 0) {
           const len = a.length === 12 ? u35dec(a, 2) : -1;
-          if (id <= 7 && len >= 0 && len <= 3840 && (id >= 2 || len) && (id !== 1 || len === st.settings.length)) {
+          if (id <= (opt.v5 ? 7 : 9) && len >= 0 && len <= 3840 && (id >= 2 || len) && (id !== 1 || len === st.settings.length)) {
             st.bkPut = { id, len, crc: u35dec(a, 7), pos: 0, buf: new Uint8Array(len) }; st.bkSnap = null; rc = 0;
           }
         } else if (!st.bkPut || st.bkPut.id !== id) rc = 5;
@@ -1783,6 +1789,7 @@ function makeMockDevice(opt = {}) {
             if (id === 1) st.settings = P.buf.slice();
             else if (id === 0) { const o = bkUnproj(P.buf); st.tracks = o.tracks; st.sel = o.sel; st.g = o.g; }
             else if (id <= 5) st.slots[id - 2] = P.len ? bkUnproj(P.buf) : null;
+            else if (id >= 8) { const x = P.len ? bkDec(P.buf) : {}; for (let i = 0; i < 16; i++) st.fm6bank[(id - 8) * 16 + i] = x[i] || null; }
             else { const x = P.len ? bkDec(P.buf) : {}; for (let i = 0; i < 16; i++) st.bank[(id - 6) * 16 + i] = x[i] || null; }
           } catch (e) { rc = 2; }
         } else if (op === 3) { st.bkPut = null; rc = 0; }
@@ -4078,7 +4085,7 @@ $("bk-file").addEventListener("change", async () => {
   await op(async () => {
     try {
       selfLoad();
-      await B.restoreBackup(rq, file, bkProgress("bkRestoring"));
+      await B.restoreBackup(rq, file, bkProgress("bkRestoring"), { ids: B.backupIds(dev.info.proto) });
     } catch (e) { bkReport(e); return; } finally { $("bk-prog").hidden = true; }
     for (let k = 0; k < 4; k++) dev.slotUsed[k] = parse[CMD.PROJECT](await rq(req.project(2, k))).used;
     renderSlots();

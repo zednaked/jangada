@@ -3,7 +3,8 @@
 /* Editor protocol: SysEx for the web editor (web/EDITOR_PROTOCOL.md; v2 = user presets + live sync,
  * v3 = four tracks: the v1 / v2 commands act on the selected track, cmds 27-30 reach any track;
  * v4 = TRACK_PARAM (31) and the TRACK_CHANGED push (32), enabled by WATCH bit 1;
- * v5 (Jangada) = backup / restore, cmds 34-36 (editor_backup.c); INFO ends with the version).
+ * v5 (Jangada) = backup / restore, cmds 34-36 (editor_backup.c); INFO ends with the version;
+ * v6 (Jangada 0.5) = the backup carries the FM6 patch bank (ids 8, 9)).
  *   F0 7D 46 4C cmd args.. F7     (7D = non-commercial ID, "FL")
  * Values are 14 bit, two 7-bit bytes LSB first, offset by 8192 (so -8192..8191).
  * Every request gets a reply with the same cmd; 23/24/26 are also pushed
@@ -20,7 +21,8 @@ enum { ED_INFO = 1, ED_GET, ED_SET, ED_DUMP, ED_DESC, ED_STEP_GET, ED_STEP_SET, 
        ED_TRACK_PARAM, ED_TRACK_CHANGED,                                        /* v4: any track's parameters */
        ED_BK_LIST = 34, ED_BK_GET, ED_BK_PUT };                                 /* v5: backup / restore (33: SLOOP's
                                                                                  * DRUM_STEP, not here) */
-#define ED_PROTO 5u                                                              /* INFO's last byte */
+#define ED_PROTO 6u                                                              /* INFO's protocol byte (v6, Jangada
+                                                                                 * 0.5: the backup has the FM6 bank) */
 
 static uint8_t ed_out[600];
 static uint32_t ed_n;

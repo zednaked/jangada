@@ -1,6 +1,7 @@
 # Felucca editor protocol (SysEx over USB-MIDI)
 
-The firmware side is `firmware/src/editor.c`. Commands 16-26 (user presets and live sync) form protocol v2; commands 27-30 (tracks) form protocol v3; commands 31-32 (any track's parameters) form protocol v4; commands 34-36 (Jangada: backup / restore, `firmware/src/editor_backup.c`) form protocol v5.
+The firmware side is `firmware/src/editor.c`. Commands 16-26 (user presets and live sync) form protocol v2; commands 27-30 (tracks) form protocol v3; commands 31-32 (any track's parameters) form protocol v4; commands 34-36 (Jangada: backup / restore, `firmware/src/editor_backup.c`) form protocol v5; v6 (Jangada 0.5)
+adds the FM6 patch bank to the backup (objects 8, 9).
 
 **v3 (four tracks):** the device has four tracks: 1..3 are synth parts, 4 is the drum track. One
 of them is *selected* (the TRACKS page on the device, or `TRACK`). Every v1 / v2 command acts on the
@@ -38,7 +39,7 @@ after an engine change.
 
 | cmd | Request args | Reply args |
 | --- | --- | --- |
-| 1 INFO | — | version string, NENGINES, P_COUNT, G_COUNT, NSTEP, P_E0, then NENGINES engine-name strings, then (v3) NTRK (4), then (v5, Jangada) the protocol version (5); older firmware ends after the names or after NTRK |
+| 1 INFO | — | version string, NENGINES, P_COUNT, G_COUNT, NSTEP, P_E0, then NENGINES engine-name strings, then (v3) NTRK (4), then (v5, Jangada) the protocol version (5; 6 since Jangada 0.5); older firmware ends after the names or after NTRK |
 | 2 GET | scope, id | scope, id, v14 |
 | 3 SET | scope, id, v14 | scope, id, v14 (the value after clamping). Setting global `G_ENGSEL` (id from DESC label "ENG") changes the engine with its defaults |
 | 4 DUMP | — | engine, preset, then P_COUNT × v14 (the selected track), then G_COUNT × v14 (globals) |
@@ -200,6 +201,7 @@ Requests name **objects**, never flash addresses:
 | 1 | the settings | `persist_t` "PER2": palette, low cut, zoom, the panel calibration (`panel_t`), the lights word (LIGHTS / KEYS / NOTES / USB AUDIO); one without the lights word (Jangada 0.2) is restored too, with the lights off |
 | 2..5 | the projects 1..4 | "JNG1"; length 0 = empty slot |
 | 6..7 | the user preset banks (presets 1..16, 17..32) | `up_bank_t` "UPB2" (`upreset.c`, keyed); length 0 = empty |
+| 8..9 | (v6) the FM6 patch bank, B1..B16 and B17..B32 | `fm6_half_t` "FM6B" (`fm6_bank.c`): magic, version 1, 16 slots, the used bits, the half (0 / 1), 16 packed 128-byte records; 2064 bytes, length 0 = empty |
 | 32..34 | the user sample slots USR1..3 | header + ADPCM data as in flash (512 + data length); 0 = empty |
 
 Numbers are 5 × 7 bit, LSB first (u35); data is pack7. Objects 0..7 are at most 3840 bytes (one storage
@@ -207,9 +209,9 @@ object), a sample slot at most 80 KiB.
 
 | cmd (v5) | Request args | Reply args |
 | --- | --- | --- |
-| 34 BK_LIST | — | rc (0 ok, 4 no flash), count (11), then per object: id, length u35, CRC-32 u35 (zlib). Takes a snapshot of the working project for `BK_GET` |
+| 34 BK_LIST | — | rc (0 ok, 4 no flash), count (13; 11 from v5 firmware, without 8 / 9), then per object: id, length u35, CRC-32 u35 (zlib). Takes a snapshot of the working project for `BK_GET` |
 | 35 BK_GET | id, offset u35, count (2 × 7 bit, 1..256) | id, rc (0 ok, 1 arguments, 5 the snapshot is gone: `BK_LIST` again), offset u35, count, pack7 data |
-| 36 BK_PUT | op 0 begin: id 0..7, length u35, CRC-32 u35 · op 1 data: id, offset u35, pack7 (≤ 256 bytes, in order) · op 2 commit: id · op 3 abort: id | op, id, rc: 0 ok, 1 arguments, 2 not a valid object, 3 stop the song first, 4 flash, 5 no begin for this object (or a USB reset, or more than 15 s since the last request) |
+| 36 BK_PUT | op 0 begin: id 0..9 (v5: 0..7), length u35, CRC-32 u35 · op 1 data: id, offset u35, pack7 (≤ 256 bytes, in order) · op 2 commit: id · op 3 abort: id | op, id, rc: 0 ok, 1 arguments, 2 not a valid object, 3 stop the song first, 4 flash, 5 no begin for this object (or a USB reset, or more than 15 s since the last request) |
 
 - **Reading.** `BK_LIST` once, then each object from offset 0 in order (object 0 first: the snapshot of
   the working project lives in the device's project buffer, and reading another project, or a project
@@ -219,7 +221,8 @@ object), a sample slot at most 80 KiB.
   checks it — projects: "JNG1" (or Felucca's FUN3 / FUN2 / FUN1, converted) with its size and sum, stored
   as "JNG1"; banks: magic, record size, slot count, key count (other keys are mapped as at boot);
   settings: its size (with or without the lights word), magic, palette, low cut, a permutation of the
-  buttons and knobs — and writes it through the
+  buttons and knobs; an FM6 bank half: its size, magic, version, slot count, which half it is, every byte
+  7-bit — and writes it through the
   usual A/B commit (a cut-off restore leaves the old object or the new one, never half). The working
   project (0) is loaded at once instead of written. Every commit needs the song stopped (rc 3): a flash
   erase stops the audio for a moment. The autosave waits while a backup runs.
@@ -227,9 +230,14 @@ object), a sample slot at most 80 KiB.
   of the object, the data from byte 512), an empty slot with `SMP_ERASE`. An interrupted sample restore
   leaves that slot empty.
 - **The file** (`jangada-backup-YYYY-MM-DD.json`): `{format: "jangada-backup", version: 1, firmware,
-  created, objects: [{id, size, crc, data (base64)}]}`, the 11 objects in the order above. It is checked
-  whole (every size and CRC, the sample headers as the device reads them) before anything is written;
-  restore order: the projects and banks, the samples, the settings, the working project last.
+  created, objects: [{id, size, crc, data (base64)}]}`, the 13 objects in the order above (a file of Jangada
+  0.3 / 0.4: the 11 without the FM6 bank; it restores and leaves the device's bank as it is; into v5 firmware
+  the editor leaves 8 / 9 out). It is checked whole (every size and CRC, the sample headers as the device
+  reads them) before anything is written; restore order: the projects and banks (the FM6 bank too), the
+  samples, the settings, the working project last.
+- **Projects** carry each track's FM6 patch since Jangada 0.5: "JNG1" byte 11 counts tagged sections after the
+  tracks (tag, length u16 LE, data), section 1 = NTRK × the 128-byte packed FM6 record; an unknown section is
+  skipped. A project without it (byte 11 = 0, Jangada 0.4) loads with each track's PTCH patch.
 
 ## Notes for the editor
 

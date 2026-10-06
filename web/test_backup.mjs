@@ -3,10 +3,11 @@
 // Jangada (after Felucca 1.0.1 web/test_backup.mjs): fm1backup.js against a simulated device that
 // speaks protocol v5 as firmware/src/editor_backup.c: 7-bit numbers and packing, CRC-32, the LIST
 // checks, a full capture, every byte checked before the first write, the restore order (the working
-// project last), an abort on a refused chunk, the sample slots through SMP_*.
+// project last), an abort on a refused chunk, the sample slots through SMP_*; the FM6 bank (ids 8, 9,
+// protocol v6) and the backups / devices of v5 without it.
 //   node web/test_backup.mjs
-import { BACKUP_IDS, BACKUP_CMD, bkU32, bkR32, bkPack, bkUnpack, bkCrc, bkManifest, readBackup, captureBackup,
-  restoreBackup, backupName } from "./fm1backup.js";
+import { BACKUP_IDS, BACKUP_IDS_V5, BACKUP_CMD, bkU32, bkR32, bkPack, bkUnpack, bkCrc, bkManifest, readBackup, captureBackup,
+  restoreBackup, backupName, backupIds } from "./fm1backup.js";
 
 let fails = 0;
 const ok = (c, what) => { console.log(`${what.padEnd(76)} ${c ? "ok" : "FAIL"}`); if (!c) fails++; };
@@ -35,8 +36,8 @@ function device(objs, opt = {}) {
   const d = { objs: new Map(objs), log: [], staged: null };
   d.request = async ([cmd, a]) => {
     if (cmd === BACKUP_CMD.LIST) {
-      const out = [0, BACKUP_IDS.length];
-      for (const id of BACKUP_IDS) { const v = d.objs.get(id) || new Uint8Array(0); out.push(id, ...bkU32(v.length), ...bkU32(bkCrc(v))); }
+      const ids = opt.v5 ? BACKUP_IDS_V5 : BACKUP_IDS, out = [0, ids.length];
+      for (const id of ids) { const v = d.objs.get(id) || new Uint8Array(0); out.push(id, ...bkU32(v.length), ...bkU32(bkCrc(v))); }
       return out;
     }
     if (cmd === BACKUP_CMD.GET) {
@@ -46,6 +47,7 @@ function device(objs, opt = {}) {
     }
     if (cmd === BACKUP_CMD.PUT) {
       const [op, id] = a;
+      if (op === 0 && opt.v5 && id > 7) return [op, id, 1];
       if (op === 0) { d.staged = { id, size: bkR32(a, 2), crc: bkR32(a, 7), bytes: [] }; return [op, id, 0]; }
       if (op === 1) {
         if (opt.failChunk === id) return [op, id, 2];
@@ -77,11 +79,12 @@ function device(objs, opt = {}) {
   };
   return d;
 }
-const objs = [[0, rnd(3398, 2)], [1, rnd(28, 3)], [3, rnd(3398, 4)], [7, rnd(3684, 5)], [34, sampleSlot(3000, 6)]];
+const objs = [[0, rnd(3398, 2)], [1, rnd(28, 3)], [3, rnd(3398, 4)], [7, rnd(3684, 5)], [9, rnd(2064, 7)], [34, sampleSlot(3000, 6)]];
 const dev = device(objs);
 const file = await captureBackup(dev.request, "JANGADA 0.2");
-ok(file.format === "jangada-backup" && file.objects.length === 11 && file.objects[0].size === 3398 && file.objects[2].size === 0 &&
-   file.objects[10].size === 3512, "backup: the capture lists every object, empty ones as 0");
+ok(file.format === "jangada-backup" && file.objects.length === 13 && file.objects[0].size === 3398 && file.objects[2].size === 0 &&
+   file.objects[8].size === 0 && file.objects[9].size === 2064 && file.objects[12].size === 3512,
+   "backup: the capture lists every object (13: the FM6 bank too), empty ones as 0");
 ok(readBackup(JSON.stringify(file)).objects[3].bytes.every((v, i) => v === objs[2][1][i]), "backup: capture -> file -> bytes, the same");
 ok(await athrows(() => captureBackup(device(objs.map(([i, v]) => [i, v.slice()]), { changeOnGet: 3 }).request, "x"), "bkStale"),
    "backup: an object that changes during the capture fails it");
@@ -92,14 +95,14 @@ ok(throws(() => readBackup(bad), "bkBad"), "backup: a damaged object (CRC) is re
 const noRun = JSON.parse(JSON.stringify(file)); noRun.objects[0] = { ...noRun.objects[0], size: 0, crc: 0, data: "" };
 ok(throws(() => readBackup(noRun), "bkBad"), "backup: a file without the working project is refused");
 const short = JSON.parse(JSON.stringify(file)); short.objects.pop();
-ok(throws(() => readBackup(short), "bkBad"), "backup: a file without one of the 11 objects is refused");
+ok(throws(() => readBackup(short), "bkBad"), "backup: a file without one of the 13 objects is refused");
 const other = JSON.parse(JSON.stringify(file)); other.format = "felucca-backup";
 ok(throws(() => readBackup(other), "bkBad"), "backup: another firmware's backup (felucca / sloop) is refused");
 ok(throws(() => readBackup("{ not json"), "bkBad"), "backup: not JSON at all is refused");
 {
   const smp = JSON.parse(JSON.stringify(file)), s = sampleSlot(3000, 6);
   s[32 + 24] = 99;                                    // a step index past 88: smp_user_scan would refuse it
-  smp.objects[10] = { ...smp.objects[10], crc: bkCrc(s), data: Buffer.from(s).toString("base64") };
+  smp.objects[12] = { ...smp.objects[12], crc: bkCrc(s), data: Buffer.from(s).toString("base64") };
   ok(throws(() => readBackup(smp), "bkBad"), "backup: a sample slot the device would not read is refused");
 }
 ok(throws(() => bkManifest([0, 3])), "backup: a short LIST is refused");
@@ -118,6 +121,27 @@ const failing = device([], { failChunk: 3 });
 ok(await athrows(() => restoreBackup(failing.request, file), "bkWrite") && failing.log.includes("abort 3") && !failing.log.includes(0),
    "backup: a refused chunk aborts that object and stops before the working project");
 ok(await athrows(() => restoreBackup(device([], { playing: true }).request, file), "bkStop"), "backup: the song playing: rc 3 -> 'stop the song first'");
+ok(target.objs.get(9).every((v, i) => v === objs[4][1][i]) && target.log.indexOf(9) < target.log.indexOf(34),
+   "backup: the FM6 bank (B17..B32) restored with the banks, before the samples");
+
+/* protocol v5 (Jangada 0.3 / 0.4): 11 objects, no FM6 bank */
+{
+  const v5 = device(objs.filter(([id]) => id !== 9), { v5: true });
+  const f5 = await captureBackup(v5.request, "JANGADA 0.4");
+  ok(f5.objects.length === 11 && f5.objects.every((o, i) => o.id === BACKUP_IDS_V5[i]) && readBackup(JSON.stringify(f5)).objects.length === 11,
+     "backup: a v5 device: 11 objects, and its file reads back");
+  const t6 = device([[9, rnd(2064, 8)]]);
+  await restoreBackup(t6.request, f5);
+  ok(!t6.log.includes(8) && !t6.log.includes(9) && t6.objs.get(9).length === 2064 && t6.log.at(-1) === 0,
+     "backup: a v5 file into a v6 device: restored, the FM6 bank left as it is");
+  const t5 = device([], { v5: true });
+  ok(await athrows(() => restoreBackup(t5.request, file)), "backup: a v6 file into a v5 device without the ids: refused (rc 1)");
+  const t5b = device([], { v5: true });
+  await restoreBackup(t5b.request, file, () => {}, { ids: backupIds(5) });
+  ok(!t5b.log.includes(9) && t5b.log.at(-1) === 0 && backupIds(6) === BACKUP_IDS, "backup: ... with backupIds(proto 5): the FM6 bank left out");
+  const mixed = JSON.parse(JSON.stringify(file)); mixed.objects.splice(9, 1);
+  ok(throws(() => readBackup(mixed), "bkBad"), "backup: a file with only one FM6 bank half is refused");
+}
 
 console.log(fails ? `BACKUP WEB TESTS FAILED (${fails})` : "backup web tests passed");
 process.exit(fails ? 1 : 0);

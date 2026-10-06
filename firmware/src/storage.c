@@ -19,8 +19,11 @@
 /* flash map (FL_DATA 0x97000..0xDFFFF, FL_GLOB 0xFC000..): settings 0xFC000, projects 0x97000..0x9EFFF,
  * user sample slots 0xA0000..0xDBFFF (eng_sample.c), user preset banks 0xDC000..0xDFFFF (upreset.c),
  * Jangada: the working project (autosave, project.c): copy A 0x9F000, copy B 0xFE000 (the two sectors
- * left free, as SLOOP uses them) */
-enum { OBJ_SETTINGS, OBJ_PROJECT0, OBJ_UPRESET0 = OBJ_PROJECT0 + 4, OBJ_AUTOSAVE = OBJ_UPRESET0 + 2, OBJ_COUNT };
+ * left free, as SLOOP uses them); the FM6 patch bank (fm6_bank.c, FL_FM6 0xE5000..0xE8FFF): B1..B16
+ * 0xE5000 / 0xE6000, B17..B32 0xE7000 / 0xE8000 (after the update staging 0xE0000..0xE4FFF, before the
+ * official firmware's BTIF sector 0xE9000). Not used: 0x93000..0x96FFF, 0xE9000..0xFBFFF (BTIF, USR) */
+enum { OBJ_SETTINGS, OBJ_PROJECT0, OBJ_UPRESET0 = OBJ_PROJECT0 + 4, OBJ_AUTOSAVE = OBJ_UPRESET0 + 2, OBJ_FM6BANK0,
+       OBJ_COUNT = OBJ_FM6BANK0 + 2 };
 
 typedef struct {
     uint32_t magic;
@@ -54,6 +57,8 @@ static uint32_t st_sector(uint32_t obj, uint32_t copy)  /* flash offset of copy 
         return 0xFC000u + copy * ST_SECTOR;
     if (obj == OBJ_AUTOSAVE)
         return copy ? 0xFE000u : 0x9F000u;
+    if (obj >= OBJ_FM6BANK0)
+        return 0xE5000u + (obj - OBJ_FM6BANK0) * 2u * ST_SECTOR + copy * ST_SECTOR;
     if (obj >= OBJ_UPRESET0)
         return 0xDC000u + (obj - OBJ_UPRESET0) * 2u * ST_SECTOR + copy * ST_SECTOR;
     return 0x97000u + (obj - OBJ_PROJECT0) * 2u * ST_SECTOR + copy * ST_SECTOR;
@@ -118,6 +123,17 @@ static int st_load(uint32_t obj, void *dst, uint32_t max)
     for (i = 0; i < h.len; i++)
         ((uint8_t *)dst)[i] = st_buf[i];
     return (int)h.len;
+}
+
+/* Jangada: the current copy's payload in place (st_buf), *len its length; valid until the next storage
+ * call. 0 = none (fm6_bank.c reads one record of a bank without a buffer of its own) */
+static const uint8_t *st_view(uint32_t obj, uint32_t *len)
+{
+    st_hdr_t h;
+    if (st_current(obj, &h) < 0)
+        return 0;
+    *len = h.len;
+    return st_buf;
 }
 
 static int st_save(uint32_t obj, const void *src, uint32_t len)

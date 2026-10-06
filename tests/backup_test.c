@@ -4,7 +4,8 @@
  * every object read back byte for byte, a restore of everything into an empty FM-1 (projects as
  * "JNG1", the working project loaded, the settings, the user preset banks), the CRC checked before
  * anything is written, malformed objects refused, the song playing, USB resets and timeouts, the
- * snapshot gone after another object, and the autosave held while a backup runs.
+ * snapshot gone after another object, and the autosave held while a backup runs; the FM6 patch bank
+ * (ids 8, 9) and the tracks' FM6 patches in the working project (Jangada 0.5).
  * Build: cc -w -Ibuild/gen -Ifirmware/src tests/backup_test.c -lm */
 #include <stdio.h>
 #include <stdint.h>
@@ -79,6 +80,7 @@ static void fl_plain_window_init(void) {}
 #include "storage.c"
 #include "upreset.c"
 #include "project.c"
+#include "fm6_bank.c"
 
 /* editor.c's part the backup uses */
 enum { ED_BK_LIST = 34, ED_BK_GET, ED_BK_PUT };
@@ -285,9 +287,10 @@ int main(void)
 
     power_on();
     rc = list();
-    check("LIST: 11 objects; the working project and the settings, the rest empty",
-          !rc && arc[0].id == 0 && arc[0].len == JNG_SIZE(P_COUNT, G_COUNT) && arc[1].len == sizeof(persist_t) &&
-          arc[2].len == 0 && arc[6].len == 0 && arc[8].id == 32 && arc[8].len == 0 && arc[10].id == 34);
+    check("LIST: 13 objects; the working project (with its FM6 patches) and the settings, the rest empty",
+          !rc && ED_BK_N == 13u && arc[0].id == 0 && arc[0].len == JNG_SIZE(P_COUNT, G_COUNT) + JNG_FM6_SIZE &&
+          arc[1].len == sizeof(persist_t) && arc[2].len == 0 && arc[6].len == 0 && arc[8].id == 8 && arc[8].len == 0 &&
+          arc[9].id == 9 && arc[9].len == 0 && arc[10].id == 32 && arc[10].len == 0 && arc[12].id == 34);
     check("LIST: the autosave waits while a backup runs", (int32_t)(autosave_hold - fm1_ms) > 0);
 
     /* something on every kind of object */
@@ -319,10 +322,18 @@ int main(void)
         up_put(17, &r);                              /* bank 2 */
     }
     sample_slot(1, 3000);
+    {   /* the FM6 bank: B3 = F2, B20 = F5; the working project's track 2 plays an edited patch */
+        uint8_t v[FP_SIZE + 1u];
+        fm6_bank_put(2, FM6_FACTORY[1]);
+        fm6_bank_put(19, FM6_FACTORY[4]);
+        fm6_unpack(FM6_FACTORY[6], v);
+        v[FP_ALG] = 21;
+        fm6_set_patch(1, v);
+    }
     rc = capture();
     check("capture: every object read back, each matching its CRC from LIST", !rc);
     check("capture: projects 2 and 4 stored as JNG1, 1 and 3 empty",
-          obj(3)->len == JNG_SIZE(P_COUNT, G_COUNT) && obj(5)->len == obj(3)->len && !obj(2)->len && !obj(4)->len &&
+          obj(3)->len == JNG_SIZE(P_COUNT, G_COUNT) + JNG_FM6_SIZE && obj(5)->len == obj(3)->len && !obj(2)->len && !obj(4)->len &&
           !memcmp(obj(3)->data, "JNG1", 4));
     check("capture: project 2 is what the flash holds", !memcmp(obj(3)->data, nor + 0x97000 + 2u * 4096u + 256u, obj(3)->len) ||
                                                        !memcmp(obj(3)->data, nor + 0x97000 + 3u * 4096u + 256u, obj(3)->len));
@@ -340,8 +351,11 @@ int main(void)
         uint8_t b[16];
         check("GET of the working project after another object: rc 5 (LIST again)", get(0, 0, 16, b) == 5);
         check("GET past the end: rc 1", get(3, obj(3)->len - 8u, 16, b) == 1);
-        check("GET of an unknown object: rc 1", get(9, 0, 16, b) == 1);
+        check("GET of an unknown object: rc 1", get(10, 0, 16, b) == 1 && get(31, 0, 16, b) == 1);
     }
+    check("capture: the FM6 bank, both halves ('FM6B', B3 and B20 used)",
+          obj(8)->len == sizeof(fm6_half_t) && obj(9)->len == sizeof(fm6_half_t) && !memcmp(obj(8)->data, "FM6B", 4) &&
+          ((fm6_half_t *)(void *)obj(8)->data)->used == 1u << 2 && ((fm6_half_t *)(void *)obj(9)->data)->used == 1u << 3);
     memcpy(src, arc, sizeof arc);
 
     /* the change while backing up: the CRC of LIST does not match any more */
@@ -365,6 +379,18 @@ int main(void)
     if (!rc)
         rc = put_all(0, src[0].data, src[0].len, src[0].crc);
     check("restore: every object accepted", !rc);
+    {
+        uint8_t pk[FM6_PACKED], v[FP_SIZE + 1u];
+        int ok = fm6_bank_used == (1u << 2 | 1u << 19) && !fm6_bank_get(2, pk) && !memcmp(pk, FM6_FACTORY[1], FM6_PACKED) &&
+                 !fm6_bank_get(19, pk) && !memcmp(pk, FM6_FACTORY[4], FM6_PACKED) && fm6_bank_get(3, pk);
+        fm6_bank_used = 0;
+        fm6_bank_boot();                                 /* power-off: from flash */
+        check("restore: the FM6 bank (B3, B20) in use and in flash", ok && fm6_bank_used == (1u << 2 | 1u << 19));
+        fm6_unpack(FM6_FACTORY[6], v);
+        v[FP_ALG] = 21;
+        fm6_sanitize(v);
+        check("restore: the working project's edited FM6 patch on track 2", !memcmp(fm6_patch[1], v, FP_SIZE));
+    }
     check("restore: projects 2 and 4 in RAM and in flash; 1 and 3 empty",
           project_used(1) && project_used(3) && !project_used(0) && !project_used(2) && proj_slot[1].g[G_BPM] == 133 &&
           proj_slot[3].g[G_BPM] == 97);
@@ -457,6 +483,52 @@ int main(void)
     memset(up_bank, 0, sizeof up_bank);
     up_boot();
     check("an empty project / bank in the backup empties the slot (RAM and flash)", !rc && !project_used(1) && !up_used(17));
+
+    {   /* a backup of Jangada 0.4 (11 objects, no FM6 bank): it restores, the bank stays */
+        uint32_t used;
+        rc = put_all(8, src[8].data, src[8].len, src[8].crc) | put_all(9, src[9].data, src[9].len, src[9].crc);
+        used = fm6_bank_used;
+        for (i = 2; !rc && i < 8u; i++)
+            rc = put_all(src[i].id, src[i].data, src[i].len, src[i].crc);
+        check("a backup without ids 8 / 9 restores and keeps the FM6 bank", !rc && used && fm6_bank_used == used);
+    }
+    {   /* FM6 bank halves: refused when malformed; an empty one empties it */
+        static uint8_t b[4096];
+        memcpy(b, src[8].data, src[8].len);
+        ((fm6_half_t *)(void *)b)->half = 1;             /* the other half's */
+        erases = 0;
+        rc = put_all(8, b, src[8].len, st_crc32(b, src[8].len));
+        check("an FM6 bank half stored as the other one: rc 2, nothing written", rc == 2 && !erases);
+        memcpy(b, src[9].data, src[9].len);
+        ((fm6_half_t *)(void *)b)->v[3][40] = 0x80;      /* not 7-bit */
+        rc = put_all(9, b, src[9].len, st_crc32(b, src[9].len));
+        check("an FM6 bank half with a byte above 127: rc 2", rc == 2 && !erases);
+        check("BEGIN of an FM6 bank half with a wrong length: rc 1", put_begin(9, 2000, 0) == 1);
+        rc = put_all(9, b, 0, 0);
+        fm6_bank_used = 0;
+        fm6_bank_boot();
+        check("an empty FM6 bank half in the backup empties B17..B32 (RAM and flash)", !rc && fm6_bank_used == 1u << 2);
+    }
+
+    {   /* a project's FM6 patches (proj_apply): its own; one without (Jangada 0.4): its PTCH's patch */
+        uint8_t v[FP_SIZE + 1u], w[FP_SIZE + 1u];
+        set_engine_of(&trk[1], ENGI_FM6);
+        trk[1].p[P_E7] = 2;                              /* F3 */
+        fm6_poll();
+        proj_capture(&autosave_buf);
+        memcpy(autosave_buf.fm6[1], FM6_FACTORY[5], FM6_PACKED);   /* its own patch: F6's */
+        proj_apply(&autosave_buf);
+        fm6_poll();
+        fm6_unpack(FM6_FACTORY[5], v);
+        check("a project with FM6 patches: the track plays its own (PTCH F3 kept)",
+              !memcmp(fm6_patch[1], v, FP_SIZE) && trk[1].p[P_E7] == 2);
+        autosave_buf.has_fm6 = 0;
+        proj_apply(&autosave_buf);
+        fm6_poll();
+        fm6_unpack(FM6_FACTORY[2], w);
+        check("a project without them (Jangada 0.4): the track plays its PTCH's patch (F3)", !memcmp(fm6_patch[1], w, FP_SIZE));
+        transport_req = 0;
+    }
 
     /* without flash */
     flash_ok = 0;
