@@ -101,7 +101,7 @@ and nothing leaves your browser.
 | **Engines** | 10: ANALOG (superwave), FM6 (6-operator, Dexed), DIGITAL (4-op FM), PHASE, LOFI, SAMPLE, VOICE, TRIO, WHEEL, GRAIN |
 | **Voices and tracks** | 8 voices over 4 tracks (3 synths + drums, or 4 synths) |
 | **Parameters** | 16 per engine, a 4-slot modulation matrix with 9 sources |
-| **Presets** | 90 factory (28 dark, drone and northeastern ones by Jangada), 32 user, 40 FM6 patches (8 + a bank of 32) |
+| **Presets** | 90 factory (28 dark, drone and northeastern ones by Jangada), 32 user, 72 FM6 patches (8 + two banks of 32) |
 | **Drums** | 5 Jangada kits + 32 synthesised + GM; 7 factory beats |
 | **Sequencer** | 64 steps per track, chords, ratchet, chance, accent, slide, swing; UDI / RPT arp up to 4 bars |
 | **Effects** | per-track distortion (5 types), SLICER, chorus, delay, 3 reverbs, DUST / DUCK / FILT / TAPE / HUM on the master, 16 punch-ins |
@@ -207,12 +207,19 @@ and it keeps breathing on its own, even while you play the other tracks.
 ### Engines
 - **Turbo ANALOG** (EDIT 3 / 4): **SUPR** superwave (up to 6 detuned copies), **SDTN**, **SUB**,
   **DRFT** (slow per-voice detune), **FTYP** LP12 / LP24 / BP / HP.
-- **FM6**: 6-operator FM (Dexed's msfa core), 32 algorithms, 8 factory patches (PTCH F1–F8) and a
-  **bank of 32** in flash (B1–B32), with macros on the knobs (ALG FB MLVL MRAT MEG VMOD DTUN). Each
-  track's patch goes along in the project, the autosave and the backup.
+- **FM6**: 6-operator FM (Dexed's msfa core), 32 algorithms, 8 factory patches (PTCH F1–F8) and
+  **two banks of 32** in flash (B1–B32 and B33–B64: two whole cartridges), with macros on the knobs (ALG
+  FB MLVL MRAT MEG VMOD DTUN). Each track's patch goes along in the project, the autosave and the backup.
+- **The bank voices in PRESETS**: after the factory presets, PRESETS lists every voice stored in the
+  banks by name (tagged BK1 / BK2), before the user presets; picking one puts the track on FM6 with that
+  patch. **Hold HOME and turn PRESETS** to jump a group at a time (each engine's presets, FM6 BANK 1,
+  FM6 BANK 2, the user presets; the group shows in the top bar, and that HOME press opens nothing);
+  **KNOB 3 (KIND)** on the PRESETS page does the same.
 - **Dexed edits Jangada live**: point Dexed's (or another DX7 editor's) MIDI at the FM-1 and turning a
-  knob there changes the FM6 track at once; send a voice to the track or a 32-voice cartridge to the
-  bank, and ask for them back.
+  knob there changes the FM6 track at once; send a voice to the track or a 32-voice cartridge to a
+  bank, and ask for them back. The cartridge goes to the bank the FM6 track's PTCH is in (B33–B64:
+  bank 2); with PTCH on a factory patch the screen asks **FM6 BANK 1? SAVE=YES**: OCT- / OCT+ choose
+  bank 1 or 2, SAVE writes it, any other button cancels.
 - And the others: DIGITAL (4-operator FM), PHASE, LOFI, SAMPLE, VOICE, TRIO, WHEEL, GRAIN.
 - **16 parameters per engine** (Felucca has 8).
 - **Modulation matrix** (LFO → MOD 1–4): sources LFO, ENV, VEL, KEY, RND, MODW, AT, EXPR and DRIFT;
@@ -260,8 +267,8 @@ record opens the **TRACKS** view: BPM, bar.beat, one row per track with its step
 ### On the site
 - **[Studio](https://zednaked.github.io/jangada/webapp/studio/)**: Jangada in the browser.
 - **[Editor](https://zednaked.github.io/jangada/webapp/editor/)** (Chrome or Edge, FM-1 on USB): every
-  parameter, the steps, the presets; the **6-OP FM** tab (the whole FM6 patch, the B1–B32 bank, DX7
-  `.syx` both ways); **CHOP** (cut a recording of any length into up to 16 chops for USR1–3);
+  parameter, the steps, the presets; the **6-OP FM** tab (the whole FM6 patch, the banks B1–B32 and B33–B64,
+  DX7 `.syx` both ways); **CHOP** (cut a recording of any length into up to 16 chops for USR1–3);
   **Backup and restore** of everything in one `jangada-backup-DATE.json` file.
 - **[Installer](https://zednaked.github.io/jangada/)**: installs the latest release, or goes back to the
   official firmware.
