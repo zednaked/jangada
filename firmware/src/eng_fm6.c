@@ -360,6 +360,10 @@ static const preset_t FM6_PRESETS[] = {
     {"MARIMBA", {0, 0, 0, 0, 0, 0, 0, 5}, {0, 0, 127, 0}, 0, 0, FX(0, 0, 25, 40), PAT(3)},
     {"ORGAN", {0, 0, 0, 0, 0, 0, 0, 6}, {0, 0, 127, 0}, 0, 0, FX(10, 40, 0, 30), PAT(6)},
     {"PLUCK", {0, 0, 0, 0, 0, 0, 0, 7}, {0, 0, 127, 0}, 0, 0, FX(0, 20, 35, 30), PAT(13)},
+    /* Jangada DRONES (drone.c): coal. The PAD patch, its modulators darker and slower, the carriers spread; EVOL
+     * walks it, the tension takes 16 bars to open (MLVL and DTUN under TENS) */
+    {"CARVAO", {0, 1, -20, 0, 24, 0, 40, 4}, {0, 0, 127, 0}, 0, 0, FX(20, 50, 30, 120), ARP(7, 9, 1, 127),
+     SET({P_AHOLD, 1}, {P_EVOL, 100}, {P_TENS, 70}, {P_TRAMP, 5})},
 };
 
 static const engine_t ENG_FM6 = {
