@@ -27,6 +27,8 @@ A *felucca* is a Nile sailboat; a *jangada* is the Brazilian one.
 > **Alpha.** Use at your own risk. The FM-1's boot area is never touched, and you can go back to the
 > official firmware at any time.
 
+<p align="center"><img src="docs/screens.png" alt="Jangada screens: HOME, TRACKS, DRONE, the layers, KIT, DIST, MASTER, FM6, menu" width="100%"></p>
+
 ## Philosophy
 
 Jangada does not want to be a compendium of the other FM-1 firmwares. It has a taste:
@@ -85,10 +87,28 @@ bass through [FUZZ](docs/sounds/grit-bass-fuzz.mp3), [FOLD](docs/sounds/grit-bas
 
 ## Play it in the browser
 
+<a href="https://zednaked.github.io/jangada/webapp/studio/"><img src="docs/studio.png" alt="Jangada Studio" width="100%"></a>
+
 The **[Jangada Studio](https://zednaked.github.io/jangada/webapp/studio/)** runs the firmware's DSP as
 WebAssembly, sample for sample the same as the device: pick a track and a preset, play with the
 computer keyboard (or a MIDI keyboard), hold drones, run the sequencer, turn the master. No FM-1 needed,
 and nothing leaves your browser.
+
+## By the numbers
+
+| | |
+|---|---|
+| **Engines** | 10: ANALOG (superwave), FM6 (6-operator, Dexed), DIGITAL (4-op FM), PHASE, LOFI, SAMPLE, VOICE, TRIO, WHEEL, GRAIN |
+| **Voices and tracks** | 8 voices over 4 tracks (3 synths + drums, or 4 synths) |
+| **Parameters** | 16 per engine, a 4-slot modulation matrix with 9 sources |
+| **Presets** | 90 factory (28 dark, drone and northeastern ones by Jangada), 32 user, 40 FM6 patches (8 + a bank of 32) |
+| **Drums** | 5 Jangada kits + 32 synthesised + GM; 7 factory beats |
+| **Sequencer** | 64 steps per track, chords, ratchet, chance, accent, slide, swing; UDI / RPT arp up to 4 bars |
+| **Effects** | per-track distortion (5 types), SLICER, chorus, delay, 3 reverbs, DUST / DUCK / FILT / TAPE / HUM on the master, 16 punch-ins |
+| **Live** | 5 layers (hold a button), drones with HOLD, EVOL, TENS, RAMP |
+| **Connections** | USB MIDI + audio (stereo 44.1 kHz input) + console, TRS MIDI, clock in (USB / TRS) and out |
+| **Storage** | 4 projects, autosave, full backup from the editor, projects and presets with stable keys |
+| **Hardware** | a stock FM-1: nothing to solder, the boot area is never touched |
 
 ## Install
 

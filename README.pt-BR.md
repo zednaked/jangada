@@ -27,6 +27,8 @@ A felucca é o barco à vela do Nilo; a jangada é a nossa.
 > **Alfa.** Use por sua conta e risco. A área de boot do FM-1 nunca é tocada, e dá para voltar ao
 > firmware oficial a qualquer momento.
 
+<p align="center"><img src="docs/screens.png" alt="Telas da Jangada: HOME, TRACKS, DRONE, as camadas, KIT, DIST, MASTER, FM6, menu" width="100%"></p>
+
 ## Filosofia
 
 A Jangada não quer ser um compêndio dos outros firmwares do FM-1. Ela tem um gosto:
@@ -85,10 +87,28 @@ baixo em [FUZZ](docs/sounds/grit-bass-fuzz.mp3), [FOLD](docs/sounds/grit-bass-fo
 
 ## Toque no navegador
 
+<a href="https://zednaked.github.io/jangada/webapp/studio/"><img src="docs/studio.png" alt="Jangada Studio" width="100%"></a>
+
 O **[Jangada Studio](https://zednaked.github.io/jangada/webapp/studio/)** roda o DSP do firmware em
 WebAssembly, amostra por amostra igual ao aparelho: escolha trilha e preset, toque com o teclado do
 computador (ou um teclado MIDI), segure drones, rode o sequenciador, mexa no master. Não precisa do
 FM-1, e nada sai do seu navegador.
+
+## Em números
+
+| | |
+|---|---|
+| **Motores** | 10: ANALOG (superwave), FM6 (6 operadores, Dexed), DIGITAL (FM 4 op), PHASE, LOFI, SAMPLE, VOICE, TRIO, WHEEL, GRAIN |
+| **Vozes e trilhas** | 8 vozes por 4 trilhas (3 synths + bateria, ou 4 synths) |
+| **Parâmetros** | 16 por motor, matriz de modulação de 4 slots com 9 origens |
+| **Presets** | 90 de fábrica (28 escuros, drones e nordestinos da Jangada), 32 de usuário, 40 patches FM6 (8 + banco de 32) |
+| **Bateria** | 5 kits da Jangada + 32 sintetizados + GM; 7 batidas de fábrica |
+| **Sequencer** | 64 passos por trilha, acordes, ratchet, chance, acento, slide, swing; arp UDI / RPT até 4 compassos |
+| **Efeitos** | distorção por trilha (5 tipos), SLICER, chorus, delay, 3 reverbs, DUST / DUCK / FILT / TAPE / HUM no master, 16 punch-ins |
+| **Ao vivo** | 5 camadas (segurar um botão), drones com HOLD, EVOL, TENS, RAMP |
+| **Conexões** | USB MIDI + áudio (entrada estéreo 44,1 kHz) + console, MIDI TRS, clock in (USB / TRS) e out |
+| **Memória** | 4 projetos, autosave, backup completo pelo editor, projetos e presets com chaves estáveis |
+| **Hardware** | o FM-1 de fábrica: nada a soldar, a área de boot nunca é tocada |
 
 ## Instalar
 
