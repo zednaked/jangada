@@ -14,6 +14,31 @@ static const char *const KEYS_NAME[KEYS_N] = {"OFF", "C KEYS", "WHITE KEYS"};
 static uint8_t menu_new_armed;                      /* NEW PROJECT: OCT+ once arms, again clears */
 static void felucca_init(void);                     /* main.c */
 
+/* NEW PROJECT with the audio ISR running (Jangada): the transport stops and every note is let go at the
+ * next block (transport_req / panic_req, as a project load), and the reset itself runs with the IRQ off,
+ * so no block is rendered over half-written tracks (a step index past a shorter pattern, an engine with
+ * another's values). felucca_init is RAM only, about a project load's work. The engine that sounds stays
+ * until its released voices faded on it (voice.c engine_block, as any engine change); the step counters
+ * go to 0 (the song is stopped: START counts from step 0 again) */
+static void menu_new_project(void)
+{
+    uint8_t eng[NTRK];
+    uint32_t i;
+    transport_req = 2;
+    panic_req = (uint8_t)((1u << NTRK) - 1u);
+    fm1_irq_off();
+    for (i = 0; i < NTRK; i++)
+        eng[i] = trk[i].engine;
+    felucca_init();                                 /* the power-on tracks, empty patterns */
+    for (i = 0; i < NTRK; i++) {
+        trk[i].engine = eng[i];
+        trk[i].seq_idx = 0;
+        trk[i].seq_pos = 0;
+    }
+    fm1_irq_on();
+    sync_reload = 1;
+}
+
 static void draw_menu(void)
 {
     uint32_t i, pass, sig = ui.menu * 7u + ui.menu_sel * 131u + settings.palette * 1009u + settings.lowcut * 7919u +
@@ -163,10 +188,7 @@ static void menu_input(uint32_t pressed)
                 break;
             }
             menu_new_armed = 0;
-            transport_req = 2;
-            panic_req = (uint8_t)((1u << NTRK) - 1u);
-            felucca_init();                            /* the power-on tracks, empty patterns */
-            sync_reload = 1;
+            menu_new_project();
             menu_close();
             ui_message("NEW PROJECT");
             break;
