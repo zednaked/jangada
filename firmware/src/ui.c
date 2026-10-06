@@ -320,8 +320,8 @@ static void apply_preset_to(track_t *t, uint32_t pi)
         return;
     pi %= e->npresets;
     t->preset = (uint8_t)pi;
-    for (i = 0; i < P_E0; i++)                        /* the rest of the sound to its defaults: a preset */
-        if (!param_kept(i))
+    for (i = 0; i < P_COUNT; i++)                     /* the rest of the sound to its defaults: a preset */
+        if (!param_kept(i) && (i < P_E0 || i >= P_E0 + NEDIT))   /* (Jangada DRONES: after P_E15 too) */
             t->p[i] = TP[i].def;                     /* sounds the same after any edit (not the pattern, not the mix) */
     for (i = 0; i < NEDIT; i++)
         t->p[P_E0 + i] = (int16_t)(i < 8u ? e->presets[pi].e[i]
@@ -413,8 +413,9 @@ static void set_engine(uint32_t ei) { set_engine_of(TSEL, ei); }
 static void track_defaults(track_t *t)
 {
     uint32_t i;
-    for (i = 0; i < P_E0; i++)
-        t->p[i] = TP[i].def;
+    for (i = 0; i < P_COUNT; i++)
+        if (i < P_E0 || i >= P_E0 + NEDIT)             /* (Jangada DRONES: parameters after P_E15) */
+            t->p[i] = TP[i].def;
     track_defaults_steps(t);
 }
 

@@ -281,6 +281,10 @@ static const preset_t DRAWBAR_PRESETS[] = {
     /* Jangada: the Nordeste: the sanfona's reeds, its bellows (the fast rotor), as a drone */
     {"SANFONA", {10, 0, 0, 2, 0, 10, 30, 2}, {60, 64, 127, 90}, 0, 0, FX(10, 40, 10, 60), ARP(7, 9, 1, 127),
      SET({P_AHOLD, 1})},
+    /* Jangada DRONES that evolve (drone.c): the sanfona at the end of the day in the sertao; its reeds drift
+     * and breathe, the tension pulls them apart (a musette that gets sour) and drives them, over 16 bars */
+    {"SERTAO", {10, 1, 0, 1, 0, 0, 20, 1}, {90, 64, 127, 110}, 0, 0, FX(10, 45, 20, 90), ARP(7, 9, 1, 127),
+     SET({P_AHOLD, 1}, {P_EVOL, 100}, {P_TENS, 100}, {P_TRAMP, 5})},
 };
 
 static const engine_t ENG_DRAWBAR = {

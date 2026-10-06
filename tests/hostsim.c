@@ -75,8 +75,9 @@ static void host_tracks_init(void)                /* as felucca_init: defaults, 
     for (i = 0; i < G_COUNT; i++)
         song.g[i] = GP[i].def;
     for (k = 0; k < NTRK; k++) {
-        for (i = 0; i < P_E0; i++)
-            trk[k].p[i] = TP[i].def;
+        for (i = 0; i < P_COUNT; i++)
+            if (i < P_E0 || i >= P_E0 + NEDIT)          /* (Jangada DRONES: after P_E15 too) */
+                trk[k].p[i] = TP[i].def;
         for (i = 0; i < NSTEP; i++)
             trk[k].step[i].time = ST_REST;
     }
@@ -104,6 +105,8 @@ static void host_preset_req(track_t *t, uint32_t e, uint32_t pi)
         t->p[P_DIST + i] = (int16_t)(p->fx[i] ? p->fx[i] - 1 : FX_DEF[i]);
         t->p[P_AMODE + i] = (int16_t)(p->arp[i] ? p->arp[i] - 1 : TP[P_AMODE + i].def);
     }
+    for (i = P_E0 + NEDIT; i < P_COUNT; i++)        /* Jangada DRONES: EVOL TENS RAMP, as apply_preset_to */
+        t->p[i] = TP[i].def;
     if (p->set) {                                   /* as ui.c apply_preset_to */
         const int16_t (*sp)[2];
         for (sp = p->set; (*sp)[0] >= 0; sp++)

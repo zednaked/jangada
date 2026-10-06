@@ -260,7 +260,7 @@ static int up_parse(const uint8_t *a, uint32_t na, up_rec_t *r, uint32_t *slot)
 #ifndef UP_HOST
 static const param_desc_t *up_desc(uint32_t e, uint32_t i)
 {
-    return i >= P_E0 ? &ENGINES[e]->edit[i - P_E0] : &TP[i];
+    return i >= P_E0 && i < P_E0 + NEDIT ? &ENGINES[e]->edit[i - P_E0] : &TP[i];
 }
 
 static void up_values(const up_rec_t *r, int16_t *v)   /* mapped and clamped for its engine */

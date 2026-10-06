@@ -127,6 +127,11 @@ static const preset_t DIGITAL_PRESETS[] = {
     /* Jangada: drones */
     {"DRONE FM", {5, 2, 1, 3, 50, 127, 30, 0}, {110, 90, 127, 120}, 0, 0, FX(0, 60, 30, 100), ARP(7, 9, 1, 127),
      SET({P_AHOLD, 1}, {P_LRATE, 10}, {P_M1SRC, 1}, {P_M1DST, 7}, {P_M1AMT, 25}, {P_M2SRC, 5}, {P_M2DST, 9}, {P_M2AMT, 15})},
+    /* Jangada DRONES that evolve (drone.c): an abyss of FM, a sub-octave and a metal overtone; DRIFT also
+     * moves the timbre (MOD 1 -> SHP), the tension takes 32 bars to open */
+    {"ABISMO", {5, 0, 2, 7, 34, 127, 8, 0}, {120, 90, 127, 118}, 0, 0, FX(15, 40, 35, 120), ARP(7, 9, 1, 127),
+     SET({P_AHOLD, 1}, {P_LRATE, 6}, {P_M1SRC, 9}, {P_M1DST, 2}, {P_M1AMT, 20}, {P_EVOL, 110}, {P_TENS, 80},
+         {P_TRAMP, 6})},
 };
 
 static const engine_t ENG_DIGITAL = {

@@ -342,6 +342,31 @@ static void graph_slicer(const track_t *t, uint16_t c)
             cv_rect(x, 85, 11, 3, C_WHITE);
     }
 }
+/* Jangada DRONES page (drone.c): the four walks as threads that drift up and down (grey while the part is
+ * silent or EVOL and TENS are 0), and the tension: the bar is where it is now, the white mark where TENS
+ * takes it (a RAMP: the bar travels there over the bars) */
+static void graph_drone(const track_t *t, uint16_t c)
+{
+    const drone_t *d = &drn[(uint32_t)(t - trk) % NTRK];
+    int32_t i, now = d->tens >> 16, goal = t->p[P_TENS] * 258, w = now * 96 / 32767, g = goal * 96 / 32767;
+    uint16_t col = d->on ? c : C_DIM;
+    char b[8];
+    for (i = 0; i < DR_NW; i++) {
+        int32_t x = 14 + i * 26, y = 50 - (d->on ? d->w[i] : 0) * 36 / 32767;
+        cv_rect(x + 3, 12, 1, 76, C_LINE);
+        cv_rect(x, y - 2, 7, 4, col);
+    }
+    cv_text(124, 10, &FONT_S, "TENSION", C_GRAY);
+    cv_rect(124, 40, 96, 14, C_RAISE);
+    if (w)
+        cv_rect(124, 40, w, 14, d->on ? c : C_DIM);
+    cv_rect(124 + (g > 95 ? 95 : g), 36, 2, 22, C_WHITE);
+    fmt_int(b, (now * 100 + 16383) / 32767);
+    i = cv_text(124, 64, &FONT_S, b, C_HI);
+    cv_text(i + 2, 64, &FONT_S, "%", C_DIM);
+    if (t->p[P_TRAMP])
+        cv_text(170, 64, &FONT_S, N_TRAMP[(uint32_t)t->p[P_TRAMP] % 7u], C_AMB);
+}
 static uint32_t steps_hash(const track_t *t)
 {
     uint32_t h = 2166136261u, i;
@@ -375,6 +400,12 @@ static uint32_t graph_signature(void)
     h ^= (uint32_t)TSEL->preset * 7u + (uint32_t)song.g[G_SLOT] * 13u + TSEL->user * 257u + up_gen * 7919u + ui.uslot * 104729u;
     if (pg->graph == GR_SLCR && t->p[P_SLCR])        /* the SLICER's step playing */
         h ^= (sl[song.sel].idx + 1u) * 2654435761u;
+    if (pg->graph == GR_DRONE) {                     /* Jangada DRONES: the walks and the tension move alone */
+        const drone_t *d = &drn[song.sel % NTRK];
+        for (i = 0; i < DR_NW; i++)
+            h = (h ^ (uint32_t)(d->on ? d->w[i] >> 10 : 0)) * 16777619u;
+        h = (h ^ (uint32_t)(d->tens >> 24) ^ d->on * 0x10000u) * 16777619u;
+    }
     if (pg->graph == GR_SLOTS)                       /* (a checksum over each slot) */
         for (i = 0; i < 4u; i++)
             h ^= (uint32_t)project_used(i) << (20u + i);
@@ -688,6 +719,9 @@ static void draw_graph(void)
             break;
         case GR_SLCR:
             graph_slicer(t, c);
+            break;
+        case GR_DRONE:
+            graph_drone(t, c);
             break;
         case GR_BROWSE:
             cv_oy = 0;

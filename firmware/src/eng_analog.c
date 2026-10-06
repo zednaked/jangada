@@ -249,6 +249,11 @@ static const preset_t ANALOG_PRESETS[] = {
     {"RABECA", {0, 8, 64, 12, 70, 60, 30, 40}, {40, 90, 127, 90}, 0, 0, FX(10, 30, 20, 80), ARP(7, 9, 1, 127),
      .x = {1, 1, 1, 31, 3},                         /* the fiddle: nasal (BP), bow noise, its vibrato; a drone */
      SET({P_AHOLD, 1}, {P_LRATE, 89}, {P_LD_PIT, 2})},
+    /* Jangada DRONES that evolve (drone.c): rust on a superwave; the walks move it, the tension opens it
+     * over 16 bars (RES, DRV, the superwave's spread) */
+    {"FERRUGEM", {0, 30, 64, 22, 34, 40, 30, 20}, {120, 90, 127, 120}, 0, 0, FX(25, 50, 30, 115), ARP(7, 9, 1, 127),
+     .x = {7, 41, 61, 41, 2},                       /* superwave 6, SUB, DRFT, LP24 */
+     SET({P_AHOLD, 1}, {P_LRATE, 5}, {P_LD_FLT, 10}, {P_EVOL, 90}, {P_TENS, 110}, {P_TRAMP, 5})},
 };
 
 static void analog_render(track_t *t, voice_t *v, int32_t *out, uint32_t n, const vmod_t *m)

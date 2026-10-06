@@ -432,6 +432,10 @@ static const preset_t GRAIN_PRESETS[] = {
     /* Jangada: drones */
     {"DRONE DUST", {2, 50, 100, 120, -12, 90, 70, 70}, {110, 90, 127, 118}, 0, 0, FX(20, 30, 50, 120), ARP(7, 9, 1, 127),
      SET({P_AHOLD, 1}, {P_LRATE, 7}, {P_M1SRC, 1}, {P_M1DST, 4}, {P_M1AMT, 30})},
+    /* Jangada DRONES that evolve (drone.c): ash of a piano, an octave down; the walks wander through the
+     * recording (SHP moves POS) and the grain size, the tension thickens and scatters it over 8 bars */
+    {"CINZA", {0, 60, 110, 100, -12, 70, 40, 60}, {120, 90, 127, 120}, 0, 0, FX(15, 40, 45, 125), ARP(7, 9, 1, 127),
+     SET({P_AHOLD, 1}, {P_EVOL, 127}, {P_TENS, 80}, {P_TRAMP, 4})},
 };
 
 static const engine_t ENG_GRAIN = {

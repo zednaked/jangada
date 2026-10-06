@@ -458,7 +458,12 @@ static void mix_part(track_t *t, uint32_t n)
         int32_t c = t->p[P_CHOR] * 258, d = t->p[P_DLY] * 258, r = t->p[P_REV] * 258, pk = t->peak;
         int32_t xmax = c > d ? c : d, ga = duck.g0, gb = duck.g1;   /* DUCK, ramped over the block */
         xmax = 0x7FFFFFFF / ((xmax > r ? xmax : r) | 1);   /* sends: loud chords at a high LEVEL */
-        track_dist(t, b, n);
+        {                                               /* Jangada DRONES: the tension pushes the DIST */
+            int16_t dk = t->p[P_DIST];
+            t->p[P_DIST] = (int16_t)clamp(dk + drone_dist(t), 0, 127);
+            track_dist(t, b, n);
+            t->p[P_DIST] = dk;
+        }
         slicer_track(t, b, n);                          /* slicer.c: before the level, pan and sends */
         for (i = 0; i < n; i++) {
             int32_t x = ((b[i] >> 2) * lvl) >> 10, a, xs;   /* pre-shift: 8 loud voices */
