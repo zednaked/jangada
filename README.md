@@ -53,7 +53,7 @@ Rendered by the firmware's own DSP (the same C code, run on a PC):
 
 ## Install
 
-Current version: **[Jangada 0.4](https://github.com/zednaked/jangada/releases/tag/v0.4)** (alpha).
+Current version: **[Jangada 0.5](https://github.com/zednaked/jangada/releases/tag/v0.5)** (alpha).
 Plug the FM-1 straight into the computer with a USB **data** cable.
 
 **Mac / Windows / Linux, in the browser**: open the
@@ -64,7 +64,7 @@ Plug the FM-1 straight into the computer with a USB **data** cable.
 
 ```
 ./instalar-linux.sh                    # downloads and installs the latest release
-./instalar-linux.sh jangada-0.4.fwsc   # installs a file downloaded from the releases
+./instalar-linux.sh jangada-0.5.fwsc   # installs a file downloaded from the releases
 ./instalar-linux.sh --original         # back to M-VAVE's official firmware (V15)
 ./instalar-linux.sh --info             # what the FM-1 is running
 ./instalar-linux.sh --console          # serial console access (a udev rule, asks for sudo)
