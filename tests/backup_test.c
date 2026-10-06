@@ -100,6 +100,14 @@ static uint32_t ed_unpack7(const uint8_t *a, uint32_t na, uint8_t *out, uint32_t
 }
 static uint8_t ed_smp_buf[512];
 #include "editor_backup.c"
+static void ed_str(const char *s, uint32_t max)
+{
+    uint32_t i;
+    for (i = 0; s && s[i] && i < max; i++)
+        ed_b((uint8_t)s[i] & 0x7Fu);
+    ed_b(0);
+}
+#include "editor_fm6.c"
 
 static int fails;
 static void check(const char *what, int ok)
@@ -528,6 +536,81 @@ int main(void)
         fm6_unpack(FM6_FACTORY[2], w);
         check("a project without them (Jangada 0.4): the track plays its PTCH's patch (F3)", !memcmp(fm6_patch[1], w, FP_SIZE));
         transport_req = 0;
+    }
+
+    {   /* the editor's FM6 commands (editor_fm6.c): LIST, PUT / GET / ERASE of a bank slot, a track's patch */
+        uint8_t a[2 + FM6_PACKED], v[FP_SIZE + 1u];
+        uint32_t ok;
+        power_on();
+        fm6_bank_boot();
+        uint32_t want = 2u + 32u * 2u, k;
+        for (k = 0; k < FM6_NFACTORY; k++) {
+            char nm[11];
+            fm6_unpack(FM6_FACTORY[k], v);
+            fm6_name(nm, v);
+            want += 2u + (uint32_t)strlen(nm);
+        }
+        rep_n = 0;
+        ed_fm6_handle(ED_FM6_LIST, a, 0);
+        check("FM6 LIST: 8 factory patches by name, 32 empty bank slots",
+              rep[0] == 8 && rep[1] == 32 && rep[2] == 1 && !memcmp(rep + 3, "TINE EP", 8) && rep_n == want);
+        a[0] = ED_FM6_BANK;
+        a[1] = 30;                                       /* B31 */
+        memcpy(a + 2, FM6_FACTORY[3], FM6_PACKED);
+        rep_n = 0;
+        ed_fm6_handle(ED_FM6_PUT, a, sizeof a);
+        ok = rep[2] == 0 && fm6_bank_used == 1u << 30;
+        rep_n = 0;
+        ed_fm6_handle(ED_FM6_GET, a, 2);
+        check("FM6 PUT into B31, GET it back (flash: the second half)",
+              ok && rep[2] == 0 && rep_n == 3u + FM6_PACKED && !memcmp(rep + 3, FM6_FACTORY[3], FM6_PACKED) &&
+                  st_sector(OBJ_FM6BANK0 + 1, 0) == 0xE7000u && !memcmp(nor + 0xE7000u + 256u, "FM6B", 4));
+        song.playing = 1;
+        rep_n = 0;
+        ed_fm6_handle(ED_FM6_PUT, a, sizeof a);
+        ok = rep[2] == 3;
+        rep_n = 0;
+        ed_fm6_handle(ED_FM6_ERASE, a + 1, 1);
+        song.playing = 0;
+        check("FM6 PUT / ERASE of the bank while the song plays: rc 3", ok && rep[1] == 3 && fm6_bank_used == 1u << 30);
+        set_engine_of(&trk[2], ENGI_FM6);
+        trk[2].p[P_E7] = FM6_NFACTORY + 30;              /* B31 */
+        fm6_poll();
+        a[0] = ED_FM6_TRACK;
+        a[1] = 2;
+        rep_n = 0;
+        ed_fm6_handle(ED_FM6_GET, a, 2);
+        check("FM6: PTCH B31 on track 3 plays it", rep[2] == 0 && !memcmp(rep + 3, FM6_FACTORY[3], FM6_PACKED));
+        memcpy(a + 2, FM6_FACTORY[0], FM6_PACKED);
+        rep_n = 0;
+        ed_fm6_handle(ED_FM6_PUT, a, sizeof a);
+        fm6_poll();
+        fm6_unpack(FM6_FACTORY[0], v);
+        check("FM6 PUT to a track: its own patch, PTCH as it is", rep[2] == 0 && !memcmp(fm6_patch[2], v, FP_SIZE) &&
+                                                                  trk[2].p[P_E7] == FM6_NFACTORY + 30);
+        a[1] = 30;
+        rep_n = 0;
+        ed_fm6_handle(ED_FM6_ERASE, a + 1, 1);
+        ok = rep[1] == 0 && !fm6_bank_used;
+        a[0] = ED_FM6_BANK;
+        rep_n = 0;
+        ed_fm6_handle(ED_FM6_GET, a, 2);
+        check("FM6 ERASE B31: GET rc 2 (empty)", ok && rep[2] == 2 && rep_n == 3u);
+        a[0] = ED_FM6_FACTORY;
+        a[1] = 0;
+        memcpy(a + 2, FM6_FACTORY[1], FM6_PACKED);
+        erases = 0;
+        rep_n = 0;
+        ed_fm6_handle(ED_FM6_PUT, a, sizeof a);
+        ok = rep[2] == 1;
+        a[0] = ED_FM6_BANK;
+        a[1] = 32;
+        rep_n = 0;
+        ed_fm6_handle(ED_FM6_PUT, a, sizeof a);
+        ok &= rep[2] == 1;
+        rep_n = 0;
+        ed_fm6_handle(ED_FM6_PUT, a, 20);
+        check("FM6 PUT of a factory slot, of B33, of a short record: rc 1", ok && rep[2] == 1 && !erases);
     }
 
     /* without flash */

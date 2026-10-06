@@ -161,6 +161,10 @@
   .strip button { width: 100%; padding: 1px 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .strip button.selb:disabled { opacity: 1; background: none; color: var(--dim); }
   #sysinfo th { padding-right: 16px; }
+  /* 6-OP FM (Jangada 0.5): the whole FM6 patch */
+  .fm6ops { overflow-x: auto; }
+  .fm6ops td, .fm6ops th { padding: 0 2px; }
+  input.fm6n { width: 3.4em; }
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -180,6 +184,7 @@
     <div id="status"></div>
     <nav class="tabs" id="tabs" role="tablist">
       <button role="tab" data-tab="sound" data-t="sound" data-ic="symbol_audio"></button>
+      <button role="tab" data-tab="fm6" data-t="tabFm6" data-ic="ui_knob"></button>
       <button role="tab" data-tab="sequencer" data-t="tabSeq" data-ic="symbol_grid"></button>
       <button role="tab" data-tab="tracks" data-t="tabTracks" data-ic="ui_slider_vertical"></button>
       <button role="tab" data-tab="library" data-t="library" data-ic="symbol_books"></button>
@@ -206,6 +211,35 @@
     <p class="dim" id="drumnote" data-t="drumNote" hidden></p>
     <p class="dim" id="ctlhelp" data-t="ctlHelp"></p>
     <div class="groups" id="groups"></div>
+  </section>
+
+  <section class="panel" id="p-fm6" data-tab="fm6" data-dev hidden>
+    <p class="dim" data-t="fm6Help"></p>
+    <div class="group">
+      <h2 data-t="fm6Source" data-ic="symbol_folder"></h2>
+      <p class="bar"><label><span data-t="track"></span> <select id="fm6trk"></select></label>
+        <button id="fm6read" data-t="fm6ReadBtn" data-ic="symbol_download"></button>
+        <button id="fm6send" data-t="fm6SendBtn" data-ic="symbol_upload"></button>
+        <label><input type="checkbox" id="fm6live"> <span data-t="fm6Live"></span></label></p>
+      <p class="bar"><label><span data-t="fm6Slot"></span> <select id="fm6slot"></select></label>
+        <button id="fm6load" data-t="load" data-ic="symbol_folder_open"></button>
+        <button id="fm6store" data-t="fm6StoreBtn" data-ic="port_disk"></button>
+        <button id="fm6erase" data-t="erase" data-ic="symbol_trash"></button></p>
+      <p class="bar"><button id="fm6import" data-t="fm6Import" data-ic="symbol_upload"></button>
+        <input type="file" id="fm6file" accept=".syx,.SYX,.bin,application/octet-stream" hidden>
+        <button id="fm6export" data-t="fm6Export" data-ic="symbol_download"></button>
+        <button id="fm6bankexp" data-t="fm6BankExport" data-ic="symbol_download"></button>
+        <button id="fm6init" data-t="fm6Init"></button></p>
+      <div id="fm6imported"></div>
+    </div>
+    <div class="group">
+      <h2 data-t="fm6Voice" data-ic="ui_knob"></h2>
+      <div id="fm6voice"></div>
+    </div>
+    <div class="group">
+      <h2 data-t="fm6Ops" data-ic="function_env_adsr_exp"></h2>
+      <div id="fm6ops"></div>
+    </div>
   </section>
 
   <section class="panel" id="p-sequencer" data-tab="sequencer" data-dev hidden>
@@ -321,7 +355,8 @@ const CMD = { INFO: 1, GET: 2, SET: 3, DUMP: 4, DESC: 5, STEP_GET: 6, STEP_SET: 
   WATCH: 22, CHANGED: 23, RELOAD: 24, PING: 25, STEP_CHANGED: 26,
   TRACK: 27, TRACK_MIX: 28, TRACK_DUMP: 29, TRACK_STEP: 30,
   TRACK_PARAM: 31, TRACK_CHANGED: 32,
-  BK_LIST: 34, BK_GET: 35, BK_PUT: 36 };              /* v5 (Jangada): backup / restore (fm1backup.js) */
+  BK_LIST: 34, BK_GET: 35, BK_PUT: 36,                /* v5 (Jangada): backup / restore (fm1backup.js) */
+  FM6_GET: 68, FM6_PUT: 69, FM6_LIST: 70, FM6_ERASE: 71 };   /* Jangada 0.5: FM6 patches (after Felucca 1.0) */
 /* frames the device sends on its own (while WATCH is on); never replies */
 const PUSH = new Set([CMD.CHANGED, CMD.RELOAD, CMD.STEP_CHANGED, CMD.TRACK_CHANGED]);
 /* user preset bank: name 1..12 printable ASCII, a 16-step pattern of (note, flags 1 acc 2 slide 4 tie) */
@@ -358,6 +393,8 @@ const parse = {
     for (let i = 0; i < o.nengines; i++) o.engines.push(r.s());
     o.ntrk = r.i < a.length ? r.b() : 0;             /* v3: tracks (0 = older firmware, one instrument) */
     o.proto = r.i < a.length ? r.b() : 0;            /* v5 (Jangada): the protocol version (0 = older firmware) */
+    o.fm6 = null;                                    /* Jangada 0.5: FM6 patches (cmds 68..71): 46 01 nfactory nbank */
+    if (r.i + 3 < a.length && a[r.i] === 0x46 && a[r.i + 1] === 1) o.fm6 = { factory: a[r.i + 2], bank: a[r.i + 3] };
     return o;
   },
   [CMD.GET](a) { const r = new Reader(a); return { scope: r.b(), id: r.b(), value: r.v() }; },
@@ -447,6 +484,15 @@ const parse = {
   /* v4: a parameter of any track (the selection stays), and its push for a track that is not selected */
   [CMD.TRACK_PARAM](a) { const r = new Reader(a); return { track: r.b(), id: r.b(), value: r.v() }; },
   [CMD.TRACK_CHANGED](a) { return parse[CMD.TRACK_PARAM](a); },
+  /* FM6 patches: target 0 a track, 1 a bank slot, 2 a factory patch; packed: the 128-byte record */
+  [CMD.FM6_GET](a) { return { target: a[0], index: a[1], rc: a[2], packed: a[2] ? null : a.slice(3, 3 + 128) }; },
+  [CMD.FM6_PUT](a) { return { target: a[0], index: a[1], rc: a[2] }; },
+  [CMD.FM6_LIST](a) {
+    const r = new Reader(a), o = { factory: r.b(), bank: r.b(), slots: [] };
+    for (let i = 0; i < o.factory + o.bank; i++) o.slots.push({ used: r.b(), name: r.s() });
+    return o;
+  },
+  [CMD.FM6_ERASE](a) { return { index: a[0], rc: a[1] }; },
 };
 
 /* a name the device accepts: printable ASCII, 1..12 characters */
@@ -490,6 +536,11 @@ const req = {
   trackStep: (tr, i, st) => [CMD.TRACK_STEP, st ? [tr & 0x7F, ...req.stepSet(i, st)[1]] : [tr & 0x7F, i & 0x7F]],
   /* v4: get (v == null) or set parameter id (P_*) of track tr, clamped as SET */
   trackParam: (tr, id, v) => [CMD.TRACK_PARAM, v == null ? [tr & 0x7F, id & 0x7F] : [tr & 0x7F, id & 0x7F, ...v14enc(v)]],
+  /* FM6 patches (firmware with info.fm6) */
+  fm6Get: (target, i) => [CMD.FM6_GET, [target & 0x7F, i & 0x7F]],
+  fm6Put: (target, i, packed) => [CMD.FM6_PUT, [target & 0x7F, i & 0x7F, ...Array.from(packed, (x) => x & 0x7F)]],
+  fm6List: () => [CMD.FM6_LIST, []],
+  fm6Erase: (i) => [CMD.FM6_ERASE, [i & 0x7F]],
 };
 
 /* which reply belongs to which request (the device echoes these) */
@@ -506,6 +557,8 @@ function replyMatches(cmd, args, a) {
     case CMD.TRACK_STEP: case CMD.TRACK_PARAM: return a[0] === args[0] && a[1] === args[1];
     case CMD.BK_GET: return a[0] === args[0] && [0, 1, 2, 3, 4].every((k) => a[2 + k] === args[1 + k]);
     case CMD.BK_PUT: return a[0] === args[0] && a[1] === args[1];
+    case CMD.FM6_GET: case CMD.FM6_PUT: return a[0] === args[0] && a[1] === args[1];
+    case CMD.FM6_ERASE: return a[0] === args[0];
     default: return true;
   }
 }
@@ -588,6 +641,150 @@ class Link {
     for (const r of all) r.rej(new Error("closed"));
   }
 }
+
+/* ------------------------------------------------------------------- FM6 --- */
+/* The FM6 engine's patches (eng_fm6.c, EDITOR_PROTOCOL.md "FM6 patches"; after Felucca 1.0's editor): the generic
+   6-operator voice. voice: 155 bytes, 6 x 21 operator bytes (the sixth operator first, as the format has them), then
+   19 voice bytes and a 10-character name. packed: the 128-byte record of a 32-voice bank (every byte 7-bit). SysEx
+   files: a single voice (F0 43 0n 00 01 1B, 155 bytes, checksum, F7: 163 bytes) or 32 packed voices (F0 43 0n 09 20
+   00, 4096 bytes, checksum, F7: 4104 bytes); raw 155 / 4096-byte files are read too. */
+const FM6 = (() => {
+  /* per operator byte: name, highest value; then the voice bytes */
+  const OP = [["R1", 99], ["R2", 99], ["R3", 99], ["R4", 99], ["L1", 99], ["L2", 99], ["L3", 99], ["L4", 99],
+    ["BP", 99], ["LD", 99], ["RD", 99], ["LC", 3], ["RC", 3], ["RS", 7], ["AMS", 3], ["KVS", 7], ["OL", 99],
+    ["MODE", 1], ["FC", 31], ["FF", 99], ["DET", 14]];
+  const VOICE = [["PR1", 99], ["PR2", 99], ["PR3", 99], ["PR4", 99], ["PL1", 99], ["PL2", 99], ["PL3", 99], ["PL4", 99],
+    ["ALG", 31], ["FB", 7], ["OKS", 1], ["LFS", 99], ["LFD", 99], ["LPMD", 99], ["LAMD", 99], ["LKS", 1], ["LFW", 5],
+    ["LPMS", 7], ["TRNSP", 48]];
+  const OPI = Object.fromEntries(OP.map(([n], i) => [n, i])), VI = Object.fromEntries(VOICE.map(([n], i) => [n, 126 + i]));
+  const NAME = 145, SIZE = 155, PACKED = 128, BANK = 32;
+  const max = (i) => (i < 126 ? OP[i % 21][1] : i < NAME ? VOICE[i - 126][1] : 126);
+  /* byte i of operator n (1..6) */
+  const at = (n, field) => (6 - n) * 21 + OPI[field];
+  function sanitize(v) {                          /* eng_fm6.c fm6_sanitize */
+    const o = Uint8Array.from(Array.from(v).slice(0, SIZE));
+    for (let i = 0; i < SIZE; i++) o[i] = i >= NAME ? (o[i] < 32 || o[i] > 126 ? 32 : o[i]) : Math.min(o[i], max(i));
+    return o;
+  }
+  function unpack(b) {                            /* eng_fm6.c fm6_unpack */
+    const v = new Uint8Array(SIZE);
+    for (let k = 0; k < 6; k++) {
+      const o = k * 17, d = k * 21;
+      for (let i = 0; i < 11; i++) v[d + i] = b[o + i] & 127;
+      v[d + 11] = b[o + 11] & 3; v[d + 12] = b[o + 11] >> 2 & 3; v[d + 13] = b[o + 12] & 7; v[d + 20] = b[o + 12] >> 3 & 15;
+      v[d + 14] = b[o + 13] & 3; v[d + 15] = b[o + 13] >> 2 & 7; v[d + 16] = b[o + 14] & 127; v[d + 17] = b[o + 15] & 1;
+      v[d + 18] = b[o + 15] >> 1 & 31; v[d + 19] = b[o + 16] & 127;
+    }
+    for (let i = 0; i < 9; i++) v[126 + i] = b[102 + i] & 127;
+    v[134] &= 31; v[135] = b[111] & 7; v[136] = b[111] >> 3 & 1;
+    for (let i = 0; i < 4; i++) v[137 + i] = b[112 + i] & 127;
+    v[141] = b[116] & 1; v[142] = b[116] >> 1 & 7; v[143] = b[116] >> 4 & 7; v[144] = b[117] & 127;
+    for (let i = 0; i < 10; i++) v[NAME + i] = b[118 + i] & 127;
+    return sanitize(v);
+  }
+  function pack(v) {                              /* eng_fm6.c fm6_pack */
+    const b = new Array(PACKED).fill(0);
+    for (let k = 0; k < 6; k++) {
+      const o = k * 17, d = k * 21;
+      for (let i = 0; i < 11; i++) b[o + i] = v[d + i] & 127;
+      b[o + 11] = (v[d + 11] & 3) | (v[d + 12] & 3) << 2; b[o + 12] = (v[d + 13] & 7) | (v[d + 20] & 15) << 3;
+      b[o + 13] = (v[d + 14] & 3) | (v[d + 15] & 7) << 2; b[o + 14] = v[d + 16] & 127;
+      b[o + 15] = (v[d + 17] & 1) | (v[d + 18] & 31) << 1; b[o + 16] = v[d + 19] & 127;
+    }
+    for (let i = 0; i < 9; i++) b[102 + i] = v[126 + i] & 127;
+    b[110] &= 31; b[111] = (v[135] & 7) | (v[136] & 1) << 3;
+    for (let i = 0; i < 4; i++) b[112 + i] = v[137 + i] & 127;
+    b[116] = (v[141] & 1) | (v[142] & 7) << 1 | (v[143] & 7) << 4; b[117] = v[144] & 127;
+    for (let i = 0; i < 10; i++) b[118 + i] = v[NAME + i] & 127;
+    return b;
+  }
+  const name = (v) => String.fromCharCode(...Array.from(v).slice(NAME, NAME + 10)).replace(/\s+$/, "");
+  function setName(v, s) {
+    const t = String(s).toUpperCase().replace(/[^\x20-\x7E]/g, " ").slice(0, 10).padEnd(10, " ");
+    for (let i = 0; i < 10; i++) v[NAME + i] = t.charCodeAt(i);
+    return v;
+  }
+  const checksum = (a) => (128 - (Array.from(a).reduce((s, x) => s + x, 0) & 127)) & 127;
+  /* every voice in a file's bytes: [{name, v}], how many messages had a wrong checksum (still read), and bank: the
+     file is one 32-voice bank (its voices in order) */
+  function parseSysex(bytes) {
+    const d = Uint8Array.from(bytes), voices = [];
+    let badSum = 0, banks = 0, singles = 0;
+    if (d.length === SIZE && d[0] !== 0xF0) return { voices: [{ v: sanitize(d), name: name(sanitize(d)) }], badSum, bank: false };
+    if (d.length === BANK * PACKED && d[0] !== 0xF0) {
+      for (let k = 0; k < BANK; k++) { const v = unpack(d.subarray(k * PACKED, k * PACKED + PACKED)); voices.push({ v, name: name(v) }); }
+      return { voices, badSum, bank: true };
+    }
+    for (let i = 0; i < d.length; i++) {
+      if (d[i] !== 0xF0) continue;
+      let e = i + 1;
+      while (e < d.length && d[e] !== 0xF7) e++;
+      const m = d.subarray(i, e + 1);
+      i = e;
+      if (m.length < 8 || m[1] !== 0x43 || (m[2] & 0xF0) !== 0) continue;
+      if (m[3] === 0 && m[4] === 0x01 && m[5] === 0x1B && m.length === 163) {
+        const data = m.subarray(6, 6 + SIZE);
+        if (checksum(data) !== m[161]) badSum++;
+        const v = sanitize(data);
+        voices.push({ v, name: name(v) });
+        singles++;
+      } else if (m[3] === 9 && m[4] === 0x20 && m[5] === 0 && m.length === 4104) {
+        const data = m.subarray(6, 6 + BANK * PACKED);
+        if (checksum(data) !== m[4102]) badSum++;
+        for (let k = 0; k < BANK; k++) { const v = unpack(data.subarray(k * PACKED, k * PACKED + PACKED)); voices.push({ v, name: name(v) }); }
+        banks++;
+      }
+    }
+    return { voices, badSum, bank: banks === 1 && !singles };
+  }
+  function singleSysex(v, ch = 0) {
+    const data = Array.from(sanitize(v));
+    return Uint8Array.from([0xF0, 0x43, ch & 15, 0, 0x01, 0x1B, ...data, checksum(data), 0xF7]);
+  }
+  function bankSysex(voices, ch = 0) {            /* up to 32 voices (155 bytes each), the rest the init voice */
+    const data = [];
+    for (let k = 0; k < BANK; k++) data.push(...(voices[k] ? pack(voices[k]) : INIT_PK));
+    return Uint8Array.from([0xF0, 0x43, ch & 15, 9, 0x20, 0, ...data, checksum(data), 0xF7]);
+  }
+  /* the 32 algorithms (msfa's tables; fm6_core.c FM6_ALG): per operator, the sixth first */
+  const ALG = [[0xc1, 0x11, 0x11, 0x14, 0x01, 0x14], [0x01, 0x11, 0x11, 0x14, 0xc1, 0x14], [0xc1, 0x11, 0x14, 0x01, 0x11, 0x14],
+    [0xc1, 0x11, 0x94, 0x01, 0x11, 0x14], [0xc1, 0x14, 0x01, 0x14, 0x01, 0x14], [0xc1, 0x94, 0x01, 0x14, 0x01, 0x14],
+    [0xc1, 0x11, 0x05, 0x14, 0x01, 0x14], [0x01, 0x11, 0xc5, 0x14, 0x01, 0x14], [0x01, 0x11, 0x05, 0x14, 0xc1, 0x14],
+    [0x01, 0x05, 0x14, 0xc1, 0x11, 0x14], [0xc1, 0x05, 0x14, 0x01, 0x11, 0x14], [0x01, 0x05, 0x05, 0x14, 0xc1, 0x14],
+    [0xc1, 0x05, 0x05, 0x14, 0x01, 0x14], [0xc1, 0x05, 0x11, 0x14, 0x01, 0x14], [0x01, 0x05, 0x11, 0x14, 0xc1, 0x14],
+    [0xc1, 0x11, 0x02, 0x25, 0x05, 0x14], [0x01, 0x11, 0x02, 0x25, 0xc5, 0x14], [0x01, 0x11, 0x11, 0xc5, 0x05, 0x14],
+    [0xc1, 0x14, 0x14, 0x01, 0x11, 0x14], [0x01, 0x05, 0x14, 0xc1, 0x14, 0x14], [0x01, 0x14, 0x14, 0xc1, 0x14, 0x14],
+    [0xc1, 0x14, 0x14, 0x14, 0x01, 0x14], [0xc1, 0x14, 0x14, 0x01, 0x14, 0x04], [0xc1, 0x14, 0x14, 0x14, 0x04, 0x04],
+    [0xc1, 0x14, 0x14, 0x04, 0x04, 0x04], [0xc1, 0x05, 0x14, 0x01, 0x14, 0x04], [0x01, 0x05, 0x14, 0xc1, 0x14, 0x04],
+    [0x04, 0xc1, 0x11, 0x14, 0x01, 0x14], [0xc1, 0x14, 0x01, 0x14, 0x04, 0x04], [0x04, 0xc1, 0x11, 0x14, 0x04, 0x04],
+    [0xc1, 0x14, 0x04, 0x04, 0x04, 0x04], [0xc4, 0x04, 0x04, 0x04, 0x04, 0x04]];
+  /* operators 1..6 that are carriers (on the output bus), and the one with the feedback, of algorithm a (0..31) */
+  const carriers = (a) => [1, 2, 3, 4, 5, 6].filter((n) => !(ALG[a & 31][6 - n] & 3));
+  const feedbackOp = (a) => [1, 2, 3, 4, 5, 6].find((n) => (ALG[a & 31][6 - n] & 0xc0) === 0xc0);
+  /* an operator's frequency as text: x ratio, or Hz for a fixed one (msfa note osc_freq) */
+  function freqText(v, n) {
+    const fc = v[at(n, "FC")], ff = v[at(n, "FF")];
+    if (v[at(n, "MODE")]) return (10 ** ((fc & 3) + ff / 100)).toPrecision(4) + " Hz";
+    return "x" + ((fc ? fc : 0.5) * (1 + ff / 100)).toFixed(2);
+  }
+  /* the firmware's init voice and factory patches F1..F8 (build/gen/felucca_fm6.h; test_web.mjs: == the firmware) */
+  const INIT_PK = [99,99,99,99,99,99,99,0,39,0,0,0,56,0,0,2,0,99,99,99,99,99,99,99,0,39,0,0,0,56,0,0,2,0,99,99,99,99,99,99,99,0,39,0,0,0,56,0,0,2,0,99,99,99,99,99,99,99,0,39,0,0,0,56,0,0,2,0,99,99,99,99,99,99,99,0,39,0,0,0,56,0,0,2,0,99,99,99,99,99,99,99,0,39,0,0,0,56,0,99,2,0,99,99,99,99,50,50,50,50,0,8,35,0,0,0,49,24,73,78,73,84,32,86,79,73,67,69];
+  const FACTORY_PK = [
+    [95,40,30,60,99,80,0,0,39,0,0,0,56,12,52,2,0,95,30,20,60,99,90,0,0,39,0,0,0,48,4,78,2,0,97,62,40,60,99,60,0,0,39,0,0,0,59,24,68,28,0,95,20,20,50,99,95,0,0,39,0,0,0,66,8,90,2,0,95,50,35,78,99,75,0,0,39,0,0,0,59,28,58,2,0,96,25,25,67,99,75,0,0,39,0,0,0,59,8,98,2,0,99,99,99,99,50,50,50,50,4,11,34,33,0,0,41,24,84,73,78,69,32,69,80,32,32,32],   /* TINE EP */
+    [99,60,40,45,99,50,0,0,39,0,0,0,56,0,60,2,0,99,60,40,45,99,50,0,0,39,0,0,0,40,0,78,10,40,99,50,30,40,99,60,0,0,39,0,0,0,56,12,70,10,0,99,45,30,40,99,70,0,0,39,0,0,0,72,4,84,4,38,99,35,25,35,99,70,0,0,39,0,0,0,56,12,78,6,50,99,40,25,35,99,80,0,0,39,0,0,0,56,4,96,2,0,99,99,99,99,50,50,50,50,4,8,35,0,0,0,1,24,71,76,65,83,83,32,66,69,76,76],   /* BELL */
+    [99,99,99,99,99,99,99,0,39,0,0,0,56,0,0,2,0,99,99,99,99,99,99,99,0,39,0,0,0,56,0,0,2,0,99,72,50,75,99,65,40,0,39,0,0,0,56,24,78,4,0,99,55,40,75,99,70,50,0,39,0,0,0,64,4,80,2,0,99,60,40,75,99,72,55,0,39,0,0,0,56,20,80,2,0,99,40,30,75,99,85,70,0,39,0,0,0,56,8,99,2,0,99,99,99,99,50,50,50,50,4,8,35,0,0,0,1,24,82,79,85,78,68,32,66,65,83,83],   /* FM BASS */
+    [52,50,40,60,99,85,82,0,39,0,0,0,56,8,72,2,0,62,50,40,60,99,92,90,0,39,0,0,0,40,4,88,2,0,50,50,40,60,99,88,85,0,39,0,0,0,56,12,78,2,0,62,50,40,60,99,92,90,0,39,0,0,0,72,4,92,2,0,55,50,40,60,99,88,85,0,39,0,0,0,56,12,80,2,0,65,50,40,60,99,92,90,0,39,0,0,0,56,4,98,2,0,80,60,99,60,46,50,50,50,4,13,33,50,6,0,57,24,66,82,65,83,83,32,83,69,67,84],   /* BRASS */
+    [35,30,40,40,85,90,85,0,39,0,0,0,56,0,50,2,0,38,30,40,40,99,95,90,0,39,0,0,0,56,0,80,4,0,30,25,40,40,80,90,85,0,39,0,0,0,56,4,55,4,0,40,30,40,40,99,95,90,0,39,0,0,0,80,0,92,2,0,35,30,40,40,85,90,80,0,39,0,0,0,56,4,60,2,0,40,30,40,40,99,95,90,0,39,0,0,0,40,0,92,2,0,99,99,99,99,50,50,50,50,4,10,30,60,4,0,41,24,83,79,70,84,32,80,65,68,32,32],   /* PAD */
+    [99,99,99,99,99,99,99,0,39,0,0,0,56,0,0,2,0,99,99,99,99,99,99,99,0,39,0,0,0,56,0,0,2,0,99,80,50,60,99,0,0,0,39,0,0,0,59,12,45,2,0,99,70,50,60,99,0,0,0,39,0,0,0,59,12,72,8,0,99,75,50,60,99,0,0,0,39,0,0,0,59,20,70,8,0,99,52,40,55,99,0,0,0,39,0,0,0,58,8,99,2,0,99,99,99,99,50,50,50,50,4,8,35,0,0,0,1,24,87,79,79,68,32,66,65,82,83,32],   /* MARIMBA */
+    [99,99,99,85,99,99,99,0,39,0,0,0,56,0,72,2,50,99,99,99,85,99,99,99,0,39,0,0,0,56,0,78,8,0,99,99,99,85,99,99,99,0,39,0,0,0,56,0,76,6,0,99,99,99,85,99,99,99,0,39,0,0,0,56,0,86,4,0,99,99,99,85,99,99,99,0,39,0,0,0,56,0,84,0,0,99,99,99,85,99,99,99,0,39,0,0,0,56,0,90,2,0,99,99,99,99,50,50,50,50,31,8,60,0,3,0,57,24,68,82,65,87,66,65,82,83,32,32],   /* ORGAN */
+    [99,99,99,99,99,99,99,0,39,0,0,0,56,0,0,2,0,99,99,99,99,99,99,99,0,39,0,0,0,56,0,0,2,0,99,75,40,60,99,30,0,0,39,0,0,0,58,12,68,2,0,99,60,40,60,99,30,0,0,39,0,0,0,66,8,74,4,0,99,70,40,60,99,40,0,0,39,0,0,0,58,16,76,6,0,99,45,30,60,99,60,0,0,39,0,0,0,58,8,98,2,0,99,99,99,99,50,50,50,50,4,8,35,0,0,0,1,24,78,89,76,79,78,32,80,73,67,75],   /* PLUCK */
+  ];
+  const init = () => unpack(INIT_PK);
+  const factory = (k) => unpack(FACTORY_PK[k]);
+  return { OP, VOICE, OPI, VI, NAME, SIZE, PACKED, BANK, max, at, sanitize, unpack, pack, name, setName, checksum, parseSysex,
+    singleSysex, bankSysex, ALG, carriers, feedbackOp, freqText, INIT_PK, FACTORY_PK, init, factory,
+    TARGET: { TRACK: 0, BANK: 1, FACTORY: 2 } };
+})();
 
 /* ------------------------------------------------------------- formatting --- */
 const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
@@ -1427,7 +1624,7 @@ function makeMockDevice(opt = {}) {
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   /* four tracks (firmware v3); engine / preset / p / step below are the selected track's */
   const NTRK = 4, TRK_DRUM = 3;
-  const newTrack = (i) => ({ engine: 0, preset: 0, drum: i === TRK_DRUM,
+  const newTrack = (i) => ({ engine: 0, preset: 0, drum: i === TRK_DRUM, fm6: FM6.INIT_PK.slice(), fm6slot: -1,
     p: TP.map((d) => d.def).concat(new Array(8).fill(0)),
     step: Array.from({ length: NSTEP }, () => ({ n: 0, notes: [0, 0, 0, 0], time: 2, flags: 0, vel: 0 })) });
   const st = {
@@ -1505,6 +1702,7 @@ function makeMockDevice(opt = {}) {
     for (const t of o.tracks) {
       out.push(t.engine, t.preset, t.drum ? 1 : 0, t.p.length); t.p.forEach(w16);
       for (const x of t.step) out.push(x.n, ...x.notes, x.time, x.flags, x.vel);
+      out.push(...(t.fm6 || FM6.INIT_PK));        /* the track's FM6 patch (the firmware's JNG1 section 1) */
     }
     return Uint8Array.from(out);
   };
@@ -1517,6 +1715,8 @@ function makeMockDevice(opt = {}) {
       const t = { engine: d[i++], preset: d[i++], drum: !!d[i++], p: [], step: [] }, np = d[i++];
       for (let j = 0; j < np; j++) t.p.push(r16());
       for (let j = 0; j < NSTEP; j++) { t.step.push({ n: d[i], notes: [d[i + 1], d[i + 2], d[i + 3], d[i + 4]], time: d[i + 5], flags: d[i + 6], vel: d[i + 7] }); i += 8; }
+      t.fm6 = Array.from(d.slice(i, i + FM6.PACKED)); i += FM6.PACKED;
+      t.fm6slot = t.p[P_E0 + 7];                    /* (its own patch, PTCH as saved) */
       o.tracks.push(t);
     }
     if (i !== d.length) throw new Error("mock project size");
@@ -1535,7 +1735,26 @@ function makeMockDevice(opt = {}) {
     return Object.keys(x).length ? bkEnc(x) : new Uint8Array(0);
   };
 
+  /* the FM6 patches (firmware 0.5: cmds 68..71, eng_fm6.c / fm6_bank.c) */
+  const FM6_E = ENG.findIndex((e) => e.name === "FM6");
+  const fm6Ok = () => !opt.legacy && !opt.v3 && !opt.noBackup && !opt.v5 && !opt.noFm6;
+  function fm6Poll() {                            /* eng_fm6.c fm6_poll: PTCH turned on an FM6 track -> that patch */
+    const nf = FM6.FACTORY_PK.length;
+    for (const t of st.tracks) {
+      if (t.drum || t.engine !== FM6_E || t.p[P_E0 + 7] === t.fm6slot) continue;
+      const k = t.p[P_E0 + 7];
+      t.fm6 = (k < nf ? FM6.FACTORY_PK[k] : st.fm6bank[k - nf] || FM6.INIT_PK).slice();
+      t.fm6slot = k;
+    }
+  }
+
   function handle(cmd, a) {
+    fm6Poll();
+    const r = handle1(cmd, a);
+    fm6Poll();
+    return r;
+  }
+  function handle1(cmd, a) {
     const out = [];
     const b = (x) => out.push(x & 0x7F), v = (x) => out.push(...v14enc(x)), s = (x) => out.push(...strEnc(x));
     if (opt.legacy && cmd >= CMD.UP_LIST) return null;
@@ -1615,6 +1834,7 @@ function makeMockDevice(opt = {}) {
         ENG.forEach((e) => s(e.name));
         if (!opt.legacy) b(NTRK);
         if (!opt.legacy && !opt.v3 && !opt.noBackup) b(opt.v5 ? 5 : 6);   /* v5 (Jangada): backup / restore; v6: + the FM6 bank */
+        if (fm6Ok()) { b(0x46); b(1); b(FM6.FACTORY_PK.length); b(FM6.BANK); }   /* FM6 patches */
         break;
       case CMD.GET: case CMD.SET: {
         if (a.length < 2) return null;
@@ -1796,6 +2016,42 @@ function makeMockDevice(opt = {}) {
         b(op); b(id); b(rc);
         break;
       }
+      case CMD.FM6_GET: case CMD.FM6_PUT: case CMD.FM6_LIST: case CMD.FM6_ERASE: {   /* editor_fm6.c */
+        if (!fm6Ok()) return null;
+        const nf = FM6.FACTORY_PK.length, nb = FM6.BANK;
+        if (cmd === CMD.FM6_LIST) {
+          if (a.length) return null;
+          b(nf); b(nb);
+          for (let i = 0; i < nf + nb; i++) {
+            const pk = i < nf ? FM6.FACTORY_PK[i] : st.fm6bank[i - nf];
+            b(pk ? 1 : 0); s(pk ? FM6.name(FM6.unpack(pk)) : "");
+          }
+        } else if (cmd === CMD.FM6_ERASE) {
+          const rc = a.length !== 1 || a[0] >= nb ? 1 : st.playing ? 3 : 0;
+          if (!rc) {
+            st.fm6bank[a[0]] = null;
+            st.tracks.forEach((t) => { if (t.fm6slot === nf + a[0]) t.fm6slot = -1; });
+          }
+          b(a[0] ?? 127); b(rc);
+        } else if (cmd === CMD.FM6_GET) {
+          let rc = a.length !== 2 || a[0] > 2 ? 1 : 0, pk = null;
+          if (!rc) pk = a[0] === 0 ? (a[1] < NTRK ? st.tracks[a[1]].fm6 : undefined) : a[0] === 1 ? (a[1] < nb ? st.fm6bank[a[1]] : undefined)
+            : (a[1] < nf ? FM6.FACTORY_PK[a[1]] : undefined);
+          if (!rc) rc = pk === undefined ? 1 : pk ? 0 : 2;
+          b(a[0] ?? 127); b(a[1] ?? 127); b(rc);
+          if (!rc) pk.forEach(b);
+        } else {
+          let rc = a.length !== 2 + FM6.PACKED || a[0] > 1 || a[1] >= (a[0] ? nb : NTRK) ? 1 : a[0] === 1 && st.playing ? 3 : 0;
+          const pk = rc ? null : FM6.pack(FM6.unpack(a.slice(2)));   /* (every value into its range) */
+          if (!rc && a[0] === 0) { const t = st.tracks[a[1]]; t.fm6 = pk; t.fm6slot = t.p[P_E0 + 7]; }
+          else if (!rc) {
+            st.fm6bank[a[1]] = pk;
+            st.tracks.forEach((t) => { if (t.fm6slot === nf + a[1]) t.fm6slot = -1; });   /* tracks on that slot reload */
+          }
+          b(a[0] ?? 127); b(a[1] ?? 127); b(rc);
+        }
+        break;
+      }
       case CMD.SMP_INFO:
         b(3); b(SMP.SLOT_SIZE / 1024);
         st.smp.forEach((u) => { b(u.zones); s(u.zones ? u.name : ""); b(u.zones ? Math.ceil(u.len / 1024) : 0); });
@@ -1818,7 +2074,7 @@ function makeMockDevice(opt = {}) {
       busy = true;
       watching();                                   /* a lapsed WATCH ends before this request counts */
       st.lastReq = Date.now();
-      const flash = [CMD.UP_PUT, CMD.UP_STORE, CMD.UP_ERASE].includes(f.cmd) && !opt.legacy;
+      const flash = ([CMD.UP_PUT, CMD.UP_STORE, CMD.UP_ERASE, CMD.FM6_ERASE].includes(f.cmd) || (f.cmd === CMD.FM6_PUT && f.a[0] === 1)) && !opt.legacy;
       setTimeout(() => {
         busy = false;
         const r = handle(f.cmd, f.a);
@@ -1843,6 +2099,7 @@ function makeMockDevice(opt = {}) {
   const reloadPush = () => push(CMD.RELOAD, opt.legacy ? [st.engine, st.preset] : [engOf(st.tracks[st.sel]), st.preset, st.sel]);
   /* things done on the device itself */
   const sim = {
+    play(on = true) { st.playing = !!on; },          /* the transport (an FM6 bank write answers rc 3) */
     knob(id = [9, 33, 35, P_E0 + 4][Math.floor(Math.random() * 4)], dv = Math.random() < 0.5 ? -4 : 4) {
       const d = desc(0, id);
       st.p[id] = clamp(st.p[id] + dv, d.min, d.max);
@@ -2033,6 +2290,16 @@ const TEXT = {
     bkWrite: "書き込みエラー（途中までの項目は復元済み。もう一度復元できます）: ", bkFlash: "フラッシュに書き込めません: ",
     system: "システム", firmware: "ファームウェア", sync: "同期", tracksN: "トラック", stepsN: "ステップ数", enginesL: "エンジン",
     smpSlots: "サンプルスロット", userBank: "ユーザープリセット", none: "なし",
+    tabFm6: "6-OP FM", fm6Help: "FM6 エンジンの音色（6 オペレーター）をまるごと編集します。本体のノブはこの音色の上にかかるマクロです。トラックへ送るとすぐ鳴り、プロジェクトに保存されます。バンク（B1〜B32）に保存すると PTCH で呼び出せます。DX7 形式の SysEx（1 音色、32 音色のバンク）を読み込み・書き出しできます。",
+    fm6Source: "音色の出し入れ", fm6ReadBtn: "トラックから読む", fm6SendBtn: "トラックへ送る", fm6Live: "編集しながら送る",
+    fm6Slot: "スロット", fm6StoreBtn: "バンクに保存", fm6Import: "SysEx を読み込む", fm6Export: "SysEx に書き出し",
+    fm6BankExport: "バンクを SysEx に書き出し", fm6Init: "初期音色", fm6Voice: "ボイス", fm6Ops: "オペレーター",
+    fm6Carriers: "キャリア", fm6Feedback: "フィードバック", fm6PitchEg: "ピッチ EG", fm6Freq: "周波数",
+    fm6Legend: "R1〜R4 / L1〜L4: EG のレートとレベル、BP LD RD LC RC: キーボードレベルスケーリング、RS: レートスケーリング、AMS: LFO 音量変調、KVS: ベロシティ、OL: 出力レベル、MODE: 比率 / 固定、FC FF: 周波数（粗・細）、DET: デチューン（7 が中央）。● はキャリア。",
+    fm6Pick: "読み込んだファイルの音色（押すと編集へ）:", fm6Picked: "編集中:", fm6Sent: "トラックへ送りました", fm6Read: "トラックから読みました",
+    fm6Loaded: "読み込みました", fm6Factory: "F1〜F8 はファクトリー音色です。B1〜B32 を選んでください。", fm6BadSum: "チェックサム不一致あり",
+    fm6Exported: "バンクを書き出しました", fm6BankPut: "32 音色を B1〜B32 に保存", fm6BankConfirm: "バンク B1〜B32 をこのファイルの 32 音色で置き換えますか？",
+    fm6Storing: "保存中 ", fm6BankDone: "バンクを保存しました: B1〜B32", fm6Stop: "FM-1 の再生を止めてからバンクに書き込んでください。",
   },
   en: {
     other: "日本語", connect: "Connect", disconnect: "Disconnect", mock: "Mock device (no hardware)",
@@ -2112,6 +2379,16 @@ const TEXT = {
     bkWrite: "Write error (the objects before it are restored; you can restore again): ", bkFlash: "Cannot write the flash: ",
     system: "System", firmware: "Firmware", sync: "Sync", tracksN: "Tracks", stepsN: "Steps", enginesL: "Engines",
     smpSlots: "Sample slots", userBank: "User presets", none: "none",
+    tabFm6: "6-OP FM", fm6Help: "Edit the whole patch of the FM6 engine (six operators). The device's knobs are macros on top of it. Sent to a track it plays at once and the project keeps it; stored in the bank (B1..B32) it is a PTCH value. Reads and writes DX7-format SysEx (one voice, or a bank of 32).",
+    fm6Source: "Patches in and out", fm6ReadBtn: "Read from track", fm6SendBtn: "Send to track", fm6Live: "Send while editing",
+    fm6Slot: "Slot", fm6StoreBtn: "Store in bank", fm6Import: "Import SysEx", fm6Export: "Export SysEx",
+    fm6BankExport: "Export bank as SysEx", fm6Init: "Init voice", fm6Voice: "Voice", fm6Ops: "Operators",
+    fm6Carriers: "carriers", fm6Feedback: "feedback", fm6PitchEg: "Pitch EG", fm6Freq: "Frequency",
+    fm6Legend: "R1..R4 / L1..L4: EG rates and levels; BP LD RD LC RC: keyboard level scaling; RS: rate scaling; AMS: LFO amplitude modulation; KVS: velocity; OL: output level; MODE: ratio / fixed; FC FF: coarse / fine frequency; DET: detune (7 = centre). ● = carrier.",
+    fm6Pick: "Voices of the imported file (click to edit):", fm6Picked: "Editing:", fm6Sent: "Sent to track", fm6Read: "Read from track",
+    fm6Loaded: "Loaded", fm6Factory: "F1..F8 are the factory patches: pick B1..B32.", fm6BadSum: "a checksum did not match",
+    fm6Exported: "Bank exported", fm6BankPut: "Store all 32 in B1..B32", fm6BankConfirm: "Replace the whole bank B1..B32 with the 32 voices of this file?",
+    fm6Storing: "Storing ", fm6BankDone: "Bank stored: B1..B32", fm6Stop: "Stop the FM-1 (PLAY), then write to the bank.",
   },
 };
 let lang = (navigator.language || "en").toLowerCase().startsWith("ja") ? "ja" : "en";
@@ -2129,13 +2406,13 @@ function applyLang() {
   renderLib();
   renderBank();
   renderPanels();
-  if (dev) { renderSlots(); renderStepHead(); renderSamples(); renderTrackbar(); renderMixer(); renderSysinfo(); }
+  if (dev) { renderSlots(); renderStepHead(); renderSamples(); renderTrackbar(); renderMixer(); renderSysinfo(); renderFm6(); }
 }
 $("lang").addEventListener("click", () => { lang = lang === "ja" ? "en" : "ja"; applyLang(); });
 
 /* ---------------------------------------------------------------- tabs --- */
 /* one panel at a time; the last one is remembered (localStorage) and in the URL hash (#sound ...) */
-const TABS = ["sound", "sequencer", "tracks", "library", "samples", "projects", "settings"];
+const TABS = ["sound", "fm6", "sequencer", "tracks", "library", "samples", "projects", "settings"];
 const TAB_KEY = "felucca-editor-tab";
 const TRACK_TABS = new Set(["sound", "sequencer", "tracks"]);
 let tab = (() => {
@@ -2153,16 +2430,19 @@ function showTab(name) {
   if (location.hash !== "#" + name) history.replaceState(null, "", location.pathname + location.search + "#" + name);
   renderPanels();
   if (name === "tracks" && prev !== "tracks" && hasTracks() && dev.dump) op(readMixer);
+  if (name === "fm6" && prev !== "fm6" && dev && dev.dump && dev.info.fm6) op(fm6Enter);
 }
 function renderPanels() {
   /* the Tracks tab only with a four-track firmware */
   const tracksOk = !dev || hasTracks() || !dev.info;
-  const want = tab === "tracks" && dev && dev.info && !hasTracks() ? "sound" : tab;
+  const fm6Off = !!dev && !!dev.info && !dev.info.fm6;              /* the 6-OP FM tab: firmware with FM6 patches */
+  const want = (tab === "tracks" && dev && dev.info && !hasTracks()) || (tab === "fm6" && fm6Off) ? "sound" : tab;
   for (const b of $("tabs").querySelectorAll("button[data-tab]")) {
     const on = b.dataset.tab === want;
     b.setAttribute("aria-selected", on ? "true" : "false");
     b.tabIndex = on ? 0 : -1;
     if (b.dataset.tab === "tracks") b.hidden = !tracksOk;
+    if (b.dataset.tab === "fm6") b.hidden = fm6Off;
   }
   const ready = !!dev && !!dev.dump;
   let hint = "";
@@ -2298,6 +2578,8 @@ function disconnect(reasonKey = "disconnected") {
   dev = null;
   busy = 0;
   needReload = false;
+  fm6List = null;
+  fm6Seen = false;
   renderPanels();
   renderMixer();
   renderSysinfo();
@@ -2368,6 +2650,7 @@ async function load(d) {
     renderLib();
     renderBank();
     renderSysinfo();
+    if (tab === "fm6" && d.info.fm6) await fm6Enter();
     sayK("ready");
   } finally { busy--; }
 }
@@ -2401,6 +2684,7 @@ function buildUI() {
   renderSamples();
   renderSysinfo();
   $("bkgroup").hidden = !(dev.info.proto >= 5);       /* v5 (Jangada) firmware: backup / restore */
+  renderFm6();                                        /* (the 6-OP FM tab: the init voice until it reads the track) */
 }
 
 /* the track selector (v3): T1..T3 synth parts, T4 the drum track; the editor shows the selected one */
@@ -4182,6 +4466,196 @@ $("bkexport").addEventListener("click", () => libOp(async () => {
   }
   download(`jangada-bank-${today()}.json`, libraryFile("bank", out, libCtx()));
   sayK("ready");
+}));
+
+/* ------------------------------------------------------------------ FM6 --- */
+/* The 6-OP FM tab (firmware with FM6 patches: INFO's 46 01 tag; after Felucca 1.0's): the whole patch of an FM6
+   track, which the device's knobs only reach through its macros. Read a track's patch or a slot, edit it, send it
+   to a track (live while editing), store it in the bank (B1..B32), import the DX7-format SysEx files (one voice,
+   or a bank of 32: all of it into B1..B32 at once), export them. */
+let fm6v = FM6.init();                 /* the patch being edited (155 bytes) */
+let fm6Imported = [];                  /* voices of the last imported file: [{name, v}] */
+let fm6ImportedBank = false;           /* ... and it was one 32-voice bank */
+let fm6List = null;                    /* FM6_LIST of the device */
+let fm6Seen = false;                   /* the tab was opened on this connection (the selected track read once) */
+let fm6Timer = null;
+const fm6Ok = () => !!dev && !!dev.info && !!dev.info.fm6;
+const fm6Track = () => +$("fm6trk").value || 0;
+const fm6SlotName = (i) => (i < dev.info.fm6.factory ? "F" + (i + 1) : "B" + (i - dev.info.fm6.factory + 1));
+const FM6_WAVES = ["TRI", "SAW-", "SAW+", "SQR", "SIN", "S&H"];
+const FM6_CURVES = ["-LIN", "-EXP", "+EXP", "+LIN"];
+const fm6Rc = (rc) => { if (rc === 3) throw new Error(t("fm6Stop")); checkRc(rc); };
+function fm6Set(i, val) {
+  fm6v[i] = Math.max(0, Math.min(FM6.max(i), Math.round(+val || 0)));
+  if ($("fm6live").checked && fm6Ok()) {
+    clearTimeout(fm6Timer);
+    fm6Timer = setTimeout(() => op(() => fm6Send(true)), 150);
+  }
+}
+function fm6Num(i, title) {
+  return el("input", { type: "number", min: 0, max: FM6.max(i), value: fm6v[i], title, class: "fm6n",
+    onchange: (e) => { fm6Set(i, e.target.value); e.target.value = fm6v[i]; renderFm6Ops(); } });
+}
+function fm6Sel(i, names, title) {
+  const s = el("select", { title, onchange: (e) => { fm6Set(i, e.target.value); renderFm6(); } },
+    ...names.map((n, k) => el("option", { value: k, text: n })));
+  s.value = fm6v[i];
+  return s;
+}
+function renderFm6Voice() {
+  const V = FM6.VI, alg = fm6v[V.ALG], fb = FM6.feedbackOp(alg);
+  const nm = el("input", { type: "text", maxlength: 10, value: FM6.name(fm6v), size: 11, spellcheck: "false",
+    onchange: (e) => { FM6.setName(fm6v, e.target.value); fm6Set(0, fm6v[0]); e.target.value = FM6.name(fm6v); } });
+  const row = (label, ...kids) => el("tr", {}, el("th", { text: label }), el("td", {}, ...kids));
+  $("fm6voice").replaceChildren(el("table", {},
+    row(t("name"), nm),
+    row("ALG", fm6Sel(V.ALG, Array.from({ length: 32 }, (_, k) => String(k + 1)), "ALG"),
+      el("span", { class: "dim", text: ` ${t("fm6Carriers")} ${FM6.carriers(alg).join(" ")} · ${t("fm6Feedback")} OP${fb}` })),
+    row("FB", fm6Num(V.FB, "FB"), " OKS ", fm6Num(V.OKS, "OKS"), " TRNSP ", fm6Num(V.TRNSP, "TRNSP")),
+    row("LFO", fm6Sel(V.LFW, FM6_WAVES, "WAVE"), " SPD ", fm6Num(V.LFS, "SPEED"), " DLY ", fm6Num(V.LFD, "DELAY"),
+      " PMD ", fm6Num(V.LPMD, "PMD"), " AMD ", fm6Num(V.LAMD, "AMD"), " PMS ", fm6Num(V.LPMS, "PMS"), " SYNC ", fm6Num(V.LKS, "SYNC")),
+    row(t("fm6PitchEg"), "R ", ...[0, 1, 2, 3].map((k) => fm6Num(V.PR1 + k, "R" + (k + 1))),
+      " L ", ...[0, 1, 2, 3].map((k) => fm6Num(V.PL1 + k, "L" + (k + 1))))));
+}
+function renderFm6Ops() {
+  const car = FM6.carriers(fm6v[FM6.VI.ALG]);
+  const head = el("tr", {}, el("th", { text: "OP" }), ...FM6.OP.map(([n]) => el("th", { text: n })), el("th", { text: t("fm6Freq") }));
+  const rows = [1, 2, 3, 4, 5, 6].map((n) => el("tr", {},
+    el("th", { text: (car.includes(n) ? "● " : "") + n }),
+    ...FM6.OP.map(([f]) => el("td", {}, f === "LC" || f === "RC" ? fm6Sel(FM6.at(n, f), FM6_CURVES, f)
+      : f === "MODE" ? fm6Sel(FM6.at(n, f), ["RATIO", "FIXED"], f) : fm6Num(FM6.at(n, f), `OP${n} ${f}`))),
+    el("td", { class: "dim", text: FM6.freqText(fm6v, n) })));
+  $("fm6ops").replaceChildren(el("div", { class: "fm6ops" }, el("table", {}, head, ...rows)), el("p", { class: "dim", text: t("fm6Legend") }));
+}
+function renderFm6Imported() {
+  const box = $("fm6imported");
+  if (!fm6Imported.length) { box.replaceChildren(); return; }
+  box.replaceChildren(el("p", { class: "dim", text: t("fm6Pick") }),
+    el("p", { class: "bar" }, ...fm6Imported.map((x, k) => el("button", { type: "button", class: "tog", text: `${k + 1} ${x.name}`,
+      onclick: () => { fm6v = Uint8Array.from(x.v); renderFm6(); sayK("fm6Picked", ` ${x.name}`); } }))),
+    ...(fm6ImportedBank ? [el("p", { class: "bar" }, el("button", { type: "button", id: "fm6bankput", ic: "port_disk", text: t("fm6BankPut"),
+      onclick: fm6BankPut }))] : []));
+}
+function renderFm6() {
+  if (!fm6Ok()) return;
+  const ts = $("fm6trk"), keepT = ts.value, ss = $("fm6slot"), keepS = ss.value;
+  ts.replaceChildren(...Array.from({ length: dev.info.ntrk || 1 }, (_, i) => el("option", { value: i, text: String(i + 1) })));
+  ts.value = keepT || String(dev.sel ?? 0);
+  const n = dev.info.fm6.factory + dev.info.fm6.bank;
+  ss.replaceChildren(...Array.from({ length: n }, (_, i) => {
+    const s = fm6List && fm6List.slots[i];
+    return el("option", { value: i, text: `${fm6SlotName(i)} ${s && s.used ? s.name : t("empty")}` });
+  }));
+  if (keepS) ss.value = keepS;
+  renderFm6Voice();
+  renderFm6Ops();
+  renderFm6Imported();
+}
+async function fm6Refresh() {
+  fm6List = parse[CMD.FM6_LIST](await rq(req.fm6List(), { timeout: 1500 }));
+  renderFm6();
+}
+async function fm6ReadTrack(tr) {
+  const r = parse[CMD.FM6_GET](await rq(req.fm6Get(FM6.TARGET.TRACK, tr)));
+  fm6Rc(r.rc);
+  fm6v = FM6.unpack(r.packed);
+}
+/* the tab opened: the slot names; the first time on this connection, the selected track's patch */
+async function fm6Enter() {
+  if (!fm6Ok()) return;
+  await fm6Refresh();
+  if (!fm6Seen) {
+    fm6Seen = true;
+    $("fm6trk").value = String(dev.sel ?? 0);
+    await fm6ReadTrack(fm6Track());
+    renderFm6();
+  }
+}
+async function fm6Send(quiet) {
+  const r = parse[CMD.FM6_PUT](await rq(req.fm6Put(FM6.TARGET.TRACK, fm6Track(), FM6.pack(fm6v)), { key: "fm6send" }));
+  fm6Rc(r.rc);
+  if (!quiet) sayK("fm6Sent", ` ${fm6Track() + 1}: ${FM6.name(fm6v)}`);
+}
+/* the 32 voices of an imported bank into B1..B32, one slot after the other (each a flash write) */
+async function fm6BankPut() {
+  if (!fm6Ok() || !fm6ImportedBank || !confirm(t("fm6BankConfirm"))) return;
+  await op(async () => {
+    for (let k = 0; k < fm6Imported.length && k < dev.info.fm6.bank; k++) {
+      sayK("fm6Storing", `B${k + 1} / ${dev.info.fm6.bank}`);
+      fm6Rc(parse[CMD.FM6_PUT](await rq(req.fm6Put(FM6.TARGET.BANK, k, FM6.pack(fm6Imported[k].v)), { timeout: 3000, retries: 0 })).rc);
+    }
+    await fm6Refresh();
+    sayK("fm6BankDone");
+  });
+}
+$("fm6read").addEventListener("click", () => op(async () => {
+  await fm6ReadTrack(fm6Track());
+  renderFm6();
+  sayK("fm6Read", ` ${fm6Track() + 1}: ${FM6.name(fm6v)}`);
+}));
+$("fm6send").addEventListener("click", () => op(() => fm6Send(false)));
+$("fm6load").addEventListener("click", () => op(async () => {
+  const i = +$("fm6slot").value, nf = dev.info.fm6.factory;
+  const r = parse[CMD.FM6_GET](await rq(i < nf ? req.fm6Get(FM6.TARGET.FACTORY, i) : req.fm6Get(FM6.TARGET.BANK, i - nf)));
+  if (r.rc === 2) { sayK("emptySlot", fm6SlotName(i)); return; }
+  fm6Rc(r.rc);
+  fm6v = FM6.unpack(r.packed);
+  renderFm6();
+  sayK("fm6Loaded", ` ${fm6SlotName(i)}: ${FM6.name(fm6v)}`);
+}));
+$("fm6store").addEventListener("click", () => {
+  if (!fm6Ok()) return;
+  const i = +$("fm6slot").value, nf = dev.info.fm6.factory;
+  if (i < nf) { sayK("fm6Factory"); return; }
+  const s = fm6List && fm6List.slots[i];
+  if (s && s.used && !confirm(t("confirmOverwrite").replace("{n}", fm6SlotName(i)).replace("{name}", s.name))) return;
+  op(async () => {
+    fm6Rc(parse[CMD.FM6_PUT](await rq(req.fm6Put(FM6.TARGET.BANK, i - nf, FM6.pack(fm6v)), { timeout: 3000, retries: 0 })).rc);
+    await fm6Refresh();
+    sayK("storedSlot", fm6SlotName(i));
+  });
+});
+$("fm6erase").addEventListener("click", () => {
+  if (!fm6Ok()) return;
+  const i = +$("fm6slot").value, nf = dev.info.fm6.factory;
+  const s = fm6List && fm6List.slots[i];
+  if (i < nf || !s || !s.used || !confirm(t("confirmEraseSlot").replace("{n}", fm6SlotName(i)).replace("{name}", s.name))) return;
+  op(async () => {
+    fm6Rc(parse[CMD.FM6_ERASE](await rq(req.fm6Erase(i - nf), { timeout: 3000, retries: 0 })).rc);
+    await fm6Refresh();
+    sayK("erasedSlot", fm6SlotName(i));
+  });
+});
+$("fm6init").addEventListener("click", () => { fm6v = FM6.init(); renderFm6(); });
+$("fm6import").addEventListener("click", () => $("fm6file").click());
+$("fm6file").addEventListener("change", async (e) => {
+  const f = e.target.files[0];
+  e.target.value = "";
+  if (!f) return;
+  const r = FM6.parseSysex(new Uint8Array(await f.arrayBuffer()));
+  if (!r.voices.length) { sayK("badfile", f.name); return; }
+  fm6Imported = r.voices;
+  fm6ImportedBank = r.bank;
+  if (r.voices.length === 1) fm6v = Uint8Array.from(r.voices[0].v);
+  renderFm6();
+  sayK("imported", `${f.name}: ${r.voices.length}` + (r.badSum ? ` (${t("fm6BadSum")})` : ""));
+});
+function downloadBytes(name, bytes) {
+  const a = el("a", { href: URL.createObjectURL(new Blob([bytes], { type: "application/octet-stream" })), download: name });
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+$("fm6export").addEventListener("click", () => downloadBytes(`${fileSlug(FM6.name(fm6v))}.syx`, FM6.singleSysex(fm6v)));
+$("fm6bankexp").addEventListener("click", () => op(async () => {
+  const out = [];
+  for (let k = 0; k < dev.info.fm6.bank; k++) {
+    const r = parse[CMD.FM6_GET](await rq(req.fm6Get(FM6.TARGET.BANK, k)));
+    out.push(r.rc ? null : FM6.unpack(r.packed));
+  }
+  downloadBytes(`jangada-fm6-bank-${today()}.syx`, FM6.bankSysex(out));
+  sayK("fm6Exported");
 }));
 
 $("connect").addEventListener("click", () => {

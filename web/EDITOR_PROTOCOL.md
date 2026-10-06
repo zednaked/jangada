@@ -1,7 +1,8 @@
 # Felucca editor protocol (SysEx over USB-MIDI)
 
 The firmware side is `firmware/src/editor.c`. Commands 16-26 (user presets and live sync) form protocol v2; commands 27-30 (tracks) form protocol v3; commands 31-32 (any track's parameters) form protocol v4; commands 34-36 (Jangada: backup / restore, `firmware/src/editor_backup.c`) form protocol v5; v6 (Jangada 0.5)
-adds the FM6 patch bank to the backup (objects 8, 9).
+adds the FM6 patch bank to the backup (objects 8, 9) and the FM6 patch commands 68-71 (`firmware/src/editor_fm6.c`,
+numbered as Felucca 1.0 numbers them; see "FM6 patches").
 
 **v3 (four tracks):** the device has four tracks: 1..3 are synth parts, 4 is the drum track. One
 of them is *selected* (the TRACKS page on the device, or `TRACK`). Every v1 / v2 command acts on the
@@ -238,6 +239,42 @@ object), a sample slot at most 80 KiB.
 - **Projects** carry each track's FM6 patch since Jangada 0.5: "JNG1" byte 11 counts tagged sections after the
   tracks (tag, length u16 LE, data), section 1 = NTRK × the 128-byte packed FM6 record; an unknown section is
   skipped. A project without it (byte 11 = 0, Jangada 0.4) loads with each track's PTCH patch.
+
+## FM6 patches (68-71, Jangada 0.5; after Felucca 1.0)
+
+The FM6 engine (engine 9 in Jangada) plays a 6-operator patch per track; its EDIT parameters are macros on top of it
+(ALG 0 = the patch's algorithm, 1..32 another; FB, MLVL, MRAT, MEG, VMOD offsets; DTUN; PTCH 0..39 = F1..F8 the
+factory patches, then B1..B32 the bank: setting PTCH loads that patch into the track). The patch itself only travels
+through these commands. `INFO` advertises `46 01 nfactory nbank` after the protocol version (this firmware:
+`46 01 08 20`); firmware without it (Jangada 0.4 and before) does not answer 68..71.
+
+A patch is the 128-byte packed record of the generic 6-operator voice (the 32-voice bank's record; every byte is
+7-bit, so it travels as it is, no pack7). Operators come sixth first: per operator 17 bytes (R1..R4, L1..L4,
+break point, left / right depth, curves `LC | RC << 2`, `RS | DET << 3`, `AMS | KVS << 2`, output level,
+`MODE | FC << 1`, fine), then pitch EG rates and levels (102..109), algorithm 0..31 (110), `FB | OKS << 3`,
+LFO speed, delay, PMD, AMD, `SYNC | WAVE << 1 | PMS << 4`, transpose (24 = none), the name (10 ASCII bytes).
+The device stores every value clamped into its range.
+
+| cmd | Request args | Reply args |
+| --- | --- | --- |
+| 68 FM6_GET | target, index | target, index, rc, then (rc 0) the 128 bytes |
+| 69 FM6_PUT | target, index, the 128 bytes | target, index, rc (target 0, a track: that track's patch from now on, PTCH as it is: the device does not reload PTCH's patch over it) |
+| 70 FM6_LIST | — | nfactory, nbank, then per slot (factory first): used (0/1), name string ("" if empty) |
+| 71 FM6_ERASE | bank index | index, rc |
+
+target: 0 a track's own patch (index 0..3: what it plays and what its project, the autosave and a backup keep; a
+PUT is heard at once and keeps PTCH as it is), 1 a bank slot (index 0..31 = B1..B32; a PUT writes flash, allow
+1 s; tracks playing that slot reload it), 2 a factory patch (0..7, GET only). rc: 0 ok, 1 arguments (an unknown
+target, an index out of range, a record that is not 128 bytes), 2 an empty bank slot (GET) or a flash error
+(PUT, ERASE), 3 the song plays (PUT / ERASE of the bank: a flash erase stops the audio for a moment; stop it
+first). The bank is in flash (`fm6_bank.c`: B1..B16 at 0xE5000 / 0xE6000, B17..B32 at 0xE7000 / 0xE8000) and in a
+full backup (ids 8, 9).
+
+The web editor (6-OP FM tab) reads and writes these, and imports / exports the DX7-format SysEx files: a single
+voice `F0 43 0n 00 01 1B`, the 155-byte unpacked voice, checksum, `F7` (163 bytes), and 32 voices
+`F0 43 0n 09 20 00`, 32 x 128 packed, checksum, `F7` (4104 bytes); the checksum is the two's complement of the
+data's sum, 7 bits. Raw 155 / 4096-byte files are read too. A file of one 32-voice bank can go into B1..B32 at
+once (32 `FM6_PUT`s).
 
 ## Notes for the editor
 

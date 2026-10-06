@@ -12,6 +12,8 @@
 // - fm1ota.js: a full install and an unplug during the write against a simulated FM-1; the return to the
 //   official V15 (only the exact file; its loader resumed, another firmware's loader never written)
 // - index_pkg.html: every text in pt / en / ja, the script compiles with the modules inlined
+// - the 6-OP FM tab's module (Jangada 0.5): the init voice and factory patches == build/gen/felucca_fm6.h, pack /
+//   unpack, DX7-format SysEx in and out; FM6_GET / PUT / LIST / ERASE against the mock, the bank in the backup
 // - fm1backup.js (Jangada, v5): a complete backup of the editor's mock device and its restore into an
 //   empty one, through the editor's own Link (web/test_backup.mjs checks the module alone)
 
@@ -36,7 +38,7 @@ const proto = html.slice(html.indexOf("/*PROTO-BEGIN*/"), html.indexOf("/*PROTO-
 const E = vm.runInNewContext(proto + `
 ;({ frame, unframe, parse, req, Link, parseWav, resample, normalize, rootFromName, buildSlot, makeMockDevice, CMD, SMP,
    UP, bank, capturePatch, auditionPatch, startWatch, libraryFile, readLibraryFile, paramKeys, patternFromSteps, stepsFromPattern, upName,
-   mixer, GM_DRUM, drumName, parseNotes,
+   mixer, GM_DRUM, drumName, parseNotes, FM6,
    CHOP, chopNovelty, chopHits, chopSnap, chopGrid, chopEqual, chopList, chopPick, chopFit, chopZones, wavFile, zipStore })`,
 { setTimeout, clearTimeout, setInterval, clearInterval, console, TextEncoder });
 
@@ -493,12 +495,92 @@ async function editorBackup() {
   A.done(); B.done(); C.done(); D.done();
 }
 
+/* ------------------------------------------- FM6 patches (Jangada 0.5) --- */
+async function editorFm6() {
+  const F6 = E.FM6;
+  /* the module's tables == the firmware's (tools/gen_fm6_patches.py -> build/gen/felucca_fm6.h) */
+  const hp = join(HERE, "..", "build", "gen", "felucca_fm6.h");
+  if (existsSync(hp)) {
+    const h = readFileSync(hp, "utf8");
+    const nums = (t) => [...t.matchAll(/\d+/g)].map((m) => +m[0]);
+    const init = nums(/FM6_INIT\[128\] = \{([^}]*)\}/.exec(h)[1]);
+    const fac = [...h.matchAll(/\{\/\* [^*]* \*\/([^}]*)\}/g)].map((m) => nums(m[1]));
+    ok(eq(init, F6.INIT_PK) && fac.length === F6.FACTORY_PK.length && fac.every((r, k) => eq(r, F6.FACTORY_PK[k])),
+       "FM6: init voice and F1..F8 == the firmware's (felucca_fm6.h)");
+  } else console.log("FM6: no build/gen/felucca_fm6.h: table check skipped");
+  ok(F6.FACTORY_PK.every((r) => eq(F6.pack(F6.unpack(r)), r)) && F6.name(F6.init()) === "INIT VOICE",
+     "FM6: pack(unpack(x)) == x for every factory patch, the init voice's name");
+  /* SysEx: one voice (163 bytes) and a bank of 32 (4104 bytes), checksums, raw files */
+  const v = F6.factory(3), one = F6.singleSysex(v, 5);
+  ok(one.length === 163 && one[0] === 0xF0 && one[1] === 0x43 && one[2] === 5 && one[5] === 0x1B && one[162] === 0xF7 &&
+     (one.slice(6, 162).reduce((a, x) => a + x, 0) & 127) === 0, "FM6: a voice as SysEx (VCED, 163 bytes, the checksum zeroes the sum)");
+  const r1 = F6.parseSysex(one);
+  ok(r1.voices.length === 1 && eq(r1.voices[0].v, v) && !r1.badSum && !r1.bank && r1.voices[0].name === "BRASS SECT", "FM6: ... read back");
+  const voices = Array.from({ length: 32 }, (_, k) => (k < 8 ? F6.factory(k) : k === 9 ? null : F6.setName(F6.init(), "V" + k)));
+  const bnk = F6.bankSysex(voices);
+  const r2 = F6.parseSysex(bnk);
+  ok(bnk.length === 4104 && bnk[3] === 9 && bnk[4] === 0x20 && r2.bank && r2.voices.length === 32 && !r2.badSum &&
+     eq(r2.voices[2].v, F6.factory(2)) && r2.voices[9].name === "INIT VOICE" && r2.voices[20].name === "V20",
+     "FM6: a bank of 32 as SysEx (VMEM, 4104 bytes), empty slots as the init voice, read back");
+  const bad = bnk.slice(); bad[100] ^= 1;
+  const raw = F6.parseSysex(bnk.slice(6, 6 + 4096)), raw1 = F6.parseSysex(Array.from(v));
+  ok(F6.parseSysex(bad).badSum === 1 && raw.bank && raw.voices.length === 32 && raw1.voices.length === 1 &&
+     F6.parseSysex(Uint8Array.from([...one, ...bnk])).bank === false && F6.parseSysex([1, 2, 3]).voices.length === 0,
+     "FM6: a wrong checksum counted, raw 4096 / 155-byte files, a mixed file is no bank, junk reads nothing");
+  /* the mock: FM6 patches through cmds 68..71 */
+  const { m, rq, done } = attachMock({});
+  const C = E.CMD, T = F6.TARGET;
+  const info = E.parse[C.INFO](await rq(E.req.info()));
+  ok(info.proto === 6 && info.fm6 && info.fm6.factory === 8 && info.fm6.bank === 32, "FM6: INFO advertises 46 01 8 32 after the version");
+  let l = E.parse[C.FM6_LIST](await rq(E.req.fm6List()));
+  ok(l.factory === 8 && l.bank === 32 && l.slots.length === 40 && l.slots[0].used && l.slots[0].name === "TINE EP" && !l.slots[8].used,
+     "FM6: LIST: F1..F8 by name, B1..B32 empty");
+  ok(E.parse[C.FM6_PUT](await rq(E.req.fm6Put(T.BANK, 4, F6.FACTORY_PK[6]))).rc === 0, "FM6: PUT into B5");
+  l = E.parse[C.FM6_LIST](await rq(E.req.fm6List()));
+  const g = E.parse[C.FM6_GET](await rq(E.req.fm6Get(T.BANK, 4)));
+  ok(l.slots[12].used && l.slots[12].name === F6.name(F6.factory(6)) && g.rc === 0 && eq(g.packed, F6.FACTORY_PK[6]) &&
+     E.parse[C.FM6_GET](await rq(E.req.fm6Get(T.BANK, 5))).rc === 2, "FM6: B5 listed and read back, B6 empty (rc 2)");
+  /* a track: PTCH B5 plays that patch; a PUT to the track is its own, PTCH as it is */
+  const FM6_E = info.engines.indexOf("FM6"), PTCH = info.pe0 + 7;
+  await rq(E.req.track(1));
+  await rq(E.req.set(1, 20, FM6_E));
+  await rq(E.req.set(0, PTCH, 8 + 4));
+  const tg = E.parse[C.FM6_GET](await rq(E.req.fm6Get(T.TRACK, 1)));
+  ok(tg.rc === 0 && eq(tg.packed, F6.FACTORY_PK[6]), "FM6: PTCH B5 on track 2 -> its patch");
+  const mine = F6.pack(F6.setName(F6.factory(1), "MINE"));
+  await rq(E.req.fm6Put(T.TRACK, 1, mine));
+  const tg2 = E.parse[C.FM6_GET](await rq(E.req.fm6Get(T.TRACK, 1)));
+  const pt = E.parse[C.GET](await rq(E.req.get(0, PTCH)));
+  ok(eq(tg2.packed, mine) && pt.value === 12, "FM6: a patch sent to the track stays its own (PTCH still B5)");
+  m.sim.play(true);
+  const busy = E.parse[C.FM6_PUT](await rq(E.req.fm6Put(T.BANK, 6, mine))).rc, busyE = E.parse[C.FM6_ERASE](await rq(E.req.fm6Erase(4))).rc;
+  m.sim.play(false);
+  ok(busy === 3 && busyE === 3, "FM6: a bank write while the song plays: rc 3");
+  ok(E.parse[C.FM6_PUT](await rq(E.req.fm6Put(T.FACTORY, 0, mine))).rc === 1 && E.parse[C.FM6_PUT](await rq(E.req.fm6Put(T.BANK, 32, mine))).rc === 1 &&
+     E.parse[C.FM6_GET](await rq(E.req.fm6Get(T.TRACK, 9))).rc === 1, "FM6: a factory PUT, B33, track 10: rc 1");
+  /* the bank and the track's own patch go through a backup into an empty FM-1 */
+  const file = await BK.captureBackup(rq, info.version);
+  const B = attachMock({});
+  await BK.restoreBackup(B.rq, file, () => {}, { ids: BK.backupIds(6) });
+  const gb = E.parse[C.FM6_GET](await B.rq(E.req.fm6Get(T.BANK, 4))), gt = E.parse[C.FM6_GET](await B.rq(E.req.fm6Get(T.TRACK, 1)));
+  ok(file.objects[8].size > 0 && gb.rc === 0 && eq(gb.packed, F6.FACTORY_PK[6]) && gt.rc === 0 && eq(gt.packed, mine),
+     "FM6: backup -> restore: the bank (B5) and the track's own patch");
+  ok(E.parse[C.FM6_ERASE](await rq(E.req.fm6Erase(4))).rc === 0 && E.parse[C.FM6_GET](await rq(E.req.fm6Get(T.BANK, 4))).rc === 2,
+     "FM6: ERASE B5");
+  /* firmware without FM6 patches (Jangada 0.4): no tag, no reply */
+  const o = attachMock({ v5: true });
+  const oi = E.parse[C.INFO](await o.rq(E.req.info()));
+  const none = await o.rq(E.req.fm6List(), { timeout: 60, retries: 0, quiet: true }).then(() => "reply", () => "none");
+  ok(oi.fm6 === null && none === "none", "FM6: older firmware: no INFO tag, LIST unanswered (the tab stays hidden)");
+  done(); B.done(); o.done();
+}
+
 /* ------------------------------------------------- editor tabs and strings --- */
 function editorTabs() {
   const tabs = [...html.matchAll(/<button role="tab" data-tab="(\w+)"/g)].map((x) => x[1]);
   const panels = [...html.matchAll(/<section class="panel" id="p-(\w+)" data-tab="(\w+)"/g)].map((x) => [x[1], x[2]]);
   const TABS = JSON.parse((/const TABS = (\[[^\]]*\]);/.exec(html) || [])[1] || "[]");
-  ok(tabs.length === 7 && js(tabs) === js(TABS) && js(panels.map((x) => x[1])) === js(TABS) && panels.every(([a, b]) => a === b),
+  ok(tabs.length === 8 && js(tabs) === js(TABS) && js(panels.map((x) => x[1])) === js(TABS) && panels.every(([a, b]) => a === b),
     `editor: ${tabs.length} tabs, one panel each (${tabs.join(" ")})`);
   ok(/localStorage\.setItem\(TAB_KEY/.test(html) && /try \{ localStorage/.test(html) && /history\.replaceState\([^)]*"#" \+ name\)/.test(html)
     && /addEventListener\("hashchange"/.test(html), "editor: last tab in localStorage (try/catch) and in the URL hash");
@@ -803,6 +885,7 @@ await editorTracks();
 await editorMixer();
 await editorTrackParam();
 await editorBackup();
+await editorFm6();
 chopTests();
 editorTabs();
 editorIcons();

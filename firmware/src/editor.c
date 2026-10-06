@@ -4,7 +4,8 @@
  * v3 = four tracks: the v1 / v2 commands act on the selected track, cmds 27-30 reach any track;
  * v4 = TRACK_PARAM (31) and the TRACK_CHANGED push (32), enabled by WATCH bit 1;
  * v5 (Jangada) = backup / restore, cmds 34-36 (editor_backup.c); INFO ends with the version;
- * v6 (Jangada 0.5) = the backup carries the FM6 patch bank (ids 8, 9)).
+ * v6 (Jangada 0.5) = the backup carries the FM6 patch bank (ids 8, 9); the FM6 patches, cmds 68-71
+ * (editor_fm6.c, as Felucca 1.0 numbers them), advertised by INFO's 46 01 nfactory nbank).
  *   F0 7D 46 4C cmd args.. F7     (7D = non-commercial ID, "FL")
  * Values are 14 bit, two 7-bit bytes LSB first, offset by 8192 (so -8192..8191).
  * Every request gets a reply with the same cmd; 23/24/26 are also pushed
@@ -272,6 +273,7 @@ static const param_desc_t *ed_desc(uint32_t scope, uint32_t id, int16_t **vp)
 }
 
 #include "editor_backup.c"                             /* v5: backup / restore */
+#include "editor_fm6.c"                                /* the FM6 patches and the bank (Jangada 0.5) */
 
 static void ed_handle(const uint8_t *f, uint32_t n)   /* f: the bytes between F0 and F7 */
 {
@@ -281,7 +283,7 @@ static void ed_handle(const uint8_t *f, uint32_t n)   /* f: the bytes between F0
     int16_t *vp;
     const param_desc_t *d;
     ed_begin(cmd);
-    if (ed_backup(cmd, a, na)) {                          /* v5: backup / restore */
+    if (ed_backup(cmd, a, na) || ed_fm6_handle(cmd, a, na)) {   /* v5: backup / restore; the FM6 patches */
         ed_send();
         return;
     }
@@ -297,6 +299,10 @@ static void ed_handle(const uint8_t *f, uint32_t n)   /* f: the bytes between F0
             ed_str(ENGINES[i]->name, 8);
         ed_b(NTRK);                                       /* v3 */
         ed_b(ED_PROTO);                                   /* v5: the protocol version */
+        ed_b(0x46);                                       /* FM6 patches (cmds 68-71): tag, version, F / B slots */
+        ed_b(1);
+        ed_b(FM6_NFACTORY);
+        ed_b(FM6_BANK_N);
         break;
     case ED_GET:
     case ED_SET:
