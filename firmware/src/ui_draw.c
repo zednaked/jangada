@@ -404,7 +404,7 @@ static uint32_t graph_signature(void)
         const drone_t *d = &drn[song.sel % NTRK];
         for (i = 0; i < DR_NW; i++)
             h = (h ^ (uint32_t)(d->on ? d->w[i] >> 10 : 0)) * 16777619u;
-        h = (h ^ (uint32_t)(d->tens >> 24) ^ d->on * 0x10000u) * 16777619u;
+        h = (h ^ (uint32_t)(d->tens >> 24) ^ (uint32_t)d->on << 16) * 16777619u;
     }
     if (pg->graph == GR_SLOTS)                       /* (a checksum over each slot) */
         for (i = 0; i < 4u; i++)
