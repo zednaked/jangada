@@ -68,7 +68,7 @@ static void ed_bk_settings(persist_t *p)            /* the settings as settings_
     p->magic = PERSIST_MAGIC;
     p->palette = settings.palette;
     p->lowcut = settings.lowcut;
-    p->zoom = settings.zoom;
+    p->zoom = 0;                                    /* (reserved) */
     p->panel = panel;
     p->lights = lights_word();
 }
@@ -135,8 +135,7 @@ static uint32_t ed_bk_commit(void)
         persist_saved = p;
         settings.magic = SETTINGS_MAGIC;
         settings.palette = p.palette;
-        settings.lowcut = p.lowcut;
-        settings.zoom = 0;                           /* (as persist_boot: ZOOM left the menu) */
+        settings.lowcut = p.lowcut;                  /* (p.zoom: reserved, ignored) */
         panel = p.panel;
         lights_from_word(p.lights);
         palette_set(settings.palette);

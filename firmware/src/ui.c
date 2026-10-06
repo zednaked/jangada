@@ -70,7 +70,6 @@ static struct {
     uint32_t enc_t[NE];
     /* drawn-state cache */
     char col[4][32];
-    char focus_l[8], focus_v[8], focus_u[8];   /* the touched column, shown large */
     uint32_t graph_sig, head_sig, foot_sig, frame;
     uint8_t graph_top;           /* the graph strip's top G_OY rows hold something */
 } ui;

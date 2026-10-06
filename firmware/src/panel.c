@@ -79,7 +79,7 @@ static int32_t panel_enc(uint32_t role)
 
 /* user settings that survive a reset */
 #define SETTINGS_MAGIC 0x53455433u              /* "SET3" */
-struct { uint32_t magic, palette, lowcut, zoom; } settings __attribute__((section(".noinit")));
+struct { uint32_t magic, palette, lowcut; } settings __attribute__((section(".noinit")));   /* (Jangada: ZOOM is gone) */
 
 static void settings_save(void);              /* project.c: flash copy (FELUCCA_FLASH) */
 static uint8_t settings_later;                 /* changed while playing: saved once stopped (project.c) */
@@ -112,7 +112,6 @@ static void settings_init(void)
         settings.magic = SETTINGS_MAGIC;
         settings.palette = 5;                  /* CHOQUE (Jangada default) */
         settings.lowcut = 0;
-        settings.zoom = 0;                     /* large readout of the touched value: off */
     }
     palette_set(settings.palette);
     fx_lowcut = (uint8_t)(settings.lowcut != 0);

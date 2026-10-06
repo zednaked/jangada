@@ -200,7 +200,7 @@ Requests name **objects**, never flash addresses:
 | id | object | bytes |
 | --- | --- | --- |
 | 0 | the working project (as it is now) | "JNG1" (`project.c` `proj_to_jng`, as the autosave stores it) |
-| 1 | the settings | `persist_t` "PER2": palette, low cut, zoom, the panel calibration (`panel_t`), the lights word (LIGHTS / KEYS / NOTES / USB AUDIO); one without the lights word (Jangada 0.2) is restored too, with the lights off |
+| 1 | the settings | `persist_t` "PER2": palette, low cut, zoom (reserved since Jangada: written 0, 0 / 1 accepted), the panel calibration (`panel_t`), the lights word (LIGHTS / KEYS / NOTES / USB AUDIO); one without the lights word (Jangada 0.2) is restored too, with the lights off |
 | 2..5 | the projects 1..4 | "JNG1"; length 0 = empty slot |
 | 6..7 | the user preset banks (presets 1..16, 17..32) | `up_bank_t` "UPB2" (`upreset.c`, keyed); length 0 = empty |
 | 8..9 | (v6) the FM6 patch bank, B1..B16 and B17..B32 | `fm6_half_t` "FM6B" (`fm6_bank.c`): magic, version 1, 16 slots, the used bits, the half (0 / 1), 16 packed 128-byte records; 2064 bytes, length 0 = empty |
