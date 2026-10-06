@@ -129,7 +129,9 @@ static void fm1_fault(const fm1_crash_t *c)
     fm1_reboot();
 }
 
-/* power-on: three parts with their default sounds (TRK_DEF), the drum track, empty patterns */
+/* power-on: three parts with their default sounds (TRK_DEF), the drum track, empty patterns. RAM only, no
+ * IRQ work of its own (set_engine_raw): MENU > NEW PROJECT (ui_menu.c menu_new_project) runs it with the
+ * audio IRQ off, as a project load */
 static void felucca_init(void)
 {
     uint32_t i;
@@ -140,7 +142,7 @@ static void felucca_init(void)
         track_t *t = &trk[i];
         track_defaults(t);
         if (i < NPART) {
-            set_engine_of(t, TRK_DEF[i][0]);
+            set_engine_raw(t, TRK_DEF[i][0]);
             apply_preset_to(t, TRK_DEF[i][1]);   /* with its sends */
             t->engine = t->eng_req;
         }

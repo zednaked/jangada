@@ -152,11 +152,6 @@ static void draw_column(uint32_t c, const char *label, const char *val, const ch
         key[n + 2] = (char)(icon == ICON_NONE ? '~' : '!' + icon % 90u);   /* same label, other icon */
         key[n + 3] = 0;
     }
-    if (c == ui.hot_col) {
-        str_cpy(ui.focus_l, l, 8);
-        str_cpy(ui.focus_v, v, 8);
-        str_cpy(ui.focus_u, u, 8);
-    }
     if (!ui.force && str_eq(key, ui.col[c]))
         return;
     str_cpy(ui.col[c], key, sizeof ui.col[c]);
@@ -390,8 +385,6 @@ static uint32_t graph_signature(void)
     const page_t *pg = cur_page();
     const track_t *t = TSEL;
     uint32_t h = 2166136261u, i;
-    if (ui.hot_t && settings.zoom)
-        h = str_hash(str_hash(str_hash(h ^ 0x5555u, ui.focus_v), ui.focus_l), ui.focus_u);
     if (ui.home)
         return h ^ (ui.frame / 2u);                  /* scope: redraw every other frame */
     h ^= (uint32_t)pg->graph * 131u + TSEL->eng_req + song.sel * 7777u;
@@ -487,7 +480,7 @@ static void graph_slots(void)
  * (note activity), the pattern over its LEN (time running down; bar width = notes in
  * the step) and the play head. The selected track is drawn bright. Every part is
  * its own small canvas with its own signature: while the transport runs only the
- * head markers and the meters move. (No ZOOM focus here.) */
+ * head markers and the meters move. */
 #define TS_HEAD_Y (Y_GRAPH + 2)
 #define TS_NAME_Y (Y_GRAPH + 20)
 #define TS_Y (Y_GRAPH + 38)
@@ -674,7 +667,6 @@ static void draw_graph(void)
     const track_t *t = TSEL;
     uint16_t c = ACC;
     uint32_t sig, top, drum_note = !ui.home && is_drum(t) && !page_for_drum(pg), card;
-    uint16_t under;
     if (!ui.home && pg->graph == GR_TRK) {
         draw_tracks();
         ui.graph_top = 1;                            /* the next graph draws its top rows again */
@@ -686,7 +678,6 @@ static void draw_graph(void)
     ui.graph_sig = sig;
     cv_begin(240, H_GRAPH, C_BG);
     card = ui.home || drum_note || (pg->graph != GR_NONE && pg->graph != GR_ARP);   /* (ARP: no graph) */
-    under = card ? C_SURF : C_BG;
     if (card)                                        /* the graph's card (rows Y_GRAPH .. + 122) */
         cv_card(2, 0, 236, H_GRAPH - 1);
     cv_clip(4, 2, 236, H_GRAPH - 3);
@@ -741,14 +732,6 @@ static void draw_graph(void)
     }
     top = !ui.home && !drum_note && (pg->graph == GR_BROWSE || pg->graph == GR_SLOTS || pg->graph == GR_USER);   /* these draw from the top */
     cv_oy = 0;
-    if (ui.hot_t && settings.zoom) {                 /* focus (menu ZOOM): the touched value, large and white */
-        int32_t x;
-        top = 1;
-        cv_rrect(6, 4, 146, 50, 5, C_RAISE, under);
-        cv_text(12, 5, &FONT_S, ui.focus_l, C_GRAY);
-        x = cv_text(12, 20, &FONT_L, ui.focus_v, C_WHITE);
-        cv_text(x + 4, 34, &FONT_S, ui.focus_u, C_GRAY);
-    }
     cv_noclip();
     /* graphs keep out of the top G_OY rows: skip them unless something is (or was) there */
     cv_blit_from(0, Y_GRAPH, top || ui.graph_top || ui.force ? 0u : G_OY);

@@ -175,6 +175,35 @@ int main(void){
    lights_lvl = lights_keys = lights_notes = usb_full = 0;
  }
  printf("%-46s ok\n", "menu LIGHTS / KEYS / NOTES: keys, settings word");
+ { /* MENU > NEW PROJECT while the song plays (Jangada): the transport stops and every note is let go at the
+    * next block, no step index is left past the new pattern length, the track that changes engine fades its
+    * old voices and switches (none of the old engine stays), every part back on its power-on sound */
+   static int32_t out[2 * CTL]; uint32_t i, k, old1;
+   felucca_init(); panel = PANEL_DEFAULT; song.sel = 0;
+   set_engine_of(&trk[1], 3); trk[1].engine = trk[1].eng_req; old1 = trk[1].engine;   /* track 2 on LOFI */
+   trk[0].p[P_SLEN] = 32;
+   for (i = 0; i < 32u; i++) { trk[0].step[i].n = 1; trk[0].step[i].note[0] = 60; trk[0].step[i].time = ST_NOTE; }
+   transport_req = 1;
+   for (i = 0; i < 2800u; i++) mix_block(out, CTL);                   /* START, 2 s in: past step 16 */
+   trk_note_on(&trk[1], 64, 100);                                     /* a key held on track 2 */
+   assert(song.playing && trk[0].seq_idx >= 16u && trk[1].v[0].active);
+   ui.menu = 1; ui.menu_sel = MI_NEW; menu_new_armed = 0;
+   menu_input(1u << panel.btn[B_OCTUP]); assert(menu_new_armed && ui.menu == 1);
+   menu_input(1u << panel.btn[B_OCTUP]);
+   assert(!ui.menu && transport_req == 2 && panic_req == (1u << NTRK) - 1u && sync_reload);
+   assert(trk[0].p[P_SLEN] == TP[P_SLEN].def && !trk[0].step[0].n && trk[1].eng_req == TRK_DEF[1][0]);
+   assert(trk[1].engine == old1 && trk[1].v[0].active);               /* the old engine sounds until it faded */
+   for (i = 0; i < NTRK; i++) assert(trk[i].seq_idx < (uint32_t)trk[i].p[P_SLEN]);
+   for (i = 0; i < 40u; i++) mix_block(out, CTL);                     /* the ISR: stop, panic, the fade */
+   assert(!song.playing && !transport_req && !panic_req);
+   for (i = 0; i < NTRK; i++) {
+     assert(trk[i].engine == trk[i].eng_req && trk[i].seq_idx < (uint32_t)trk[i].p[P_SLEN] && !trk[i].seq_n);
+     for (k = 0; k < NVOICE; k++) assert(!trk[i].v[k].gate);          /* nothing held: released or gone */
+   }
+   for (k = 0; k < NVOICE; k++) assert(!trk[1].v[k].active);          /* LOFI's voices: faded and gone */
+   trk_all_off(&trk[0]); ui.force = 1;
+ }
+ printf("%-46s ok\n", "menu NEW PROJECT while playing: stop, fade, reset");
  { /* GLO > KIT: the kits in the browser's order (Jangada's own first; G_KIT keeps its old indices), a kit's
     * beat into an empty or untouched drum track (not into the user's), KNOB 4 BEAT (twice over the user's) */
    uint32_t pi; const track_t *td = TDRUM;

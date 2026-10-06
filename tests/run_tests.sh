@@ -88,6 +88,8 @@ $CC -O2 -w -Ibuild/gen -Ifirmware/src -o "$OUT/mod_test" tests/mod_test.c -lm
 run "mod: the modulation matrix (Jangada)" "$OUT/mod_test"
 $CC -O2 -w -Ibuild/gen -Ifirmware/src -o "$OUT/drone_test" tests/drone_test.c -lm
 run "drones: EVOL walks, TENS and its RAMP, DRIFT, the presets that evolve (Jangada)" "$OUT/drone_test"
+$CC -O2 -w -Ibuild/gen -Ifirmware/src -o "$OUT/fm6_ams_test" tests/fm6_ams_test.c -lm
+run "FM6 AMS: the LFO amplitude share as Dexed figures it, a mild tremolo, the voice ends (Jangada)" "$OUT/fm6_ams_test"
 $CC -O2 -w -Ibuild/gen -Ifirmware/src -o "$OUT/track4_test" tests/track4_test.c -lm
 run "track 4: DRUM / SYNTH (Jangada)" "$OUT/track4_test"
 $CC -O2 -w -Ibuild/gen -Ifirmware/src -o "$OUT/voice_test" tests/voice_test.c -lm

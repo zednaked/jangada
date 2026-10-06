@@ -65,6 +65,10 @@ static uint32_t st_sector(uint32_t obj, uint32_t copy)  /* flash offset of copy 
 }
 
 static uint8_t st_buf[ST_PAYLOAD_MAX] __attribute__((aligned(4)));
+/* Jangada: what st_buf holds, CRC-checked (st_body; ~0 = nothing, also while st_save fills it): st_view of
+ * that object is served from it without another read of the flash (fm6_bank.c reads one record at a time:
+ * 32 of them for a bank dump or export were 32 reads of the whole half) */
+static uint32_t st_buf_obj = ~0u, st_buf_len;
 
 static int st_head(uint32_t obj, uint32_t copy, st_hdr_t *h)   /* commit record valid: 0 */
 {
@@ -81,8 +85,11 @@ static int st_head(uint32_t obj, uint32_t copy, st_hdr_t *h)   /* commit record 
 
 static int st_body(uint32_t obj, uint32_t copy, const st_hdr_t *h)   /* payload -> st_buf, CRC ok: 0 */
 {
+    st_buf_obj = ~0u;
     if (st_read(st_sector(obj, copy) + ST_PAYLOAD_OFF, st_buf, h->len) || st_crc32(st_buf, h->len) != h->crc)
         return -1;
+    st_buf_obj = obj;
+    st_buf_len = h->len;
     return 0;
 }
 
@@ -126,13 +133,15 @@ static int st_load(uint32_t obj, void *dst, uint32_t max)
 }
 
 /* Jangada: the current copy's payload in place (st_buf), *len its length; valid until the next storage
- * call. 0 = none (fm6_bank.c reads one record of a bank without a buffer of its own) */
+ * call. 0 = none (fm6_bank.c reads one record of a bank without a buffer of its own). The object st_buf
+ * already holds (st_buf_obj: the last body read or written, every write of it goes through here) is
+ * served without a read */
 static const uint8_t *st_view(uint32_t obj, uint32_t *len)
 {
     st_hdr_t h;
-    if (st_current(obj, &h) < 0)
+    if (st_buf_obj != obj && st_current(obj, &h) < 0)
         return 0;
-    *len = h.len;
+    *len = st_buf_len;
     return st_buf;
 }
 
@@ -146,6 +155,7 @@ static int st_save(uint32_t obj, const void *src, uint32_t len)
     cur = st_current(obj, &h);
     seq = cur < 0 ? 0u : h.seq;
     base = st_sector(obj, cur == 0 ? 1u : 0u);       /* write the other copy */
+    st_buf_obj = ~0u;                                 /* (the read-back below makes it this object again) */
     for (off = 0; off < len; off++)
         st_buf[off] = ((const uint8_t *)src)[off];    /* the driver wants RAM sources */
     if ((rc = st_erase(base)) != 0)

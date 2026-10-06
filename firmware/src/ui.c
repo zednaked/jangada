@@ -70,7 +70,6 @@ static struct {
     uint32_t enc_t[NE];
     /* drawn-state cache */
     char col[4][32];
-    char focus_l[8], focus_v[8], focus_u[8];   /* the touched column, shown large */
     uint32_t graph_sig, head_sig, foot_sig, frame;
     uint8_t graph_top;           /* the graph strip's top G_OY rows hold something */
 } ui;
@@ -355,17 +354,21 @@ static void apply_preset_to(track_t *t, uint32_t pi)
 
 /* the engine's defaults and its first preset. With the audio IRQ off: the ISR sees the old engine with
  * its values or the new one with its own (voice.c engine_block), never one with the other's */
-static void set_engine_of(track_t *t, uint32_t ei)
+static void set_engine_raw(track_t *t, uint32_t ei)   /* the writes alone: the caller keeps the IRQ off */
 {
     const engine_t *e = ENGINES[ei % NENGINES];
     uint32_t i;
-    if (is_drum(t))
-        return;
-    fm1_irq_off();
     t->eng_req = (uint8_t)(ei % NENGINES);
     for (i = 0; i < NEDIT; i++)
         t->p[P_E0 + i] = e->edit[i].def;
     apply_preset_to(t, 0);
+}
+static void set_engine_of(track_t *t, uint32_t ei)
+{
+    if (is_drum(t))
+        return;
+    fm1_irq_off();
+    set_engine_raw(t, ei);
     fm1_irq_on();
 }
 

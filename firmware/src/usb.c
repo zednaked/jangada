@@ -190,6 +190,11 @@ static void dx_byte(uint8_t b)   /* every SysEx byte, F0 and F7 included (USB IS
 #define MQ 64u
 static uint32_t midi_in_q[MQ], midi_out_q[MQ];
 static volatile uint32_t mi_w, mi_r, mo_w, mo_r;
+/* Jangada: nothing drains the input ring (the USB rescue, recovery.c: no audio ISR, no events_block): channel
+ * and real-time events are dropped as they come (as Felucca did everywhere) and no EP1 packet is held for
+ * room, so the installer's SysEx gets through with a clock or notes arriving. (The update loader never
+ * drains it either: it has no back-pressure, FELUCCA_LOADER below) */
+static uint8_t midi_in_unread;
 
 static void midi_out_event(uint32_t pkt)            /* from the audio ISR */
 {
@@ -717,7 +722,7 @@ static void midi_in_event(uint32_t pkt)
     if ((cin == 0xFu && (st == 0xF8u || st == 0xFAu || st == 0xFBu || st == 0xFCu)) ||
         (cin >= 8u && cin <= 0xEu && (st >> 4) == cin && !((pkt >> 16) & 0x80u) &&
          (cin == 0xCu || cin == 0xDu || !(pkt & 0x80000000u)))) {
-        if (mi_w - mi_r < MQ) {
+        if (!midi_in_unread && mi_w - mi_r < MQ) {
             midi_in_q[mi_w % MQ] = pkt;
             RING_PUBLISH();
             mi_w++;
@@ -731,14 +736,15 @@ static void midi_in_event(uint32_t pkt)
 /* one EP1 OUT packet (<= 16 events) into the MIDI ring, or 0: fewer than 16 + 8 slots free, so the
  * packet stays (the host is NAKed) and is taken on a later poll. A burst from a DAW never drops a
  * note-off (0.2 dropped what did not fit: hanging notes), and 8 slots stay for the TRS input, which
- * shares the ring and cannot wait. The update loader never drains the ring: no back-pressure there.
+ * shares the ring and cannot wait. The update loader and the USB rescue never drain the ring: no
+ * back-pressure there (midi_in_unread: the events are dropped instead, the SysEx passes).
  * (Jangada, after SLOOP 2.3 / Felucca 1.0) */
 #define EP1_ROOM (16u + 8u)
 static int ep1_take(const uint8_t *b, uint32_t n)
 {
     uint32_t i;
 #ifndef FELUCCA_LOADER
-    if (MQ - (mi_w - mi_r) < EP1_ROOM)
+    if (!midi_in_unread && MQ - (mi_w - mi_r) < EP1_ROOM)
         return 0;
 #endif
     for (i = 0; i + 3u < n; i += 4u)

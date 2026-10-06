@@ -19,7 +19,9 @@
  * RAM: the staging and snapshot buffer is project.c's proj_io (the main loop's stored-project buffer),
  * so this costs no new buffer. A project save or load from the panel meanwhile reuses it; the CRCs
  * catch that (GET: the editor checks every object against LIST; PUT: the commit checks the staged
- * bytes), and the autosave waits while a backup runs (autosave_hold). Included by editor.c. */
+ * bytes), the autosave waits while a backup runs (autosave_hold), and so does the FM6 bank (proj_io_bk:
+ * a bank write, from the editor or a DX7 bank dump, is refused with rc 4 until 15 s after the last
+ * request, or the commit / abort; its own staged half is dropped). Included by editor.c. */
 #define ED_BK_RAW proj_io
 #define ED_BK_HOLD 15000u                            /* ms: a backup session without a request ends */
 static const uint8_t ED_BK_IDS[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 32, 33, 34};
@@ -54,10 +56,10 @@ static void ed_bk_pack(const uint8_t *p, uint32_t n)   /* pack7: a top-bits byte
         n -= k;
     }
 }
-static void ed_bk_touch(void)                       /* a backup runs: the autosave keeps off proj_io */
+static void ed_bk_touch(void)                       /* a backup runs: the autosave and the FM6 bank keep off proj_io */
 {
     ed_bk_ms = fm1_ms;
-    autosave_hold = fm1_ms + ED_BK_HOLD;
+    autosave_hold = proj_io_bk = fm1_ms + ED_BK_HOLD;
 }
 
 static void ed_bk_settings(persist_t *p)            /* the settings as settings_save stores them */
@@ -66,7 +68,7 @@ static void ed_bk_settings(persist_t *p)            /* the settings as settings_
     p->magic = PERSIST_MAGIC;
     p->palette = settings.palette;
     p->lowcut = settings.lowcut;
-    p->zoom = settings.zoom;
+    p->zoom = 0;                                    /* (reserved) */
     p->panel = panel;
     p->lights = lights_word();
 }
@@ -75,6 +77,7 @@ static void ed_bk_settings(persist_t *p)            /* the settings as settings_
 static const uint8_t *ed_bk_make(uint32_t id, uint32_t *len)
 {
     *len = 0;
+    fm6_stage_drop();                                /* (proj_io is the backup's now) */
     if (id == 1u) {
         ed_bk_settings((persist_t *)(void *)ED_BK_RAW);
         *len = sizeof(persist_t);
@@ -132,8 +135,7 @@ static uint32_t ed_bk_commit(void)
         persist_saved = p;
         settings.magic = SETTINGS_MAGIC;
         settings.palette = p.palette;
-        settings.lowcut = p.lowcut;
-        settings.zoom = 0;                           /* (as persist_boot: ZOOM left the menu) */
+        settings.lowcut = p.lowcut;                  /* (p.zoom: reserved, ignored) */
         panel = p.panel;
         lights_from_word(p.lights);
         palette_set(settings.palette);
@@ -201,6 +203,7 @@ static uint32_t ed_bk_write(const uint8_t *a, uint32_t na)
             return 1;
         ed_bk_put = 1;
         ed_bk_cur = ED_BK_STAGE;                     /* (the snapshot of LIST is gone) */
+        fm6_stage_drop();                            /* (and a staged FM6 bank half: proj_io is ours) */
         ed_bk_id = (uint8_t)id;
         ed_bk_len = len;
         ed_bk_crc = ed_bk_r32(a + 7);
@@ -216,6 +219,7 @@ static uint32_t ed_bk_write(const uint8_t *a, uint32_t na)
     ed_bk_touch();
     if (op == 3u) {
         ed_bk_put = 0;
+        proj_io_bk = 0;                              /* (the bank may write again) */
         return na == 2u ? 0u : 1u;
     }
     if (op == 2u) {
@@ -223,6 +227,7 @@ static uint32_t ed_bk_write(const uint8_t *a, uint32_t na)
             return 1;
         ed_bk_put = 0;
         ed_bk_cur = ED_BK_NONE;
+        proj_io_bk = 0;
         rc = ed_bk_commit();
         if (!rc) {
             sync_reload = 1;

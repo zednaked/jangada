@@ -157,7 +157,8 @@ static void power_on(void)
     ed_bk_cur = ED_BK_NONE;
     ed_bk_put = 0;
     usb.resets = 0;
-    autosave_hold = 0;
+    autosave_hold = proj_io_bk = 0;
+    fm6_stage_on = 0;
     fm1_ms = 1000;
     erases = 0;
 }
@@ -332,6 +333,7 @@ int main(void)
     sample_slot(1, 3000);
     {   /* the FM6 bank: B3 = F2, B20 = F5; the working project's track 2 plays an edited patch */
         uint8_t v[FP_SIZE + 1u];
+        fm1_ms += ED_BK_HOLD + 1u;                   /* (the LIST above holds the bank off proj_io for 15 s) */
         fm6_bank_put(2, FM6_FACTORY[1]);
         fm6_bank_put(19, FM6_FACTORY[4]);
         fm6_unpack(FM6_FACTORY[6], v);
@@ -611,6 +613,148 @@ int main(void)
         rep_n = 0;
         ed_fm6_handle(ED_FM6_PUT, a, 20);
         check("FM6 PUT of a factory slot, of B33, of a short record: rc 1", ok && rep[2] == 1 && !erases);
+    }
+
+    {   /* a bank write while the editor's backup holds proj_io (Jangada): refused with rc 4, so the snapshot being
+         * read and the restore being staged stay whole; allowed again after the commit / abort, or 15 s later */
+        static uint8_t dump[4096], h0[sizeof(fm6_half_t)];
+        uint8_t a[2 + FM6_PACKED];
+        uint32_t used, k, rc4, rcd, ok;
+        for (k = 0; k < 32u; k++)
+            memcpy(dump + k * FM6_PACKED, FM6_FACTORY[k % FM6_NFACTORY], FM6_PACKED);
+        power_on();
+        fm6_bank_boot();
+        fm6_bank_put(4, FM6_FACTORY[2]);                 /* B5 */
+        memcpy(h0, fm6_half_view(0), sizeof h0);
+        used = fm6_bank_used;
+        rc = list();                                     /* the session: proj_io holds the snapshot */
+        a[0] = ED_FM6_BANK;
+        a[1] = 9;
+        memcpy(a + 2, FM6_FACTORY[5], FM6_PACKED);
+        erases = 0;
+        rep_n = 0;
+        ed_fm6_handle(ED_FM6_PUT, a, sizeof a);
+        rc4 = rep[2];
+        rcd = fm6_bank_put_all(dump);                    /* a DX7 bank dump (fm6_sysex.c) */
+        check("a bank PUT and a DX7 bank dump during a backup: rc 4, nothing written, the snapshot whole",
+              !rc && rc4 == 4u && rcd == 4u && !erases && fm6_bank_used == used && ed_bk_cur == 0 &&
+                  st_crc32(ED_BK_RAW, arc[0].len) == arc[0].crc);
+        rep_n = 0;
+        ed_fm6_handle(ED_FM6_ERASE, a + 1, 1);
+        ok = rep[1] == 4u && fm6_bank_used == used;
+        rc = put_begin(8, sizeof h0, st_crc32(h0, sizeof h0));   /* a restore of B1..B16 half way */
+        rc |= put_chunk(8, 0, h0, 256);
+        rep_n = 0;
+        ed_fm6_handle(ED_FM6_PUT, a, sizeof a);
+        ok &= rep[2] == 4u && !erases;
+        for (k = 256; !rc && k < sizeof h0; k += 256u)
+            rc |= put_chunk(8, k, h0 + k, sizeof h0 - k > 256u ? 256u : sizeof h0 - k);
+        rc |= put_end(8, 2);
+        check("ERASE and PUT during a restore: rc 4; the staged half restores whole", ok && !rc && erases == 1 && fm6_bank_used == used);
+        rep_n = 0;
+        ed_fm6_handle(ED_FM6_PUT, a, sizeof a);
+        ok = rep[2] == 0 && fm6_bank_used == (used | 1u << 9);
+        rc = list();
+        fm1_ms += ED_BK_HOLD + 1u;
+        rep_n = 0;
+        ed_fm6_handle(ED_FM6_ERASE, a + 1, 1);
+        check("after the commit, or 15 s after the last request: the bank writes again", ok && !rc && rep[1] == 0 && fm6_bank_used == used);
+    }
+
+    {   /* the editor's staged bank half (FM6_PUT target 3, then FM6_COMMIT; Jangada): up to 16 records and one
+         * flash erase, the whole bank in two; the other half while one is staged, nothing staged, the staging
+         * lapsed, proj_io used meanwhile: rc 5, nothing written; the song playing: rc 3, the staging kept */
+        uint8_t a[2 + FM6_PACKED], pk[FM6_PACKED];
+        uint32_t k, ok = 1, rc5;
+        power_on();
+        fm6_bank_boot();
+        rep_n = 0;
+        ed_fm6_handle(ED_FM6_COMMIT, a, 0);
+        check("FM6 COMMIT with nothing staged: rc 5", rep[0] == 5 && rep_n == 1u);
+        erases = 0;
+        a[0] = ED_FM6_STAGE;
+        for (k = 0; k < FM6_BANK_N; k++) {
+            a[1] = (uint8_t)k;
+            memcpy(a + 2, FM6_FACTORY[k % FM6_NFACTORY], FM6_PACKED);
+            rep_n = 0;
+            ed_fm6_handle(ED_FM6_PUT, a, sizeof a);
+            if (k == FM6_HALF) {                         /* the other half: commit the first one first */
+                ok &= rep[2] == 5 && !erases;
+                rep_n = 0;
+                ed_fm6_handle(ED_FM6_COMMIT, a, 0);
+                ok &= rep[0] == 0 && erases == 1 && fm6_bank_used == 0xFFFFu;
+                rep_n = 0;
+                ed_fm6_handle(ED_FM6_PUT, a, sizeof a);
+            }
+            ok &= rep[2] == 0;
+        }
+        rep_n = 0;
+        ed_fm6_handle(ED_FM6_COMMIT, a, 0);
+        ok &= rep[0] == 0;
+        check("32 records staged, two COMMITs: two erases; the other half refused until the first is written",
+              ok && erases == 2 && fm6_bank_used == 0xFFFFFFFFu);
+        for (k = 0; k < FM6_BANK_N; k++)
+            ok &= !fm6_bank_get(k, pk) && !memcmp(pk, FM6_FACTORY[k % FM6_NFACTORY], FM6_PACKED);
+        fm6_bank_used = 0;
+        fm6_bank_boot();
+        check("... every record in its slot, in flash", ok && fm6_bank_used == 0xFFFFFFFFu);
+        a[1] = 3;                                        /* B4 alone: the half's other slots stay */
+        memcpy(a + 2, FM6_FACTORY[1], FM6_PACKED);
+        rep_n = 0;
+        ed_fm6_handle(ED_FM6_PUT, a, sizeof a);
+        rep_n = 0;
+        ed_fm6_handle(ED_FM6_COMMIT, a, 0);
+        ok = rep[0] == 0 && erases == 3 && !fm6_bank_get(3, pk) && !memcmp(pk, FM6_FACTORY[1], FM6_PACKED);
+        check("one record staged: the half written with its other slots as they were",
+              ok && !fm6_bank_get(4, pk) && !memcmp(pk, FM6_FACTORY[4], FM6_PACKED) && fm6_bank_used == 0xFFFFFFFFu);
+        a[1] = 20;                                       /* B21 = F1 staged, then ... */
+        memcpy(a + 2, FM6_FACTORY[0], FM6_PACKED);
+        rep_n = 0;
+        ed_fm6_handle(ED_FM6_PUT, a, sizeof a);
+        rc = list();                                     /* ... a backup LIST takes proj_io: dropped */
+        rep_n = 0;
+        ed_fm6_handle(ED_FM6_COMMIT, a, 0);
+        rc5 = rep[0];
+        fm1_ms += ED_BK_HOLD + 1u;
+        rep_n = 0;
+        ed_fm6_handle(ED_FM6_PUT, a, sizeof a);
+        proj_capture(&autosave_buf);                     /* ... a project save from the panel reuses proj_io */
+        proj_to_jng(&autosave_buf, proj_io);
+        rep_n = 0;
+        ed_fm6_handle(ED_FM6_COMMIT, a, 0);
+        ok = rc5 == 5 && !rc && rep[0] == 5;
+        rep_n = 0;
+        ed_fm6_handle(ED_FM6_PUT, a, sizeof a);
+        fm1_ms += FM6_STAGE_HOLD + 1u;                   /* ... 15 s pass */
+        rep_n = 0;
+        ed_fm6_handle(ED_FM6_COMMIT, a, 0);
+        ok &= rep[0] == 5;
+        rep_n = 0;
+        ed_fm6_handle(ED_FM6_PUT, a, sizeof a);
+        usb.resets++;                                    /* ... the USB resets */
+        rep_n = 0;
+        ed_fm6_handle(ED_FM6_COMMIT, a, 0);
+        check("a staging dropped by a backup, a project save, 15 s, a USB reset: COMMIT rc 5, nothing written",
+              ok && rep[0] == 5 && erases == 3 && !fm6_bank_get(20, pk) && !memcmp(pk, FM6_FACTORY[4], FM6_PACKED));
+        rep_n = 0;
+        ed_fm6_handle(ED_FM6_PUT, a, sizeof a);
+        song.playing = 1;
+        rep_n = 0;
+        ed_fm6_handle(ED_FM6_COMMIT, a, 0);
+        ok = rep[0] == 3 && erases == 3;
+        song.playing = 0;
+        rep_n = 0;
+        ed_fm6_handle(ED_FM6_COMMIT, a, 0);
+        check("COMMIT while the song plays: rc 3, the staging kept; stopped: written",
+              ok && rep[0] == 0 && erases == 4 && !fm6_bank_get(20, pk) && !memcmp(pk, FM6_FACTORY[0], FM6_PACKED));
+        rc = list();                                     /* a backup holds proj_io: no staging either */
+        rep_n = 0;
+        ed_fm6_handle(ED_FM6_PUT, a, sizeof a);
+        check("a record staged during a backup: rc 4", !rc && rep[2] == 4);
+        a[1] = 32;
+        rep_n = 0;
+        ed_fm6_handle(ED_FM6_PUT, a, sizeof a);
+        check("a record staged for B33: rc 1", rep[2] == 1);
     }
 
     /* without flash */

@@ -471,7 +471,10 @@ static void proj_apply(const project_t *p)
 static project_t autosave_buf;
 static uint32_t autosave_sum, autosave_ms, autosave_checked;
 static uint32_t autosave_hold;                 /* fm1_ms until which it waits: an editor backup uses proj_io
-                                                * (editor_backup.c) */
+                                                * (editor_backup.c), or a staged FM6 bank half (fm6_bank.c) */
+static uint32_t proj_io_bk;                    /* fm1_ms until which the editor's backup owns proj_io (its snapshot
+                                                * or its staging, editor_backup.c): a bank write (fm6_bank.c)
+                                                * is refused meanwhile, so it cannot corrupt a restore */
 
 static int audio_quiet(void)                   /* no voice of any track, no drum */
 {
@@ -527,7 +530,8 @@ static void autosave_resume(void)
 /* settings + learned panel table: one flash object. The flash copy wins at
  * boot (the .noinit copies are garbage after a power-off). */
 typedef struct {
-    uint32_t magic, palette, lowcut, zoom;
+    uint32_t magic, palette, lowcut, zoom;         /* zoom: reserved (Jangada: ZOOM left the menu; the layout
+                                                    * stays for the flash copy and the backups: written as 0) */
     panel_t panel;
     uint32_t lights;                               /* Jangada: menu LIGHTS / KEYS / NOTES / USB AUDIO (panel.c
                                                     * lights_word); appended, so 0.2 still reads its part */
@@ -563,8 +567,7 @@ static void persist_boot(void)                    /* before settings_init / pane
             p.lowcut <= 1u) {
             settings.magic = SETTINGS_MAGIC;        /* (each value checked as it is read: after SLOOP 2.3) */
             settings.palette = p.palette;
-            settings.lowcut = p.lowcut;
-            settings.zoom = 0;                      /* Jangada: ZOOM left the menu (was p.zoom) */
+            settings.lowcut = p.lowcut;             /* (p.zoom: reserved, ignored) */
             if (panel_valid(&p.panel))
                 panel = p.panel;
             lights_from_word(p.lights);
@@ -576,7 +579,6 @@ static void persist_boot(void)                    /* before settings_init / pane
             settings.magic = SETTINGS_MAGIC;
             settings.palette = w[1] < NPALETTES ? w[1] : 5u;
             settings.lowcut = 0;
-            settings.zoom = 0;
             if (panel_valid(&old))
                 panel = old;
         }
@@ -603,7 +605,7 @@ static void settings_save(void)
     p.magic = PERSIST_MAGIC;
     p.palette = settings.palette;
     p.lowcut = settings.lowcut;
-    p.zoom = settings.zoom;
+    p.zoom = 0;                                    /* (reserved) */
     p.panel = panel;
     p.lights = lights_word();
     if (!memcmp(&p, &persist_saved, sizeof p))
