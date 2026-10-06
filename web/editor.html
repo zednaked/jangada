@@ -356,7 +356,8 @@ const CMD = { INFO: 1, GET: 2, SET: 3, DUMP: 4, DESC: 5, STEP_GET: 6, STEP_SET: 
   TRACK: 27, TRACK_MIX: 28, TRACK_DUMP: 29, TRACK_STEP: 30,
   TRACK_PARAM: 31, TRACK_CHANGED: 32,
   BK_LIST: 34, BK_GET: 35, BK_PUT: 36,                /* v5 (Jangada): backup / restore (fm1backup.js) */
-  FM6_GET: 68, FM6_PUT: 69, FM6_LIST: 70, FM6_ERASE: 71 };   /* Jangada 0.5: FM6 patches (after Felucca 1.0) */
+  FM6_GET: 68, FM6_PUT: 69, FM6_LIST: 70, FM6_ERASE: 71,     /* Jangada 0.5: FM6 patches (after Felucca 1.0) */
+  FM6_COMMIT: 72 };                                           /* the staged bank half to flash (INFO 46 02) */
 /* frames the device sends on its own (while WATCH is on); never replies */
 const PUSH = new Set([CMD.CHANGED, CMD.RELOAD, CMD.STEP_CHANGED, CMD.TRACK_CHANGED]);
 /* user preset bank: name 1..12 printable ASCII, a 16-step pattern of (note, flags 1 acc 2 slide 4 tie) */
@@ -393,8 +394,10 @@ const parse = {
     for (let i = 0; i < o.nengines; i++) o.engines.push(r.s());
     o.ntrk = r.i < a.length ? r.b() : 0;             /* v3: tracks (0 = older firmware, one instrument) */
     o.proto = r.i < a.length ? r.b() : 0;            /* v5 (Jangada): the protocol version (0 = older firmware) */
-    o.fm6 = null;                                    /* Jangada 0.5: FM6 patches (cmds 68..71): 46 01 nfactory nbank */
-    if (r.i + 3 < a.length && a[r.i] === 0x46 && a[r.i + 1] === 1) o.fm6 = { factory: a[r.i + 2], bank: a[r.i + 3] };
+    o.fm6 = null;                                    /* Jangada 0.5: FM6 patches (cmds 68..71): 46 01 nfactory nbank;
+                                                      * 46 02: with the staged bank half (PUT target 3, FM6_COMMIT) */
+    if (r.i + 3 < a.length && a[r.i] === 0x46 && (a[r.i + 1] === 1 || a[r.i + 1] === 2))
+      o.fm6 = { factory: a[r.i + 2], bank: a[r.i + 3], batch: a[r.i + 1] >= 2 };
     return o;
   },
   [CMD.GET](a) { const r = new Reader(a); return { scope: r.b(), id: r.b(), value: r.v() }; },
@@ -493,6 +496,7 @@ const parse = {
     return o;
   },
   [CMD.FM6_ERASE](a) { return { index: a[0], rc: a[1] }; },
+  [CMD.FM6_COMMIT](a) { return { rc: a[0] }; },
 };
 
 /* a name the device accepts: printable ASCII, 1..12 characters */
@@ -541,6 +545,7 @@ const req = {
   fm6Put: (target, i, packed) => [CMD.FM6_PUT, [target & 0x7F, i & 0x7F, ...Array.from(packed, (x) => x & 0x7F)]],
   fm6List: () => [CMD.FM6_LIST, []],
   fm6Erase: (i) => [CMD.FM6_ERASE, [i & 0x7F]],
+  fm6Commit: () => [CMD.FM6_COMMIT, []],
 };
 
 /* which reply belongs to which request (the device echoes these) */
@@ -783,7 +788,7 @@ const FM6 = (() => {
   const factory = (k) => unpack(FACTORY_PK[k]);
   return { OP, VOICE, OPI, VI, NAME, SIZE, PACKED, BANK, max, at, sanitize, unpack, pack, name, setName, checksum, parseSysex,
     singleSysex, bankSysex, ALG, carriers, feedbackOp, freqText, INIT_PK, FACTORY_PK, init, factory,
-    TARGET: { TRACK: 0, BANK: 1, FACTORY: 2 } };
+    TARGET: { TRACK: 0, BANK: 1, FACTORY: 2, STAGE: 3 } };   /* STAGE: a bank slot into the staged half (FM6_COMMIT writes it) */
 })();
 
 /* ------------------------------------------------------------- formatting --- */
@@ -1695,6 +1700,8 @@ function makeMockDevice(opt = {}) {
   /* v5 backup: the settings object (opaque here, its size as persist_t), the snapshot of LIST, a staged PUT */
   st.settings = Uint8Array.from({ length: 48 }, (_, i) => (i * 37 + 5) & 0xFF);
   st.bkSnap = null; st.bkPut = null;
+  st.fm6stage = null;                             /* the staged FM6 bank half: { half, v: 16 records or null } */
+  st.bkHold = 0;                                  /* until when (ms) a backup holds the device's buffer: bank writes rc 4 */
   /* the mock's objects: a project packed (it must fit one flash object, 3840 bytes, as the firmware's
      "JNG1"), a bank as JSON {slot: preset}, the raw sample slots */
   const bkProj = (o) => {
@@ -1835,7 +1842,7 @@ function makeMockDevice(opt = {}) {
         ENG.forEach((e) => s(e.name));
         if (!opt.legacy) b(NTRK);
         if (!opt.legacy && !opt.v3 && !opt.noBackup) b(opt.v5 ? 5 : 6);   /* v5 (Jangada): backup / restore; v6: + the FM6 bank */
-        if (fm6Ok()) { b(0x46); b(1); b(FM6.FACTORY_PK.length); b(FM6.BANK); }   /* FM6 patches */
+        if (fm6Ok()) { b(0x46); b(opt.fm6v1 ? 1 : 2); b(FM6.FACTORY_PK.length); b(FM6.BANK); }   /* FM6 patches (v2: the staged half) */
         break;
       case CMD.GET: case CMD.SET: {
         if (a.length < 2) return null;
@@ -2014,12 +2021,25 @@ function makeMockDevice(opt = {}) {
             else { const x = P.len ? bkDec(P.buf) : {}; for (let i = 0; i < 16; i++) st.bank[(id - 6) * 16 + i] = x[i] || null; }
           } catch (e) { rc = 2; }
         } else if (op === 3) { st.bkPut = null; rc = 0; }
+        if (op === 2 || op === 3) st.bkHold = 0;     /* (the bank may write again) */
         b(op); b(id); b(rc);
         break;
       }
-      case CMD.FM6_GET: case CMD.FM6_PUT: case CMD.FM6_LIST: case CMD.FM6_ERASE: {   /* editor_fm6.c */
+      case CMD.FM6_GET: case CMD.FM6_PUT: case CMD.FM6_LIST: case CMD.FM6_ERASE: case CMD.FM6_COMMIT: {   /* editor_fm6.c */
         if (!fm6Ok()) return null;
-        const nf = FM6.FACTORY_PK.length, nb = FM6.BANK;
+        const nf = FM6.FACTORY_PK.length, nb = FM6.BANK, bkBusy = Date.now() < st.bkHold;   /* (a backup holds the device's buffer: rc 4) */
+        const bankRc = () => st.playing ? 3 : bkBusy ? 4 : 0;
+        const slotPut = (k, pk) => {
+          st.fm6bank[k] = pk;
+          st.tracks.forEach((t) => { if (t.fm6slot === nf + k) t.fm6slot = -1; });   /* tracks on that slot reload */
+        };
+        if (cmd === CMD.FM6_COMMIT) {                  /* the staged half to flash */
+          if (a.length || opt.fm6v1) return null;
+          const rc = !st.fm6stage ? 5 : bankRc();
+          if (!rc) { st.fm6stage.v.forEach((pk, i) => { if (pk) slotPut(st.fm6stage.half * 16 + i, pk); }); st.fm6stage = null; }
+          b(rc);
+          break;
+        }
         if (cmd === CMD.FM6_LIST) {
           if (a.length) return null;
           b(nf); b(nb);
@@ -2028,11 +2048,8 @@ function makeMockDevice(opt = {}) {
             b(pk ? 1 : 0); s(pk ? FM6.name(FM6.unpack(pk)) : "");
           }
         } else if (cmd === CMD.FM6_ERASE) {
-          const rc = a.length !== 1 || a[0] >= nb ? 1 : st.playing ? 3 : 0;
-          if (!rc) {
-            st.fm6bank[a[0]] = null;
-            st.tracks.forEach((t) => { if (t.fm6slot === nf + a[0]) t.fm6slot = -1; });
-          }
+          const rc = a.length !== 1 || a[0] >= nb ? 1 : bankRc();
+          if (!rc) { slotPut(a[0], null); st.fm6stage = null; }
           b(a[0] ?? 127); b(rc);
         } else if (cmd === CMD.FM6_GET) {
           let rc = a.length !== 2 || a[0] > 2 ? 1 : 0, pk = null;
@@ -2042,12 +2059,16 @@ function makeMockDevice(opt = {}) {
           b(a[0] ?? 127); b(a[1] ?? 127); b(rc);
           if (!rc) pk.forEach(b);
         } else {
-          let rc = a.length !== 2 + FM6.PACKED || a[0] > 1 || a[1] >= (a[0] ? nb : NTRK) ? 1 : a[0] === 1 && st.playing ? 3 : 0;
+          const tmax = opt.fm6v1 ? 1 : 3;              /* v2: target 3 stages a bank slot */
+          let rc = a.length !== 2 + FM6.PACKED || a[0] > tmax || a[0] === 2 || a[1] >= (a[0] ? nb : NTRK) ? 1
+            : a[0] === 1 ? bankRc() : a[0] === 3 && bkBusy ? 4
+            : a[0] === 3 && st.fm6stage && st.fm6stage.half !== (a[1] >> 4) ? 5 : 0;   /* the other half: commit first */
           const pk = rc ? null : FM6.pack(FM6.unpack(a.slice(2)));   /* (every value into its range) */
           if (!rc && a[0] === 0) { const t = st.tracks[a[1]]; t.fm6 = pk; t.fm6slot = t.p[P_E0 + 7]; }
+          else if (!rc && a[0] === 1) { slotPut(a[1], pk); st.fm6stage = null; }
           else if (!rc) {
-            st.fm6bank[a[1]] = pk;
-            st.tracks.forEach((t) => { if (t.fm6slot === nf + a[1]) t.fm6slot = -1; });   /* tracks on that slot reload */
+            if (!st.fm6stage) st.fm6stage = { half: a[1] >> 4, v: new Array(16).fill(null) };
+            st.fm6stage.v[a[1] & 15] = pk;
           }
           b(a[0] ?? 127); b(a[1] ?? 127); b(rc);
         }
@@ -2075,7 +2096,8 @@ function makeMockDevice(opt = {}) {
       busy = true;
       watching();                                   /* a lapsed WATCH ends before this request counts */
       st.lastReq = Date.now();
-      const flash = ([CMD.UP_PUT, CMD.UP_STORE, CMD.UP_ERASE, CMD.FM6_ERASE].includes(f.cmd) || (f.cmd === CMD.FM6_PUT && f.a[0] === 1)) && !opt.legacy;
+      const flash = ([CMD.UP_PUT, CMD.UP_STORE, CMD.UP_ERASE, CMD.FM6_ERASE, CMD.FM6_COMMIT].includes(f.cmd) || (f.cmd === CMD.FM6_PUT && f.a[0] === 1)) && !opt.legacy;
+      if ([CMD.BK_LIST, CMD.BK_GET, CMD.BK_PUT].includes(f.cmd)) st.bkHold = Date.now() + (opt.bkHoldMs ?? 15000);   /* editor_backup.c ed_bk_touch */
       setTimeout(() => {
         busy = false;
         const r = handle(f.cmd, f.a);
@@ -2101,6 +2123,7 @@ function makeMockDevice(opt = {}) {
   /* things done on the device itself */
   const sim = {
     play(on = true) { st.playing = !!on; },          /* the transport (an FM6 bank write answers rc 3) */
+    bkRelease() { st.bkHold = 0; },                  /* the backup's hold on the buffer lapses (15 s on the device) */
     knob(id = [9, 33, 35, P_E0 + 4][Math.floor(Math.random() * 4)], dv = Math.random() < 0.5 ? -4 : 4) {
       const d = desc(0, id);
       st.p[id] = clamp(st.p[id] + dv, d.min, d.max);
@@ -2301,6 +2324,7 @@ const TEXT = {
     fm6Loaded: "読み込みました", fm6Factory: "F1〜F8 はファクトリー音色です。B1〜B32 を選んでください。", fm6BadSum: "チェックサム不一致あり",
     fm6Exported: "バンクを書き出しました", fm6BankPut: "32 音色を B1〜B32 に保存", fm6BankConfirm: "バンク B1〜B32 をこのファイルの 32 音色で置き換えますか？",
     fm6Storing: "保存中 ", fm6BankDone: "バンクを保存しました: B1〜B32", fm6Stop: "FM-1 の再生を止めてからバンクに書き込んでください。",
+    fm6Busy: "FM-1 でバックアップが進行中です（最後の要求から 15 秒）。少し待ってからもう一度。", fm6Lost: "FM-1 が保存前にバッファを使いました。もう一度保存してください。",
   },
   en: {
     other: "日本語", connect: "Connect", disconnect: "Disconnect", mock: "Mock device (no hardware)",
@@ -2390,6 +2414,7 @@ const TEXT = {
     fm6Loaded: "Loaded", fm6Factory: "F1..F8 are the factory patches: pick B1..B32.", fm6BadSum: "a checksum did not match",
     fm6Exported: "Bank exported", fm6BankPut: "Store all 32 in B1..B32", fm6BankConfirm: "Replace the whole bank B1..B32 with the 32 voices of this file?",
     fm6Storing: "Storing ", fm6BankDone: "Bank stored: B1..B32", fm6Stop: "Stop the FM-1 (PLAY), then write to the bank.",
+    fm6Busy: "A backup is running on the FM-1 (15 s after its last request): wait a moment, then try again.", fm6Lost: "The FM-1 used its buffer before the write: store again.",
   },
 };
 let lang = (navigator.language || "en").toLowerCase().startsWith("ja") ? "ja" : "en";
@@ -4485,7 +4510,12 @@ const fm6Track = () => +$("fm6trk").value || 0;
 const fm6SlotName = (i) => (i < dev.info.fm6.factory ? "F" + (i + 1) : "B" + (i - dev.info.fm6.factory + 1));
 const FM6_WAVES = ["TRI", "SAW-", "SAW+", "SQR", "SIN", "S&H"];
 const FM6_CURVES = ["-LIN", "-EXP", "+EXP", "+LIN"];
-const fm6Rc = (rc) => { if (rc === 3) throw new Error(t("fm6Stop")); checkRc(rc); };
+const fm6Rc = (rc) => {
+  if (rc === 3) throw new Error(t("fm6Stop"));
+  if (rc === 4) throw new Error(t("fm6Busy"));         /* a backup holds the device's buffer */
+  if (rc === 5) throw new Error(t("fm6Lost"));         /* the staged half is gone (COMMIT), or the other half is staged */
+  checkRc(rc);
+};
 function fm6Set(i, val) {
   fm6v[i] = Math.max(0, Math.min(FM6.max(i), Math.round(+val || 0)));
   if ($("fm6live").checked && fm6Ok()) {
@@ -4577,13 +4607,19 @@ async function fm6Send(quiet) {
   fm6Rc(r.rc);
   if (!quiet) sayK("fm6Sent", ` ${fm6Track() + 1}: ${FM6.name(fm6v)}`);
 }
-/* the 32 voices of an imported bank into B1..B32, one slot after the other (each a flash write) */
+/* the 32 voices of an imported bank into B1..B32: staged a half (16) at a time and committed (two flash writes,
+ * two short pauses of the audio: firmware with INFO 46 02), or one slot after the other (each a flash write) on
+ * the firmware before it */
 async function fm6BankPut() {
   if (!fm6Ok() || !fm6ImportedBank || !confirm(t("fm6BankConfirm"))) return;
   await op(async () => {
-    for (let k = 0; k < fm6Imported.length && k < dev.info.fm6.bank; k++) {
+    const n = Math.min(fm6Imported.length, dev.info.fm6.bank);
+    for (let k = 0; k < n; k++) {
       sayK("fm6Storing", `B${k + 1} / ${dev.info.fm6.bank}`);
-      fm6Rc(parse[CMD.FM6_PUT](await rq(req.fm6Put(FM6.TARGET.BANK, k, FM6.pack(fm6Imported[k].v)), { timeout: 3000, retries: 0 })).rc);
+      const target = dev.info.fm6.batch ? FM6.TARGET.STAGE : FM6.TARGET.BANK;
+      fm6Rc(parse[CMD.FM6_PUT](await rq(req.fm6Put(target, k, FM6.pack(fm6Imported[k].v)), { timeout: 3000, retries: 0 })).rc);
+      if (dev.info.fm6.batch && (k % 16 === 15 || k === n - 1))
+        fm6Rc(parse[CMD.FM6_COMMIT](await rq(req.fm6Commit(), { timeout: 3000, retries: 0 })).rc);
     }
     await fm6Refresh();
     sayK("fm6BankDone");

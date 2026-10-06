@@ -5,7 +5,7 @@
  * v4 = TRACK_PARAM (31) and the TRACK_CHANGED push (32), enabled by WATCH bit 1;
  * v5 (Jangada) = backup / restore, cmds 34-36 (editor_backup.c); INFO ends with the version;
  * v6 (Jangada 0.5) = the backup carries the FM6 patch bank (ids 8, 9); the FM6 patches, cmds 68-71
- * (editor_fm6.c, as Felucca 1.0 numbers them), advertised by INFO's 46 01 nfactory nbank).
+ * (editor_fm6.c, as Felucca 1.0 numbers them; 72 commits a staged bank half), advertised by INFO's 46 02 nfactory nbank).
  *   F0 7D 46 4C cmd args.. F7     (7D = non-commercial ID, "FL")
  * Values are 14 bit, two 7-bit bytes LSB first, offset by 8192 (so -8192..8191).
  * Every request gets a reply with the same cmd; 23/24/26 are also pushed
@@ -299,8 +299,8 @@ static void ed_handle(const uint8_t *f, uint32_t n)   /* f: the bytes between F0
             ed_str(ENGINES[i]->name, 8);
         ed_b(NTRK);                                       /* v3 */
         ed_b(ED_PROTO);                                   /* v5: the protocol version */
-        ed_b(0x46);                                       /* FM6 patches (cmds 68-71): tag, version, F / B slots */
-        ed_b(1);
+        ed_b(0x46);                                       /* FM6 patches (cmds 68-72): tag, version, F / B slots */
+        ed_b(2);                                          /* (2: with the staged bank half, PUT target 3 / COMMIT) */
         ed_b(FM6_NFACTORY);
         ed_b(FM6_BANK_N);
         break;

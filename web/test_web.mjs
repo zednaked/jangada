@@ -531,7 +531,8 @@ async function editorFm6() {
   const { m, rq, done } = attachMock({});
   const C = E.CMD, T = F6.TARGET;
   const info = E.parse[C.INFO](await rq(E.req.info()));
-  ok(info.proto === 6 && info.fm6 && info.fm6.factory === 8 && info.fm6.bank === 32, "FM6: INFO advertises 46 01 8 32 after the version");
+  ok(info.proto === 6 && info.fm6 && info.fm6.factory === 8 && info.fm6.bank === 32 && info.fm6.batch === true,
+     "FM6: INFO advertises 46 02 8 32 after the version (02: the staged bank half)");
   let l = E.parse[C.FM6_LIST](await rq(E.req.fm6List()));
   ok(l.factory === 8 && l.bank === 32 && l.slots.length === 40 && l.slots[0].used && l.slots[0].name === "TINE EP" && !l.slots[8].used,
      "FM6: LIST: F1..F8 by name, B1..B32 empty");
@@ -558,6 +559,25 @@ async function editorFm6() {
   ok(busy === 3 && busyE === 3, "FM6: a bank write while the song plays: rc 3");
   ok(E.parse[C.FM6_PUT](await rq(E.req.fm6Put(T.FACTORY, 0, mine))).rc === 1 && E.parse[C.FM6_PUT](await rq(E.req.fm6Put(T.BANK, 32, mine))).rc === 1 &&
      E.parse[C.FM6_GET](await rq(E.req.fm6Get(T.TRACK, 9))).rc === 1, "FM6: a factory PUT, B33, track 10: rc 1");
+  /* the staged half (Jangada, INFO 46 02): FM6_PUT target 3 stages a slot, FM6_COMMIT writes the half (one flash
+   * write for 16 slots); the other half is refused (rc 5) until the first is committed; nothing staged: rc 5 */
+  const m2 = attachMock({}), rq2 = m2.rq;         /* (a second FM-1: the mock keeps a full bank as JSON, too big for a backup) */
+  const stage = async (k, pk, r = rq2) => E.parse[C.FM6_PUT](await r(E.req.fm6Put(T.STAGE, k, pk))).rc;
+  const commit = async (r = rq2) => E.parse[C.FM6_COMMIT](await r(E.req.fm6Commit())).rc;
+  ok((await commit()) === 5, "FM6: COMMIT with nothing staged: rc 5");
+  await rq2(E.req.fm6Put(T.BANK, 9, F6.FACTORY_PK[1]));   /* B10 the usual way */
+  const rcs = [];
+  for (let k = 0; k < 32; k++) {
+    if (k === 16) { rcs.push(await stage(16, F6.FACTORY_PK[0]) === 5 ? 0 : 99); rcs.push(await commit()); }
+    if (k !== 9) rcs.push(await stage(k, F6.FACTORY_PK[k % 8]));
+  }
+  rcs.push(await commit());
+  const l2 = E.parse[C.FM6_LIST](await rq2(E.req.fm6List()));
+  const g32 = E.parse[C.FM6_GET](await rq2(E.req.fm6Get(T.BANK, 31))), g10 = E.parse[C.FM6_GET](await rq2(E.req.fm6Get(T.BANK, 9)));
+  ok(rcs.every((r) => r === 0) && l2.slots.slice(8).every((s) => s.used) && g32.rc === 0 && eq(g32.packed, F6.FACTORY_PK[7]) &&
+     eq(g10.packed, F6.FACTORY_PK[1]),
+     "FM6: 31 slots staged in two halves, two COMMITs: stored, the slot not staged (B10) as it was; the other half waits for the commit");
+  m2.done();
   /* the bank and the track's own patch go through a backup into an empty FM-1 */
   const file = await BK.captureBackup(rq, info.version);
   const B = attachMock({});
@@ -565,8 +585,21 @@ async function editorFm6() {
   const gb = E.parse[C.FM6_GET](await B.rq(E.req.fm6Get(T.BANK, 4))), gt = E.parse[C.FM6_GET](await B.rq(E.req.fm6Get(T.TRACK, 1)));
   ok(file.objects[8].size > 0 && gb.rc === 0 && eq(gb.packed, F6.FACTORY_PK[6]) && gt.rc === 0 && eq(gt.packed, mine),
      "FM6: backup -> restore: the bank (B5) and the track's own patch");
+  /* while a backup holds the device's buffer (15 s after its last request): bank writes rc 4 */
+  const held = [E.parse[C.FM6_ERASE](await rq(E.req.fm6Erase(4))).rc, E.parse[C.FM6_PUT](await rq(E.req.fm6Put(T.BANK, 6, mine))).rc,
+                await stage(6, mine, rq), E.parse[C.FM6_PUT](await B.rq(E.req.fm6Put(T.BANK, 6, mine))).rc];
+  m.sim.bkRelease();
+  ok(held[0] === 4 && held[1] === 4 && held[2] === 4 && held[3] === 0 && E.parse[C.FM6_GET](await rq(E.req.fm6Get(T.BANK, 4))).rc === 0,
+     "FM6: a bank write during a backup: rc 4, nothing changed (the restored FM-1, its restore committed: writes)");
   ok(E.parse[C.FM6_ERASE](await rq(E.req.fm6Erase(4))).rc === 0 && E.parse[C.FM6_GET](await rq(E.req.fm6Get(T.BANK, 4))).rc === 2,
      "FM6: ERASE B5");
+  /* firmware with FM6 patches but no staged half (INFO 46 01): the editor stores a slot at a time */
+  const o1 = attachMock({ fm6v1: true });
+  const i1 = E.parse[C.INFO](await o1.rq(E.req.info()));
+  const s1 = E.parse[C.FM6_PUT](await o1.rq(E.req.fm6Put(T.STAGE, 0, mine))).rc;
+  const c1 = await o1.rq(E.req.fm6Commit(), { timeout: 60, retries: 0, quiet: true }).then(() => "reply", () => "none");
+  ok(i1.fm6 && i1.fm6.batch === false && s1 === 1 && c1 === "none", "FM6: INFO 46 01: no batch (target 3 rc 1, COMMIT unanswered)");
+  o1.done();
   /* firmware without FM6 patches (Jangada 0.4): no tag, no reply */
   const o = attachMock({ v5: true });
   const oi = E.parse[C.INFO](await o.rq(E.req.info()));

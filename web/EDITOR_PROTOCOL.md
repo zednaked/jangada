@@ -1,8 +1,9 @@
 # Felucca editor protocol (SysEx over USB-MIDI)
 
 The firmware side is `firmware/src/editor.c`. Commands 16-26 (user presets and live sync) form protocol v2; commands 27-30 (tracks) form protocol v3; commands 31-32 (any track's parameters) form protocol v4; commands 34-36 (Jangada: backup / restore, `firmware/src/editor_backup.c`) form protocol v5; v6 (Jangada 0.5)
-adds the FM6 patch bank to the backup (objects 8, 9) and the FM6 patch commands 68-71 (`firmware/src/editor_fm6.c`,
-numbered as Felucca 1.0 numbers them; see "FM6 patches").
+adds the FM6 patch bank to the backup (objects 8, 9) and the FM6 patch commands 68-72 (`firmware/src/editor_fm6.c`,
+numbered as Felucca 1.0 numbers them; 72 and PUT target 3, the staged bank half, came after 0.5: INFO says `46 02`;
+see "FM6 patches").
 
 **v3 (four tracks):** the device has four tracks: 1..3 are synth parts, 4 is the drum track. One
 of them is *selected* (the TRACKS page on the device, or `TRACK`). Every v1 / v2 command acts on the
@@ -245,8 +246,9 @@ object), a sample slot at most 80 KiB.
 The FM6 engine (engine 9 in Jangada) plays a 6-operator patch per track; its EDIT parameters are macros on top of it
 (ALG 0 = the patch's algorithm, 1..32 another; FB, MLVL, MRAT, MEG, VMOD offsets; DTUN; PTCH 0..39 = F1..F8 the
 factory patches, then B1..B32 the bank: setting PTCH loads that patch into the track). The patch itself only travels
-through these commands. `INFO` advertises `46 01 nfactory nbank` after the protocol version (this firmware:
-`46 01 08 20`); firmware without it (Jangada 0.4 and before) does not answer 68..71.
+through these commands. `INFO` advertises `46 vv nfactory nbank` after the protocol version (this firmware:
+`46 02 08 20`; `46 01` is Jangada 0.5: the same without PUT target 3 and `FM6_COMMIT`, which it answers with rc 1 and
+not at all); firmware without it (Jangada 0.4 and before) does not answer 68..72.
 
 A patch is the 128-byte packed record of the generic 6-operator voice (the 32-voice bank's record; every byte is
 7-bit, so it travels as it is, no pack7). Operators come sixth first: per operator 17 bytes (R1..R4, L1..L4,
@@ -258,23 +260,35 @@ The device stores every value clamped into its range.
 | cmd | Request args | Reply args |
 | --- | --- | --- |
 | 68 FM6_GET | target, index | target, index, rc, then (rc 0) the 128 bytes |
-| 69 FM6_PUT | target, index, the 128 bytes | target, index, rc (target 0, a track: that track's patch from now on, PTCH as it is: the device does not reload PTCH's patch over it) |
+| 69 FM6_PUT | target, index, the 128 bytes | target, index, rc (target 0, a track: that track's patch from now on, PTCH as it is: the device does not reload PTCH's patch over it; target 3: staged, see FM6_COMMIT) |
 | 70 FM6_LIST | — | nfactory, nbank, then per slot (factory first): used (0/1), name string ("" if empty) |
 | 71 FM6_ERASE | bank index | index, rc |
+| 72 FM6_COMMIT | — | rc: the staged bank half (PUT target 3) to flash, one write (`46 02` firmware) |
 
 target: 0 a track's own patch (index 0..3: what it plays and what its project, the autosave and a backup keep; a
 PUT is heard at once and keeps PTCH as it is), 1 a bank slot (index 0..31 = B1..B32; a PUT writes flash, allow
-1 s; tracks playing that slot reload it), 2 a factory patch (0..7, GET only). rc: 0 ok, 1 arguments (an unknown
-target, an index out of range, a record that is not 128 bytes), 2 an empty bank slot (GET) or a flash error
-(PUT, ERASE), 3 the song plays (PUT / ERASE of the bank: a flash erase stops the audio for a moment; stop it
-first). The bank is in flash (`fm6_bank.c`: B1..B16 at 0xE5000 / 0xE6000, B17..B32 at 0xE7000 / 0xE8000) and in a
-full backup (ids 8, 9).
+1 s; tracks playing that slot reload it), 2 a factory patch (0..7, GET only), 3 a bank slot *staged* (PUT only,
+`46 02` firmware): the record goes into a copy of its half (B1..B16 or B17..B32) in the device's RAM, the half's
+other slots as they are in flash, and `FM6_COMMIT` writes the half whole: one flash erase (one pause of the
+audio) for up to 16 slots instead of one each. Stage the slots of one half, commit, then the other half: a slot
+of the other half while one is staged answers rc 5 (commit first). A staging lapses 15 s after its last record,
+on a USB reset, when the device uses that RAM for something else (a project save or load from the panel, a
+backup request) or when a plain bank PUT / ERASE writes: the commit then answers rc 5 and writes nothing (stage
+again). rc: 0 ok, 1 arguments (an unknown target, an index out of range, a record that is not 128 bytes), 2 an
+empty bank slot (GET) or a flash error (PUT, ERASE, COMMIT), 3 the song plays (PUT / ERASE of the bank, COMMIT:
+a flash erase stops the audio for a moment; stop it first; a staging survives it), 4 a backup holds the
+device's buffer (its snapshot being read, or a restore being staged: `LIST` / `BK_GET` / `BK_PUT` within the
+last 15 s, until the restore's commit or abort; a bank write then would corrupt them, so PUT / ERASE / COMMIT
+of the bank, and a DX7 bank dump, are refused: wait, then try again), 5 nothing staged (COMMIT: or the staging
+lapsed) or the other half is staged (PUT target 3). The bank is in flash (`fm6_bank.c`: B1..B16 at 0xE5000 /
+0xE6000, B17..B32 at 0xE7000 / 0xE8000) and in a full backup (ids 8, 9).
 
 The web editor (6-OP FM tab) reads and writes these, and imports / exports the DX7-format SysEx files: a single
 voice `F0 43 0n 00 01 1B`, the 155-byte unpacked voice, checksum, `F7` (163 bytes), and 32 voices
 `F0 43 0n 09 20 00`, 32 x 128 packed, checksum, `F7` (4104 bytes); the checksum is the two's complement of the
 data's sum, 7 bits. Raw 155 / 4096-byte files are read too. A file of one 32-voice bank can go into B1..B32 at
-once (32 `FM6_PUT`s).
+once: 16 `FM6_PUT`s of target 3 and a `FM6_COMMIT` per half (two flash writes; on `46 01` firmware 32 `FM6_PUT`s
+of target 1, one flash write each).
 
 **The same patches as DX7 SysEx** (Jangada 0.5, `firmware/src/fm6_sysex.c`, after Melodee): the device also takes,
 on any channel n, a voice `F0 43 0n 00 01 1B ..` (into the FM6 track: the selected one when it plays FM6, else

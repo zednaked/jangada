@@ -9,8 +9,9 @@
  * project.c's proj_io (the main loop's stored-object buffer, as the editor's backup does) and commits it whole.
  * An empty slot, or a half of another layout, plays the init voice. The payload ends 2064 + 256 bytes into its
  * sector: the sector's tail stays erased (nothing there can look like an update record, ldr_core.c).
- * Written by the web editor (EDITOR_PROTOCOL.md FM6_PUT / FM6_ERASE), by a 32-voice SysEx bank (fm6_sysex.c),
- * restored by a backup (ids 8, 9). Included by felucca.c after project.c (FELUCCA_FLASH). */
+ * Written by the web editor (EDITOR_PROTOCOL.md FM6_PUT / FM6_ERASE, a half at a time with FM6_PUT target 3 and
+ * FM6_COMMIT), by a 32-voice SysEx bank (fm6_sysex.c), restored by a backup (ids 8, 9); not while the backup
+ * holds proj_io (proj_io_bk, project.c). Included by felucca.c after project.c (FELUCCA_FLASH). */
 #define FM6_BANK_MAGIC 0x42364D46u               /* "FM6B" */
 #define FM6_HALF 16u                             /* slots per object */
 typedef struct {
@@ -134,26 +135,53 @@ static int fm6_half_commit(uint32_t h, const fm6_half_t *w)   /* 0 ok, 2 flash *
     return 0;
 }
 
-static int fm6_bank_busy(void)                   /* a flash erase stops the audio a moment: not while playing */
+/* a half staged for the editor (editor_fm6.c: FM6_PUT target 3, then FM6_COMMIT): built in proj_io a record at a
+ * time, written once (one erase for up to 16 slots instead of one each). The CRC of the whole half after each
+ * record catches another use of proj_io meanwhile (a project save or load from the panel: nothing is written
+ * then); the editor's backup drops it outright (fm6_stage_drop); a USB reset or 15 s without a record end it */
+#define FM6_STAGE_HOLD 15000u
+static uint8_t fm6_stage_on, fm6_stage_h;
+static uint32_t fm6_stage_crc, fm6_stage_ms, fm6_stage_usb;
+
+static void fm6_stage_drop(void) { fm6_stage_on = 0; }
+
+static int fm6_stage_live(void)                  /* 1: a half is staged and proj_io still holds it whole */
+{
+    if (fm6_stage_on && (fm1_ms - fm6_stage_ms > FM6_STAGE_HOLD || fm6_stage_usb != usb.resets ||
+                         st_crc32(proj_io, sizeof(fm6_half_t)) != fm6_stage_crc))
+        fm6_stage_on = 0;
+    return fm6_stage_on;
+}
+
+/* a bank write can go ahead: 0, else the rc of the editor protocol: 2 no flash, 3 the song plays (a flash erase
+ * stops the audio a moment), 4 the editor's backup holds proj_io (its snapshot being read, or a restore being
+ * staged: editor_backup.c, up to 15 s after its last request; a write would corrupt them). The top bar says */
+static uint32_t fm6_bank_busy(void)
 {
     if (!flash_ok)
-        return 1;
+        return 2;
     if (song.playing || transport_req) {
         ui_message("STOP TO SAVE");
-        return 1;
+        return 3;
+    }
+    if ((int32_t)(proj_io_bk - fm1_ms) > 0) {
+        ui_message("BACKUP BUSY");
+        return 4;
     }
     return 0;
 }
 
-/* slot k = the packed record pk (0: erase it), then that half to flash: 0 ok, 1 bad slot, 2 flash error, no
- * flash or the song plays (nothing changed) */
-static int fm6_bank_put(uint32_t k, const uint8_t *pk)
+/* slot k = the packed record pk (0: erase it), then that half to flash: 0 ok, 1 bad slot, 2 flash error or no
+ * flash, 3 the song plays, 4 a backup holds proj_io (3, 4: nothing changed) */
+static uint32_t fm6_bank_put(uint32_t k, const uint8_t *pk)
 {
     fm6_half_t *w;
+    uint32_t rc;
     if (k >= FM6_BANK_N)
         return 1;
-    if (fm6_bank_busy())
-        return 2;
+    if ((rc = fm6_bank_busy()) != 0)
+        return rc;
+    fm6_stage_drop();                            /* (proj_io is taken) */
     w = fm6_half_edit(k / FM6_HALF);
     if (pk)
         fm6_half_set(w, k % FM6_HALF, pk);
@@ -161,16 +189,17 @@ static int fm6_bank_put(uint32_t k, const uint8_t *pk)
         memset(w->v[k % FM6_HALF], 0, FM6_PACKED);
         w->used &= ~(1u << (k % FM6_HALF));
     }
-    return fm6_half_commit(k / FM6_HALF, w);
+    return fm6_half_commit(k / FM6_HALF, w) ? 2u : 0u;
 }
 
 /* the whole bank = 32 packed records (a 32-voice SysEx bank's 4096 bytes, 7-bit), every slot used: 0 ok, 2 flash
- * error, no flash or the song plays. Each half commits by itself */
-static int fm6_bank_put_all(const uint8_t *rec)
+ * error or no flash, 3 the song plays, 4 a backup holds proj_io. Each half commits by itself */
+static uint32_t fm6_bank_put_all(const uint8_t *rec)
 {
-    uint32_t h, i;
-    if (fm6_bank_busy())
-        return 2;
+    uint32_t h, i, rc;
+    if ((rc = fm6_bank_busy()) != 0)
+        return rc;
+    fm6_stage_drop();
     for (h = 0; h < 2u; h++) {
         fm6_half_t *w = fm6_half_edit(h);
         for (i = 0; i < FM6_HALF; i++)
@@ -179,4 +208,45 @@ static int fm6_bank_put_all(const uint8_t *rec)
             return 2;
     }
     return 0;
+}
+
+/* record pk -> slot k of the staged half (the half's other slots as they are in flash): 0 ok, 1 bad slot, 2 no
+ * flash, 4 a backup holds proj_io, 5 the other half is staged (commit it first) */
+static uint32_t fm6_bank_stage(uint32_t k, const uint8_t *pk)
+{
+    fm6_half_t *w = (fm6_half_t *)(void *)proj_io;
+    uint32_t h = k / FM6_HALF;
+    if (k >= FM6_BANK_N)
+        return 1;
+    if (!flash_ok)
+        return 2;
+    if ((int32_t)(proj_io_bk - fm1_ms) > 0)
+        return 4;
+    if (fm6_stage_live() && fm6_stage_h != h)
+        return 5;
+    if (!fm6_stage_on) {
+        w = fm6_half_edit(h);
+        fm6_stage_h = (uint8_t)h;
+        fm6_stage_usb = usb.resets;
+        fm6_stage_on = 1;
+    }
+    fm6_half_set(w, k % FM6_HALF, pk);
+    fm6_stage_crc = st_crc32(proj_io, sizeof *w);
+    fm6_stage_ms = fm1_ms;
+    autosave_hold = fm1_ms + FM6_STAGE_HOLD;     /* (the autosave keeps off proj_io) */
+    return 0;
+}
+
+/* the staged half to flash: 0 ok, 2 flash error or no flash, 3 the song plays (the staging stays: stop, then
+ * commit again), 4 a backup holds proj_io, 5 nothing staged (or it lapsed, or proj_io was used meanwhile:
+ * nothing written, stage again) */
+static uint32_t fm6_bank_commit(void)
+{
+    uint32_t rc;
+    if (!fm6_stage_live())
+        return 5;
+    if ((rc = fm6_bank_busy()) != 0)
+        return rc;
+    fm6_stage_on = 0;
+    return fm6_half_commit(fm6_stage_h, (const fm6_half_t *)(const void *)proj_io) ? 2u : 0u;
 }

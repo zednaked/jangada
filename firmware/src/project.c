@@ -471,7 +471,10 @@ static void proj_apply(const project_t *p)
 static project_t autosave_buf;
 static uint32_t autosave_sum, autosave_ms, autosave_checked;
 static uint32_t autosave_hold;                 /* fm1_ms until which it waits: an editor backup uses proj_io
-                                                * (editor_backup.c) */
+                                                * (editor_backup.c), or a staged FM6 bank half (fm6_bank.c) */
+static uint32_t proj_io_bk;                    /* fm1_ms until which the editor's backup owns proj_io (its snapshot
+                                                * or its staging, editor_backup.c): a bank write (fm6_bank.c)
+                                                * is refused meanwhile, so it cannot corrupt a restore */
 
 static int audio_quiet(void)                   /* no voice of any track, no drum */
 {
