@@ -39,6 +39,9 @@ run "user presets (UP_PUT parser, bank round trip, versions)" "$OUT/upreset_test
 $CC -w -Ibuild/gen -Ifirmware/src -o "$OUT/backup_test" tests/backup_test.c -lm
 run "backup / restore: editor protocol v5 against simulated flash (Jangada)" "$OUT/backup_test"
 
+$CC -w -Ibuild/gen -Ifirmware/src -o "$OUT/dx7_test" tests/dx7_test.c -lm
+run "DX7 SysEx for FM6: voice, bank of 32, parameters live, dumps (Jangada, after Melodee)" "$OUT/dx7_test"
+
 $CC -o "$OUT/midi_uart_test" tests/midi_uart_test.c
 run "TRS MIDI parser" "$OUT/midi_uart_test"
 

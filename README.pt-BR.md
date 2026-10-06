@@ -121,8 +121,12 @@ por trilha com o som, o motor, os passos e o playhead, o nível e os selos REC /
 - **20 presets novos**: texturas escuras e industriais, superwaves e seis drones.
 - **Hi-hats e crash** do kit GM tocam a própria amostra (soavam como toms).
 - **FM6**: FM de 6 operadores (o núcleo msfa do Dexed, portado pelo Felucca 1.0), 32 algoritmos,
-  8 patches de fábrica (PTCH F1–F8) e macros nos knobs (ALG FB MLVL MRAT MEG VMOD DTUN). O DIGITAL de
-  4 operadores continua.
+  8 patches de fábrica (PTCH F1–F8), um **banco de 32 patches na flash** (PTCH B1–B32) e macros nos
+  knobs (ALG FB MLVL MRAT MEG VMOD DTUN). O patch de cada trilha vai junto no projeto, no autosave e no
+  backup (um projeto antigo abre com o patch do PTCH). O DIGITAL de 4 operadores continua.
+- **Dexed / DX7 pelo USB**: o Dexed (ou outro editor DX7) edita ao vivo a trilha FM6 selecionada
+  (parameter change), manda uma voz (VCED) para ela ou um banco de 32 (VMEM) para B1–B32, e pede de volta
+  a voz da trilha ou o banco (dump request). Com a música parada para gravar o banco.
 - **Bateria sintetizada** (do SLOOP): **GLO → KIT**, ou o knob PRESETS na trilha de bateria: o kit GM
   sampleado ou 37 kits sintetizados (808, 909, TECHNO, INDUSTR, GLITCH, DUBSTEP, JUNGLE…).
 - **Kits da Jangada**, os primeiros da lista: **RUST** (industrial seco: bumbo distorcido, caixa com
@@ -160,6 +164,9 @@ No **[site da Jangada](https://zednaked.github.io/jangada/)** (Chrome ou Edge):
 - **Backup e restauração** (editor → Projects → Backup): tudo do FM-1 num arquivo
   `jangada-backup-DATA.json` (o projeto de trabalho, os 4 projetos, os 32 presets, os samples
   USR1–3, as configurações), e de volta. Um arquivo danificado é recusado antes de qualquer gravação.
+- **6-OP FM** (editor): o patch FM6 inteiro (os 6 operadores, LFO, EG de pitch), ao vivo na trilha;
+  o banco B1–B32; importa e exporta `.syx` do DX7 (uma voz ou o banco de 32, que vai inteiro para
+  B1–B32 num botão).
 - **CHOP** (editor → Samples): corte uma gravação de qualquer tamanho em até 16 fatias, escolha as que
   ficam, encurte, *Fit to slot*, e mande para USR1–3.
 - **Voltar ao firmware oficial** pelo instalador (o arquivo FM-1 V15 da M-VAVE), com um backup antes.
@@ -256,8 +263,8 @@ sh tests/run_tests.sh         # todos os testes, no PC
 1. ~~Grit no master~~ (feito: TAPE, HUM, FUZZ / FOLD / CRUSH / RING).
 2. ~~Kits próprios~~ (feito: RUST, FORGE, PISTON, HURT, MANGUE; maracatu, baião, coco; escala NORD).
 3. ~~O Studio no navegador~~ (feito: `webapp/studio/` no site).
-4. **Banco de patches FM6**, importação e exportação de `.syx` do DX7, e o Dexed editando a Jangada ao
-   vivo por SysEx.
+4. ~~Banco de patches FM6~~ (feito: B1–B32 na flash, o patch no projeto, `.syx` do DX7 no editor, o
+   Dexed editando a Jangada ao vivo por SysEx).
 5. MIDI mais fino (bend por canal, vibrato no CC1) e o nome do acorde no HOME.
 
 Depois: ~~drones que evoluem~~ (feito: EVOL, TENS, RAMP, DRIFT), pianos quebrados, paletas RUST, ASH e MANGUE, a jangada na tela de boot.
@@ -265,7 +272,8 @@ Depois: ~~drones que evoluem~~ (feito: EVOL, TENS, RAMP, DRIFT), pianos quebrado
 ## Créditos e licença
 
 A Jangada é GPL-3.0-only, como o Felucca. As camadas, o punch FX, o master e os acordes vêm do
-[SLOOP](https://github.com/isod89/sloop-fm1) (GPL-3.0), outro fork do Felucca. O trabalho original é de **Leo Kuroshita (@kurogedelic),
+[SLOOP](https://github.com/isod89/sloop-fm1) (GPL-3.0), outro fork do Felucca; o banco FM6 e o SysEx do
+DX7, do Felucca 1.0 e do [Melodee](https://github.com/keremimo/melodee) (GPL-3.0, Kerem Kilic / Ellic Studio). O trabalho original é de **Leo Kuroshita (@kurogedelic),
 Hügelton Instruments**: veja [README.felucca.md](README.felucca.md) e [LICENSING.md](LICENSING.md)
 para os créditos completos (fontes, amostras, motores).
 

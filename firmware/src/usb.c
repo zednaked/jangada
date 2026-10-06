@@ -21,6 +21,9 @@
 #ifndef FELUCCA_UAC
 #define FELUCCA_UAC 0
 #endif
+#ifndef FELUCCA_DX7
+#define FELUCCA_DX7 0            /* DX7 SysEx for the FM6 engine (fm6_sysex.c); felucca.c turns it on */
+#endif
 enum { S_FADDR = 0, S_POWER = 1, S_INTRTX1 = 2, S_INTRTX2 = 3, S_INTRRX1 = 4, S_INTRRX2 = 5, S_INTRUSB = 6,
        S_INTRTX1E = 7, S_INTRTX2E = 8, S_INTRRX1E = 9, S_INTRRX2E = 10, S_INTRUSBE = 11, S_FRAME1 = 12,
        S_FRAME2 = 13, S_INDEX = 14,
@@ -122,6 +125,65 @@ static volatile uint8_t sx_ready, sx_collect, sx_busy;
 #define SXQ 64u
 static uint32_t sx_out_q[SXQ];
 static volatile uint32_t so_w, so_r;
+#endif
+
+#if FELUCCA_DX7
+/* Jangada (after Melodee's fm6_store.c): DX7 SysEx (F0 43 ..) for the FM6 engine, collected here apart from the
+ * editor's / the update's frames (F0 7D 46 4C, F0 pack7(00 59 ..): never 43 after F0), so neither waits for the
+ * other. Short messages (a parameter change F0 43 1n gg pp dd F7, a dump request F0 43 2n ff F7) go into a queue:
+ * a knob turned in Dexed sends many, none is lost while the main loop is busy. Long ones (a voice, 163 bytes; a
+ * bank of 32, 4104) into dx_rx, one at a time (one arriving while another waits is dropped; Dexed sends again).
+ * The main loop (fm6_sysex.c dx_service) also builds a bank dump in dx_rx: dx_hold keeps the ISR out of it. */
+#define DX_RX 4104u              /* a 32-voice bank: F0 43 0n 09 20 00, 4096 bytes, checksum, F7 */
+static uint8_t dx_rx[DX_RX];     /* the bytes between F0 and F7 (.bss, not the pool) */
+static volatile uint32_t dx_n;
+static volatile uint8_t dx_ready, dx_hold;
+static uint8_t dx_on, dx_long, dx_sh[5];
+static uint32_t dx_cnt;
+#define DXQ 32u                  /* short messages: status | b1 << 8 | b2 << 16 | b3 << 24 */
+static uint32_t dx_q[DXQ];
+static volatile uint32_t dx_qw, dx_qr, dx_drops;
+
+static void dx_byte(uint8_t b)   /* every SysEx byte, F0 and F7 included (USB ISR) */
+{
+    if (b == 0xF0) {
+        dx_on = 1;
+        dx_cnt = 0;
+        dx_long = !dx_ready && !dx_hold;
+        if (dx_long)
+            dx_n = 0;
+        return;
+    }
+    if (!dx_on || b >= 0xF8u)
+        return;
+    if (b == 0xF7) {
+        dx_on = 0;
+        if (dx_cnt == 5u || dx_cnt == 3u) {             /* 43 1n gg pp dd / 43 2n ff */
+            if (dx_qw - dx_qr < DXQ) {
+                dx_q[dx_qw % DXQ] = (uint32_t)dx_sh[1] | (uint32_t)dx_sh[2] << 8 | (uint32_t)dx_sh[3] << 16 |
+                                    (dx_cnt == 5u ? (uint32_t)dx_sh[4] << 24 : 0u);
+                RING_PUBLISH();
+                dx_qw++;
+            } else
+                dx_drops++;
+        } else if (dx_long && dx_cnt > 5u && !dx_hold) {
+            RING_PUBLISH();
+            dx_ready = 1;                               /* main loop: fm6_sysex.c */
+        }
+        return;
+    }
+    if (b >= 0x80u || (dx_cnt == 0u && b != 0x43u)) {   /* not Yamaha's */
+        dx_on = 0;
+        return;
+    }
+    if (dx_cnt < sizeof dx_sh)
+        dx_sh[dx_cnt] = b;
+    if (dx_long && !dx_hold && dx_n < DX_RX)
+        dx_rx[dx_n++] = b;
+    else
+        dx_long = 0;                                    /* too long: not a DX7 frame we take */
+    dx_cnt++;
+}
 #endif
 
 /* MIDI rings: 4-byte USB-MIDI event packets */
@@ -573,6 +635,9 @@ stall:
 static void sysex_byte(uint8_t b)
 {
     static const uint8_t UBOOT_KEY[6] = {0xF0, 0x22, 0x24, 0x35, 0x7D, 0xF7};
+#if FELUCCA_DX7
+    dx_byte(b);
+#endif
     if (b == 0xF0) {
         usb.sx_on = 1;
         usb.sx_len = 0;
@@ -583,6 +648,10 @@ static void sysex_byte(uint8_t b)
     }
     if (!usb.sx_on)
         return;
+#if FELUCCA_OTA && FELUCCA_DX7
+    if (usb.sx_len == 1u && b == 0x43u)
+        sx_collect = 0;                                 /* a DX7 frame (dx_byte): the editor's frame stays free */
+#endif
 #if FELUCCA_OTA
     if (sx_collect && b != 0xF0 && b != 0xF7) {
         if (sx_pos < sizeof sx_frame)
@@ -627,10 +696,22 @@ static void midi_in_event(uint32_t pkt)
             sysex_byte((uint8_t)(pkt >> (8u * (k + 1u))));
         return;
     }
+    /* Jangada (after Melodee, 55a0d62): a host may send SysEx bytes as CIN 0xF single bytes (macOS inside a long
+     * dump: a DX7 bank lost a byte), F0 and F7 too; real-time bytes stay below. (Not in the update loader: it
+     * stays byte for byte as it was) */
+#ifndef FELUCCA_LOADER
+    if (cin == 0xFu && ((st < 0x80u && usb.sx_on) || st == 0xF0u || (st == 0xF7u && usb.sx_on))) {
+        sysex_byte((uint8_t)st);
+        return;
+    }
+#endif
     if (st >= 0x80u && st < 0xF8u) {                   /* channel / system common also ends a SysEx */
         usb.sx_on = 0;
 #if FELUCCA_OTA
         sx_collect = 0;
+#endif
+#if FELUCCA_DX7
+        dx_on = 0;
 #endif
     }
     if ((cin == 0xFu && (st == 0xF8u || st == 0xFAu || st == 0xFBu || st == 0xFCu)) ||

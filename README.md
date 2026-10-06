@@ -122,8 +122,12 @@ with the sound, the engine, the steps and the playhead, the level and the REC / 
 - **20 new presets**: dark and industrial textures, superwaves and six drones.
 - The GM kit's **hi-hats and crash** play their own samples (they sounded like toms).
 - **FM6**: 6-operator FM (Dexed's msfa core, as ported by Felucca 1.0), 32 algorithms, 8 factory
-  patches (PTCH F1–F8) and macros on the knobs (ALG FB MLVL MRAT MEG VMOD DTUN). The 4-operator DIGITAL
-  stays.
+  patches (PTCH F1–F8), a **bank of 32 patches in flash** (PTCH B1–B32) and macros on the knobs (ALG FB
+  MLVL MRAT MEG VMOD DTUN). Each track's patch goes with the project, the autosave and the backup (an
+  older project opens with its PTCH's patch). The 4-operator DIGITAL stays.
+- **Dexed / DX7 over USB**: Dexed (or another DX7 editor) edits the selected FM6 track live (parameter
+  change), sends it a voice (VCED) or a bank of 32 (VMEM) into B1–B32, and asks for the track's voice or
+  the bank back (dump request). The bank is written with the music stopped.
 - **Synthesised drums** (from SLOOP): **GLO → KIT**, or the PRESETS knob on the drum track: the sampled
   GM kit or 37 synthesised kits (808, 909, TECHNO, INDUSTR, GLITCH, DUBSTEP, JUNGLE…).
 - **Jangada's own kits**, first in the list: **RUST** (dry industrial: distorted kick, gated snare,
@@ -161,6 +165,9 @@ On the **[Jangada site](https://zednaked.github.io/jangada/)** (Chrome or Edge):
 - **Backup and restore** (editor → Projects → Backup): everything on the FM-1 in one file
   `jangada-backup-DATE.json` (the working project, the 4 projects, the 32 presets, the samples
   USR1–3, the settings), and back. A damaged file is refused before anything is written.
+- **6-OP FM** (editor): the whole FM6 patch (the 6 operators, LFO, pitch EG), live on the track; the
+  bank B1–B32; DX7 `.syx` import and export (one voice, or the bank of 32, all of it into B1–B32 with
+  one button).
 - **CHOP** (editor → Samples): cut a recording of any length into up to 16 chops, keep the ones you
   want, shorten them, *Fit to slot*, and send them to USR1–3.
 - **Back to the official firmware** from the installer (M-VAVE's FM-1 V15 file), a backup first.
@@ -256,7 +263,8 @@ sh tests/run_tests.sh         # every test, on the PC
 1. ~~Grit on the master~~ (done: TAPE, HUM, FUZZ / FOLD / CRUSH / RING).
 2. ~~Our own kits~~ (done: RUST, FORGE, PISTON, HURT, MANGUE; maracatu, baião, coco; NORD scale).
 3. ~~The Studio in the browser~~ (done: `webapp/studio/` on the site).
-4. **An FM6 patch bank**, DX7 `.syx` import and export, and Dexed editing Jangada live over SysEx.
+4. ~~An FM6 patch bank~~ (done: B1–B32 in flash, the patch in the project, DX7 `.syx` in the editor,
+   Dexed editing Jangada live over SysEx).
 5. Finer MIDI (per-channel bend range, CC1 vibrato) and the chord name on HOME.
 
 Then: ~~drones that evolve~~ (done: EVOL, TENS, RAMP, DRIFT), broken pianos, RUST, ASH and MANGUE palettes, the jangada on the boot screen.
@@ -264,7 +272,8 @@ Then: ~~drones that evolve~~ (done: EVOL, TENS, RAMP, DRIFT), broken pianos, RUS
 ## Credits and license
 
 The layers, punch FX, master and chords come from [SLOOP](https://github.com/isod89/sloop-fm1)
-(GPL-3.0), another Felucca fork. Jangada is GPL-3.0-only, as Felucca is. The original work is **Leo Kuroshita's (@kurogedelic),
+(GPL-3.0), another Felucca fork; the FM6 bank and the DX7 SysEx from Felucca 1.0 and
+[Melodee](https://github.com/keremimo/melodee) (GPL-3.0, Kerem Kilic / Ellic Studio). Jangada is GPL-3.0-only, as Felucca is. The original work is **Leo Kuroshita's (@kurogedelic),
 Hügelton Instruments** — see [README.felucca.md](README.felucca.md) and [LICENSING.md](LICENSING.md)
 for the full credits (fonts, samples, engines).
 

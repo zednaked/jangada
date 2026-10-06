@@ -276,6 +276,14 @@ voice `F0 43 0n 00 01 1B`, the 155-byte unpacked voice, checksum, `F7` (163 byte
 data's sum, 7 bits. Raw 155 / 4096-byte files are read too. A file of one 32-voice bank can go into B1..B32 at
 once (32 `FM6_PUT`s).
 
+**The same patches as DX7 SysEx** (Jangada 0.5, `firmware/src/fm6_sysex.c`, after Melodee): the device also takes,
+on any channel n, a voice `F0 43 0n 00 01 1B ..` (into the FM6 track: the selected one when it plays FM6, else
+track n + 1, else the first FM6 track), a bank of 32 `F0 43 0n 09 20 00 ..` (into B1..B32, not while the song
+plays), parameter changes `F0 43 1n gg pp dd F7` (voice parameter `(gg & 3) << 7 | pp`, 0..154; 155 and the
+function group are ignored) and dump requests `F0 43 2n 00 F7` / `F0 43 2n 09 F7` (answered on channel n). These
+frames never use the editor's frame buffer (the first byte 43 tells them apart), so Dexed and the editor can be
+open together.
+
 ## Notes for the editor
 
 - **One request at a time.** Wait for the reply, about 10–50 ms, before sending the next.

@@ -257,6 +257,9 @@ static void fm1_main(void)
         }
 #if FELUCCA_OTA
         ed_service();                                   /* web editor SysEx */
+#if FELUCCA_DX7 && FELUCCA_FLASH
+        dx_service();                                   /* Jangada: DX7 SysEx (Dexed) for the FM6 track */
+#endif
         ota_service();                                  /* M-UPGRADE handshake */
         if (usb.ota_req) {                              /* M-UPGRADE upgrade command */
             usb.ota_req = 0;
@@ -296,6 +299,9 @@ static void fm1_main(void)
             ui_input();
 #if FELUCCA_OTA
             ed_service();                       /* editor replies without waiting for the next frame */
+#if FELUCCA_DX7 && FELUCCA_FLASH
+            dx_service();                       /* (a knob turned in Dexed: heard within a millisecond or two) */
+#endif
 #endif
         }
     }

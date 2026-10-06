@@ -42,6 +42,9 @@
 #ifndef FELUCCA_UAC_TONE
 #define FELUCCA_UAC_TONE 0       /* bench: the USB input sends test triangles instead of the music */
 #endif
+#ifndef FELUCCA_DX7
+#define FELUCCA_DX7 1            /* Jangada: DX7 SysEx for the FM6 engine (usb.c dx_byte, fm6_sysex.c; after Melodee) */
+#endif
 #include "usb.c"
 #ifndef FELUCCA_UART
 #define FELUCCA_UART 1           /* TRS MIDI IN on UART1 (the 3.5 mm jack; midi_uart.c) */
@@ -173,6 +176,9 @@ static void ota_commit(const uint8_t *parm)
 #endif
 #if FELUCCA_OTA
 #include "editor.c"          /* web editor SysEx (needs the OTA SysEx plumbing) */
+#endif
+#if FELUCCA_OTA && FELUCCA_DX7 && FELUCCA_FLASH
+#include "fm6_sysex.c"       /* Jangada: Dexed / DX7 SysEx edits the FM6 track live, keeps the bank */
 #endif
 #if FELUCCA_CDC
 #include "console.c"
