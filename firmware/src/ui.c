@@ -6,7 +6,7 @@
 #define FELUCCA_DATE __DATE__          /* build.py passes a reproducible one */
 #endif
 #ifndef FELUCCA_VERSION
-#define FELUCCA_VERSION "0.5 ALPHA"   /* build.py --beta X.Y passes its own */
+#define FELUCCA_VERSION "0.5.1 ALPHA"   /* build.py --beta X.Y passes its own */
 #endif
 static void project_save(uint32_t slot);
 static void panel_setup(void);

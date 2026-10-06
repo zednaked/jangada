@@ -3,7 +3,7 @@
 # Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments
 """Build Felucca: the app, the update loader and an installable .fwsc package.
 
-  tools/build.py [--release X.Y[-suffix]]
+  tools/build.py [--release X.Y[.Z][-suffix]]
 
 Outputs in build/: felucca.bin (app), loader/ota.bin (update loader),
 felucca.fwsc (package). See BUILDING.md for the toolchain and the SDK.
@@ -318,14 +318,14 @@ def mmio_check():
 def main():
     global PRODUCT, VERSION
     ap = argparse.ArgumentParser()
-    ap.add_argument("--release", metavar="X.Y", help="release build: identity FM-1_9XY, version string X.Y")
+    ap.add_argument("--release", metavar="X.Y[.Z]", help="release build: identity FM-1_9XY, version string X.Y[.Z]")
     ap.add_argument("--sdk", type=Path, help="JieLi AC79 SDK checkout (default: $AC79_SDK)")
     a = ap.parse_args()
     name = "felucca.fwsc"
-    if a.release:                   # one digit each: the identity has room for two
-        m = re.fullmatch(r"(\d)\.(\d)(-[A-Za-z0-9]+)?", a.release)
+    if a.release:                   # X.Y[.Z][-suffix], one digit each: the identity has room for X and Y
+        m = re.fullmatch(r"(\d)\.(\d)(?:\.(\d))?(-[A-Za-z0-9]+)?", a.release)
         if not m:
-            raise SystemExit(f"--release {a.release}: use X.Y or X.Y-suffix, one digit each")
+            raise SystemExit(f"--release {a.release}: use X.Y, X.Y.Z or X.Y[.Z]-suffix, one digit each")
         PRODUCT = "FM-1_9" + m[1] + m[2]
         VERSION = a.release.upper().replace("-", " ")      # Jangada: "0.2-alpha" -> "0.2 ALPHA"
         name = f"jangada-{a.release}.fwsc"

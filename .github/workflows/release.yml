@@ -1,4 +1,4 @@
-# Jangada release: push a tag vX.Y[-suffix] (one digit each), get jangada-X.Y[-suffix].fwsc on a release.
+# Jangada release: push a tag vX.Y[.Z][-suffix] (one digit each), get jangada-X.Y[.Z][-suffix].fwsc on a release.
 name: release
 on:
   push:
