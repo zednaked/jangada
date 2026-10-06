@@ -7,8 +7,10 @@
  *          a backup of Jangada 0.2, without the lights word, restores too)
  *   2..5   the projects 1..4 ("JNG1"; length 0 = empty)
  *   6..7   the user preset banks (up_bank_t "UPB2", upreset.c; length 0 = empty)
- *   8..9   the FM6 patch bank, B1..B16 and B17..B32 (fm6_half_t "FM6B", fm6_bank.c; length 0 = empty;
+ *   8..9   the FM6 patch bank 1, B1..B16 and B17..B32 (fm6_half_t "FM6B", fm6_bank.c; length 0 = empty;
  *          after Felucca 1.0's id 8. A backup without them, Jangada 0.3 / 0.4's, restores and keeps the bank)
+ *   10..11 (v7, Jangada 0.6) the FM6 patch bank 2, B33..B48 and B49..B64 (the same layout, halves 2 and 3. A
+ *          backup without them, Jangada 0.5's, restores and keeps bank 2 as it is)
  *   32..34 the user sample slots USR1..3 (header + ADPCM, as in flash; read only here: a restore
  *          writes them with SMP_BEGIN / SMP_WRITE / SMP_END, an empty one with SMP_ERASE)
  * LIST takes a snapshot of the working project; GET reads 1..256 bytes of an object; PUT stages one
@@ -24,12 +26,12 @@
  * request, or the commit / abort; its own staged half is dropped). Included by editor.c. */
 #define ED_BK_RAW proj_io
 #define ED_BK_HOLD 15000u                            /* ms: a backup session without a request ends */
-static const uint8_t ED_BK_IDS[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 32, 33, 34};
+static const uint8_t ED_BK_IDS[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 32, 33, 34};
 #define ED_BK_N ((uint32_t)sizeof ED_BK_IDS)
 #define ED_BK_NONE 0xFFu
 #define ED_BK_STAGE 0xFEu
-static uint8_t ed_bk_cur = ED_BK_NONE;              /* what proj_io holds for us: object 0..5, 8, 9, staging, none */
-static int ed_bk_made(uint32_t id) { return id <= 5u || id == 8u || id == 9u; }   /* objects made into proj_io */
+static uint8_t ed_bk_cur = ED_BK_NONE;              /* what proj_io holds for us: object 0..5, 8..11, staging, none */
+static int ed_bk_made(uint32_t id) { return id <= 5u || (id >= 8u && id <= 11u); }   /* objects made into proj_io */
 static uint8_t ed_bk_put, ed_bk_id;
 static uint32_t ed_bk_curlen, ed_bk_len, ed_bk_crc, ed_bk_pos, ed_bk_ms, ed_bk_usb;
 
@@ -73,7 +75,7 @@ static void ed_bk_settings(persist_t *p)            /* the settings as settings_
     p->lights = lights_word();
 }
 
-/* object id -> its bytes (*len 0: empty); objects 1..5, 8, 9 are made into proj_io. 0: no such object */
+/* object id -> its bytes (*len 0: empty); objects 1..5, 8..11 are made into proj_io. 0: no such object */
 static const uint8_t *ed_bk_make(uint32_t id, uint32_t *len)
 {
     *len = 0;
@@ -84,7 +86,7 @@ static const uint8_t *ed_bk_make(uint32_t id, uint32_t *len)
     } else if (id >= 2u && id <= 5u) {
         if (project_used(id - 2u))
             *len = proj_to_jng(&proj_slot[id - 2u], ED_BK_RAW);
-    } else if (id == 8u || id == 9u) {
+    } else if (id >= 8u && id <= 11u) {                /* the FM6 bank halves 0..3 */
         const fm6_half_t *h = fm6_half_view(id - 8u);
         if (h) {
             memcpy(ED_BK_RAW, h, sizeof *h);
@@ -157,17 +159,13 @@ static uint32_t ed_bk_commit(void)
             memset(&proj_slot[k], 0, sizeof proj_slot[k]);
         return 0;
     }
-    if (id == 8u || id == 9u) {                      /* an FM6 bank half, checked as a PTCH load checks it */
+    if (id >= 8u && id <= 11u) {                     /* an FM6 bank half, checked as a PTCH load checks it */
         uint32_t h = id - 8u;
         if (n && !fm6_half_valid(raw, n, h))
             return 2;
         if (n)
             return (uint32_t)fm6_half_commit(h, (const fm6_half_t *)(const void *)raw) ? 4u : 0u;
-        if (st_save(OBJ_FM6BANK0 + h, raw, 0))
-            return 4;
-        fm6_bank_used &= ~(0xFFFFu << (h * FM6_HALF));
-        fm6_bank_reload(0xFFFFu << (h * FM6_HALF));
-        return 0;
+        return fm6_half_clear(h) ? 4u : 0u;
     }
     if (id <= 7u) {                                  /* a user preset bank, read as up_boot reads it */
         uint32_t b = id - 6u;
@@ -195,7 +193,7 @@ static uint32_t ed_bk_write(const uint8_t *a, uint32_t na)
 {
     uint32_t op = a[0], id = a[1], len, k, rc;
     if (op == 0u) {
-        if (na != 12u || id > 9u)
+        if (na != 12u || id > 11u)
             return 1;
         len = ed_bk_r32(a + 2);
         if (len > ST_PAYLOAD_MAX || (id <= 1u && !len) || (id == 1u && len != sizeof(persist_t) && len != PERSIST_SIZE_V02) ||

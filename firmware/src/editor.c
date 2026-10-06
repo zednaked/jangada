@@ -5,7 +5,8 @@
  * v4 = TRACK_PARAM (31) and the TRACK_CHANGED push (32), enabled by WATCH bit 1;
  * v5 (Jangada) = backup / restore, cmds 34-36 (editor_backup.c); INFO ends with the version;
  * v6 (Jangada 0.5) = the backup carries the FM6 patch bank (ids 8, 9); the FM6 patches, cmds 68-71
- * (editor_fm6.c, as Felucca 1.0 numbers them; 72 commits a staged bank half), advertised by INFO's 46 02 nfactory nbank).
+ * (editor_fm6.c, as Felucca 1.0 numbers them; 72 commits a staged bank half), advertised by INFO's 46 02 nfactory nbank);
+ * v7 (Jangada 0.6) = two FM6 banks (INFO's 46 03 8 64: B1..B64), the backup carries bank 2 too (ids 10, 11).
  *   F0 7D 46 4C cmd args.. F7     (7D = non-commercial ID, "FL")
  * Values are 14 bit, two 7-bit bytes LSB first, offset by 8192 (so -8192..8191).
  * Every request gets a reply with the same cmd; 23/24/26 are also pushed
@@ -22,10 +23,11 @@ enum { ED_INFO = 1, ED_GET, ED_SET, ED_DUMP, ED_DESC, ED_STEP_GET, ED_STEP_SET, 
        ED_TRACK_PARAM, ED_TRACK_CHANGED,                                        /* v4: any track's parameters */
        ED_BK_LIST = 34, ED_BK_GET, ED_BK_PUT };                                 /* v5: backup / restore (33: SLOOP's
                                                                                  * DRUM_STEP, not here) */
-#define ED_PROTO 6u                                                              /* INFO's protocol byte (v6, Jangada
-                                                                                 * 0.5: the backup has the FM6 bank) */
+#define ED_PROTO 7u                                                              /* INFO's protocol byte (v7, Jangada
+                                                                                 * 0.6: the backup has both FM6 banks) */
 
-static uint8_t ed_out[600];
+/* Jangada 0.6: 1024 (was 600): FM6_LIST of 8 + 64 slots is up to 5 + 2 + 72 x 12 + 1 = 872 bytes */
+static uint8_t ed_out[1024];
 static uint32_t ed_n;
 
 static void ed_begin(uint32_t cmd)
@@ -300,7 +302,8 @@ static void ed_handle(const uint8_t *f, uint32_t n)   /* f: the bytes between F0
         ed_b(NTRK);                                       /* v3 */
         ed_b(ED_PROTO);                                   /* v5: the protocol version */
         ed_b(0x46);                                       /* FM6 patches (cmds 68-72): tag, version, F / B slots */
-        ed_b(2);                                          /* (2: with the staged bank half, PUT target 3 / COMMIT) */
+        ed_b(3);                                          /* (2: with the staged bank half, PUT target 3 / COMMIT;
+                                                           * 3, Jangada 0.6: two banks of 32, B1..B32 and B33..B64) */
         ed_b(FM6_NFACTORY);
         ed_b(FM6_BANK_N);
         break;

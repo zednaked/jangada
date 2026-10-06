@@ -1,25 +1,19 @@
 /* SPDX-License-Identifier: GPL-3.0-only
  * Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments
- * Jangada: ported from Felucca 1.0 (editor_fm6.c), with the bank of 32 (fm6_bank.c) and rc 3 for a song playing */
+ * Jangada: ported from Felucca 1.0 (editor_fm6.c), with the banks of 32 (fm6_bank.c) and rc 3 for a song playing */
 /* Editor protocol: the FM6 patches (EDITOR_PROTOCOL.md "FM6 patches", cmds 68..72, as Felucca numbers them; INFO
- * advertises them with 46 02 nfactory nbank after the protocol version: 02 = with the staged bank half). A patch
- * travels as the 128-byte packed record (every byte 7-bit: no pack7). Targets: 0 a track's own patch (index
- * 0..NTRK-1), 1 a bank slot (0..FM6_BANK_N-1, flash, written at once), 2 a factory patch (0..FM6_NFACTORY-1, read
- * only), 3 a bank slot staged (PUT only: the half is written whole by FM6_COMMIT, one flash erase for up to 16
- * slots; fm6_bank.c fm6_bank_stage). Included by editor.c. */
+ * advertises them with 46 vv nfactory nbank after the protocol version: 02 = with the staged bank half, 03 = and
+ * two banks, nbank 64: B1..B32 and B33..B64). A patch travels as the 128-byte packed record (every byte 7-bit: no
+ * pack7). Targets: 0 a track's own patch (index 0..NTRK-1), 1 a bank slot (0..FM6_BANK_N-1, flash, written at
+ * once), 2 a factory patch (0..FM6_NFACTORY-1, read only), 3 a bank slot staged (PUT only: the half is written
+ * whole by FM6_COMMIT, one flash erase for up to 16 slots; fm6_bank.c fm6_bank_stage). Included by editor.c. */
 enum { ED_FM6_GET = 68, ED_FM6_PUT, ED_FM6_LIST, ED_FM6_ERASE, ED_FM6_COMMIT };
 enum { ED_FM6_TRACK, ED_FM6_BANK, ED_FM6_FACTORY, ED_FM6_STAGE };
 
 static void ed_fm6_name(const uint8_t *pk)       /* the record's name, trailing spaces off */
 {
     char s[11];
-    uint32_t i, n = 0;
-    for (i = 0; i < 10u; i++) {
-        s[i] = (char)(pk[118 + i] >= 32u && pk[118 + i] <= 126u ? pk[118 + i] : ' ');
-        if (s[i] != ' ')
-            n = i + 1u;
-    }
-    s[n] = 0;
+    fm6_pk_name(s, pk);
     ed_str(s, 10);
 }
 
@@ -90,7 +84,7 @@ static int ed_fm6_handle(uint32_t cmd, const uint8_t *a, uint32_t n)
             ed_b(1);
             ed_fm6_name(FM6_FACTORY[i]);
         }
-        for (h = 0; h < 2u; h++) {                         /* each half read once from flash */
+        for (h = 0; h < FM6_NHALF; h++) {                  /* each half read once from flash */
             const fm6_half_t *b = fm6_half_view(h);
             for (i = 0; i < FM6_HALF; i++) {
                 uint32_t used = b && ((b->used >> i) & 1u);

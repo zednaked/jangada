@@ -441,7 +441,7 @@ async function editorTrackParam() {
 async function editorBackup() {
   const A = attachMock({});
   const info = E.parse[E.CMD.INFO](await A.rq(E.req.info()));
-  ok(info.proto === BK.BACKUP_PROTO_FM6, "backup: INFO ends with the protocol version (6: the FM6 bank too)");
+  ok(info.proto === BK.BACKUP_PROTO_FM6B, "backup: INFO ends with the protocol version (7: both FM6 banks too)");
   /* something in every kind of object: projects 2 and 4, a user preset in bank 2, a sample in USR3 */
   await A.rq(E.req.set(1, 0, 133));
   await A.rq(E.req.project(1, 1), { timeout: 4000, retries: 0 });
@@ -457,10 +457,10 @@ async function editorBackup() {
   let prog = 0;
   const file = await BK.captureBackup(A.rq, info.version, (d, n) => { prog = d / n; });
   const text = JSON.stringify(file, null, 1);
-  ok(file.format === "jangada-backup" && file.objects.length === 13 && prog === 1 && file.objects[3].size > 0 && file.objects[4].size === 0 &&
-     file.objects[7].size > 0 && file.objects[12].size === E.SMP.DATA_OFF + data.length && file.objects[10].size === 0 &&
-     file.objects[8].id === 8 && file.objects[9].id === 9,
-     "backup: the mock FM-1 into one file (13 objects with the FM6 bank, empty ones as 0)");
+  ok(file.format === "jangada-backup" && file.objects.length === 15 && prog === 1 && file.objects[3].size > 0 && file.objects[4].size === 0 &&
+     file.objects[7].size > 0 && file.objects[14].size === E.SMP.DATA_OFF + data.length && file.objects[12].size === 0 &&
+     file.objects[8].id === 8 && file.objects[9].id === 9 && file.objects[10].id === 10 && file.objects[11].id === 11,
+     "backup: the mock FM-1 into one file (15 objects with both FM6 banks, empty ones as 0)");
   ok(/^jangada-backup-\d{4}-\d\d-\d\d\.json$/.test(BK.backupName()), "backup: the file is jangada-backup-DATE.json");
   /* into an empty FM-1: what comes back is what went in */
   const B = attachMock({});
@@ -491,7 +491,7 @@ async function editorBackup() {
   await BK.restoreBackup(D.rq, text, () => {}, { ids: BK.backupIds(di.proto) });
   await BK.restoreBackup(B.rq, f5, () => {}, { ids: BK.backupIds(6) });
   ok(di.proto === 5 && f5.objects.length === 11 && !(D.sent[E.CMD.BK_PUT] === undefined),
-     "backup: v5 firmware: 11 objects; a v6 file restores without the FM6 bank, a v5 file into v6");
+     "backup: v5 firmware: 11 objects; a v7 file restores without the FM6 banks, a v5 file into v7");
   A.done(); B.done(); C.done(); D.done();
 }
 
@@ -531,11 +531,11 @@ async function editorFm6() {
   const { m, rq, done } = attachMock({});
   const C = E.CMD, T = F6.TARGET;
   const info = E.parse[C.INFO](await rq(E.req.info()));
-  ok(info.proto === 6 && info.fm6 && info.fm6.factory === 8 && info.fm6.bank === 32 && info.fm6.batch === true,
-     "FM6: INFO advertises 46 02 8 32 after the version (02: the staged bank half)");
+  ok(info.proto === 7 && info.fm6 && info.fm6.factory === 8 && info.fm6.bank === 64 && info.fm6.batch === true,
+     "FM6: INFO advertises 46 03 8 64 after the version (03: two banks, B1..B64, with the staged bank half)");
   let l = E.parse[C.FM6_LIST](await rq(E.req.fm6List()));
-  ok(l.factory === 8 && l.bank === 32 && l.slots.length === 40 && l.slots[0].used && l.slots[0].name === "TINE EP" && !l.slots[8].used,
-     "FM6: LIST: F1..F8 by name, B1..B32 empty");
+  ok(l.factory === 8 && l.bank === 64 && l.slots.length === 72 && l.slots[0].used && l.slots[0].name === "TINE EP" && !l.slots[8].used &&
+     !l.slots[71].used, "FM6: LIST: F1..F8 by name, B1..B64 empty");
   ok(E.parse[C.FM6_PUT](await rq(E.req.fm6Put(T.BANK, 4, F6.FACTORY_PK[6]))).rc === 0, "FM6: PUT into B5");
   l = E.parse[C.FM6_LIST](await rq(E.req.fm6List()));
   const g = E.parse[C.FM6_GET](await rq(E.req.fm6Get(T.BANK, 4)));
@@ -557,8 +557,10 @@ async function editorFm6() {
   const busy = E.parse[C.FM6_PUT](await rq(E.req.fm6Put(T.BANK, 6, mine))).rc, busyE = E.parse[C.FM6_ERASE](await rq(E.req.fm6Erase(4))).rc;
   m.sim.play(false);
   ok(busy === 3 && busyE === 3, "FM6: a bank write while the song plays: rc 3");
-  ok(E.parse[C.FM6_PUT](await rq(E.req.fm6Put(T.FACTORY, 0, mine))).rc === 1 && E.parse[C.FM6_PUT](await rq(E.req.fm6Put(T.BANK, 32, mine))).rc === 1 &&
-     E.parse[C.FM6_GET](await rq(E.req.fm6Get(T.TRACK, 9))).rc === 1, "FM6: a factory PUT, B33, track 10: rc 1");
+  ok(E.parse[C.FM6_PUT](await rq(E.req.fm6Put(T.FACTORY, 0, mine))).rc === 1 && E.parse[C.FM6_PUT](await rq(E.req.fm6Put(T.BANK, 64, mine))).rc === 1 &&
+     E.parse[C.FM6_GET](await rq(E.req.fm6Get(T.TRACK, 9))).rc === 1, "FM6: a factory PUT, B65, track 10: rc 1");
+  ok(E.parse[C.FM6_PUT](await rq(E.req.fm6Put(T.BANK, 39, mine))).rc === 0 && eq(E.parse[C.FM6_GET](await rq(E.req.fm6Get(T.BANK, 39))).packed, mine) &&
+     E.parse[C.FM6_LIST](await rq(E.req.fm6List())).slots[8 + 39].name === "MINE", "FM6: B40 (bank 2) stored, read back, listed");
   /* the staged half (Jangada, INFO 46 02): FM6_PUT target 3 stages a slot, FM6_COMMIT writes the half (one flash
    * write for 16 slots); the other half is refused (rc 5) until the first is committed; nothing staged: rc 5 */
   const m2 = attachMock({}), rq2 = m2.rq;         /* (a second FM-1: the mock keeps a full bank as JSON, too big for a backup) */
@@ -574,17 +576,33 @@ async function editorFm6() {
   rcs.push(await commit());
   const l2 = E.parse[C.FM6_LIST](await rq2(E.req.fm6List()));
   const g32 = E.parse[C.FM6_GET](await rq2(E.req.fm6Get(T.BANK, 31))), g10 = E.parse[C.FM6_GET](await rq2(E.req.fm6Get(T.BANK, 9)));
-  ok(rcs.every((r) => r === 0) && l2.slots.slice(8).every((s) => s.used) && g32.rc === 0 && eq(g32.packed, F6.FACTORY_PK[7]) &&
-     eq(g10.packed, F6.FACTORY_PK[1]),
+  ok(rcs.every((r) => r === 0) && l2.slots.slice(8, 40).every((s) => s.used) && !l2.slots[40].used && g32.rc === 0 &&
+     eq(g32.packed, F6.FACTORY_PK[7]) && eq(g10.packed, F6.FACTORY_PK[1]),
      "FM6: 31 slots staged in two halves, two COMMITs: stored, the slot not staged (B10) as it was; the other half waits for the commit");
+  const rcs2 = [];
+  for (let k = 48; k < 64; k++) rcs2.push(await stage(k, F6.FACTORY_PK[k % 8]));
+  rcs2.push(await commit());
+  const g64 = E.parse[C.FM6_GET](await rq2(E.req.fm6Get(T.BANK, 63)));
+  ok(rcs2.every((r) => r === 0) && g64.rc === 0 && eq(g64.packed, F6.FACTORY_PK[7]) &&
+     E.parse[C.FM6_GET](await rq2(E.req.fm6Get(T.BANK, 47))).rc === 2, "FM6: B49..B64 (bank 2's second half) staged and committed");
   m2.done();
-  /* the bank and the track's own patch go through a backup into an empty FM-1 */
+  /* the banks and the track's own patch go through a backup into an empty FM-1 */
   const file = await BK.captureBackup(rq, info.version);
   const B = attachMock({});
-  await BK.restoreBackup(B.rq, file, () => {}, { ids: BK.backupIds(6) });
+  await BK.restoreBackup(B.rq, file, () => {}, { ids: BK.backupIds(7) });
   const gb = E.parse[C.FM6_GET](await B.rq(E.req.fm6Get(T.BANK, 4))), gt = E.parse[C.FM6_GET](await B.rq(E.req.fm6Get(T.TRACK, 1)));
-  ok(file.objects[8].size > 0 && gb.rc === 0 && eq(gb.packed, F6.FACTORY_PK[6]) && gt.rc === 0 && eq(gt.packed, mine),
-     "FM6: backup -> restore: the bank (B5) and the track's own patch");
+  const gb2 = E.parse[C.FM6_GET](await B.rq(E.req.fm6Get(T.BANK, 39)));
+  ok(file.objects[8].size > 0 && file.objects[10].size > 0 && gb.rc === 0 && eq(gb.packed, F6.FACTORY_PK[6]) && gt.rc === 0 &&
+     eq(gt.packed, mine) && gb2.rc === 0 && eq(gb2.packed, mine), "FM6: backup -> restore: the banks (B5, B40) and the track's own patch");
+  /* a Jangada 0.5 FM-1 (protocol v6, INFO 46 02 8 32): one bank; a v7 backup goes in without bank 2 */
+  const o6 = attachMock({ v6: true });
+  const i6 = E.parse[C.INFO](await o6.rq(E.req.info()));
+  await BK.restoreBackup(o6.rq, file, () => {}, { ids: BK.backupIds(i6.proto) });
+  const l6 = E.parse[C.FM6_LIST](await o6.rq(E.req.fm6List()));
+  ok(i6.proto === 6 && i6.fm6.bank === 32 && l6.slots.length === 40 && l6.slots[12].used &&
+     E.parse[C.FM6_PUT](await o6.rq(E.req.fm6Put(T.BANK, 32, mine))).rc === 1,
+     "FM6: a v6 FM-1 (one bank): INFO 46 02 8 32, B33 rc 1; a v7 backup restores bank 1 there");
+  o6.done();
   /* while a backup holds the device's buffer (15 s after its last request): bank writes rc 4 */
   const held = [E.parse[C.FM6_ERASE](await rq(E.req.fm6Erase(4))).rc, E.parse[C.FM6_PUT](await rq(E.req.fm6Put(T.BANK, 6, mine))).rc,
                 await stage(6, mine, rq), E.parse[C.FM6_PUT](await B.rq(E.req.fm6Put(T.BANK, 6, mine))).rc];

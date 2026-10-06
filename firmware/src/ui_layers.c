@@ -797,7 +797,8 @@ static void layer_screen_draw(void)
         tr[1] = (char)('1' + song.sel);
         if (!drum) {                                    /* the preset's whole name (the PRST dial cuts it) */
             const engine_t *e0 = ENGINES[t->eng_req % NENGINES];
-            str_cpy(tr + 3, e0->npresets ? e0->presets[t->preset % e0->npresets].name : "", sizeof tr - 3);
+            if (!fm6_bank_sound(t, tr + 3))             /* (Jangada 0.6: an FM6 bank voice, by its name) */
+                str_cpy(tr + 3, e0->npresets ? e0->presets[t->preset % e0->npresets].name : "", sizeof tr - 3);
         }
         sub = tr;
         if (drum) {
@@ -808,9 +809,10 @@ static void layer_screen_draw(void)
         } else {
             const engine_t *e = ENGINES[t->eng_req % NENGINES];
             const char *u;
+            char bn[11];
             static const char *const VM[4] = {"POLY", "MONO", "LEG", "UNI"};
             lab[0] = "PRST", lab[1] = "VOICE", lab[2] = "GLIDE", lab[3] = "LVL";
-            str_cpy(v[0], e->npresets ? e->presets[t->preset % e->npresets].name : "-", 10);
+            str_cpy(v[0], fm6_bank_sound(t, bn) ? bn : e->npresets ? e->presets[t->preset % e->npresets].name : "-", 10);
             str_cpy(v[1], VM[t->p[P_VOICE] & 3], 10);
             param_format(&TP[P_GLIDE], t->p[P_GLIDE], v[2], &u);
             fmt_int(v[3], t->p[P_LEVEL] * 100 / 127);
