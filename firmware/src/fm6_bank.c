@@ -57,6 +57,23 @@ static int fm6_bank_get(uint32_t k, uint8_t *pk)
     return 0;
 }
 
+/* the whole bank -> rec (32 x 128 bytes), an empty slot as the init voice: each half read once (a bank dump,
+ * fm6_sysex.c dx_send_bank; fm6_bank_get a slot at a time read the whole half 32 times) */
+static void fm6_bank_get_all(uint8_t *rec)
+{
+    uint32_t h, i;
+    for (h = 0; h < 2u; h++) {
+        const fm6_half_t *b = fm6_half_view(h);
+        for (i = 0; i < FM6_HALF; i++) {
+            uint32_t k = h * FM6_HALF + i;
+            if (b && ((b->used >> i) & 1u) && ((fm6_bank_used >> k) & 1u))
+                memcpy(rec + k * FM6_PACKED, b->v[i], FM6_PACKED);
+            else
+                memcpy(rec + k * FM6_PACKED, FM6_INIT, FM6_PACKED);
+        }
+    }
+}
+
 static void fm6_bank_scan(void)                  /* which slots are used, from flash */
 {
     uint32_t h;

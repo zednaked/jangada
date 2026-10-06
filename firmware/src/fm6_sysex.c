@@ -69,7 +69,6 @@ static void dx_send_voice(uint32_t tr, uint32_t ch)    /* VCED: the track's patc
 
 static void dx_send_bank(uint32_t ch)            /* VMEM: B1..B32, built in dx_rx (dx_hold keeps the ISR out) */
 {
-    uint32_t k;
     dx_take_long();                              /* a frame waiting in dx_rx goes first */
     dx_hold = 1;
     RING_PUBLISH();
@@ -79,9 +78,7 @@ static void dx_send_bank(uint32_t ch)            /* VMEM: B1..B32, built in dx_r
     dx_rx[3] = 0x09;
     dx_rx[4] = 0x20;
     dx_rx[5] = 0x00;
-    for (k = 0; k < FM6_BANK_N; k++)
-        if (fm6_bank_get(k, dx_rx + 6 + k * FM6_PACKED))
-            memcpy(dx_rx + 6 + k * FM6_PACKED, FM6_INIT, FM6_PACKED);
+    fm6_bank_get_all(dx_rx + 6);                 /* each half read once; an empty slot the init voice */
     dx_rx[4102] = (uint8_t)dx_chk(dx_rx + 6, 4096);
     dx_rx[4103] = 0xF7;
     ota_wire_send(dx_rx, 4104);                 /* ~90 ms: 1368 packets, 16 per USB frame */
