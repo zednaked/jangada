@@ -189,6 +189,20 @@ solte, e ele continua respirando sozinho, inclusive enquanto você toca outras t
 Para sequenciar um drone: arp OFF, PATTERN com **DIV 4BAR**, um acorde por passo (cada passo dura
 4 compassos).
 
+**Drones que evoluem.** Toque ARP até a página **DRONE** (HOLD, EVOL, TENS, RAMP), por trilha:
+- **EVOL**: enquanto a trilha soa, passeios aleatórios lentos e suaves movem o som sozinhos (ciclos de
+  dezenas de segundos a minutos, nunca iguais): o filtro, a forma, o parâmetro natural do motor (o MIX
+  do superwave, o índice do FM, o tamanho do grão…), e cada voz desafina e respira do seu jeito. Para
+  quando o drone para; um drone novo começa do som do preset.
+- **TENS**: a tensão. Abre o filtro, sobe ressonância / drive / brilho e o DIST da trilha, separa as
+  vozes na afinação (até ±12 cents) e deixa o passeio mais fundo e mais rápido. Em 0, o som de hoje.
+- **RAMP**: OFF, 1 a **32BAR**: a tensão viaja até TENS nesse número de compassos (no tempo). Um drone
+  que nasce do silêncio começa em 0 e constrói; baixar TENS volta com a mesma calma.
+- A tela mostra os quatro passeios e a barra da tensão subindo até a marca de TENS.
+- Na matriz, a origem **DRIFT** é o passeio da trilha, para qualquer destino.
+- Presets: **FERRUGEM** (ANALOG, superwave), **ABISMO** (DIGITAL, FM), **SERTAO** (WHEEL, a sanfona
+  que azeda) e **CINZA** (GRAIN, cinza de piano).
+
 ### Arpejador e sequencer
 - Modos **UDI** (sobe e desce repetindo as pontas) e **RPT** (o acorde inteiro a cada passo);
   divisões **1/2, 1/1, 2BAR, 4BAR** (também no sequencer).
@@ -246,7 +260,7 @@ sh tests/run_tests.sh         # todos os testes, no PC
    vivo por SysEx.
 5. MIDI mais fino (bend por canal, vibrato no CC1) e o nome do acorde no HOME.
 
-Depois: drones que evoluem, pianos quebrados, paletas RUST, ASH e MANGUE, a jangada na tela de boot.
+Depois: ~~drones que evoluem~~ (feito: EVOL, TENS, RAMP, DRIFT), pianos quebrados, paletas RUST, ASH e MANGUE, a jangada na tela de boot.
 
 ## Créditos e licença
 

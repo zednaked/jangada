@@ -188,6 +188,21 @@ let go, and it keeps breathing on its own — also while you play the other trac
 
 To sequence a drone: arp OFF, PATTERN **DIV 4BAR**, one chord a step (each step lasts 4 bars).
 
+**Drones that evolve.** Tap ARP to the **DRONE** page (HOLD, EVOL, TENS, RAMP), per track:
+- **EVOL**: while the track sounds, slow, smooth random walks move the sound on their own (cycles of
+  tens of seconds to minutes, never the same twice): the filter, the shape, the engine's natural
+  parameter (the superwave's MIX, the FM index, the grain size…), and every voice drifts in tune and
+  breathes its own way. It stops when the drone stops; a new drone starts from the preset's sound.
+- **TENS**: the tension. Opens the filter, raises resonance / drive / brightness and the track's DIST,
+  pulls the voices apart in tune (up to ±12 cents) and makes the walks deeper and faster. At 0, the
+  sound of today.
+- **RAMP**: OFF, 1 to **32BAR**: the tension travels to TENS over that many bars (at the tempo). A drone
+  born from silence starts at 0 and builds; turning TENS down goes back as slowly.
+- The screen shows the four walks and the tension bar rising to the TENS mark.
+- In the matrix, the **DRIFT** source is the track's walk, for any target.
+- Presets: **FERRUGEM** (ANALOG, superwave), **ABISMO** (DIGITAL, FM), **SERTAO** (WHEEL, the sanfona
+  going sour) and **CINZA** (GRAIN, piano ash).
+
 ### Arpeggiator and sequencer
 - Arp modes **UDI** (up-down, ends repeated) and **RPT** (the whole chord each step); divisions
   **1/2, 1/1, 2BAR, 4BAR** (sequencer too).
@@ -244,7 +259,7 @@ sh tests/run_tests.sh         # every test, on the PC
 4. **An FM6 patch bank**, DX7 `.syx` import and export, and Dexed editing Jangada live over SysEx.
 5. Finer MIDI (per-channel bend range, CC1 vibrato) and the chord name on HOME.
 
-Then: drones that evolve, broken pianos, RUST, ASH and MANGUE palettes, the jangada on the boot screen.
+Then: ~~drones that evolve~~ (done: EVOL, TENS, RAMP, DRIFT), broken pianos, RUST, ASH and MANGUE palettes, the jangada on the boot screen.
 
 ## Credits and license
 
