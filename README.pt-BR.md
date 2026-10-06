@@ -132,7 +132,9 @@ Conecte o FM-1 direto no computador por um cabo USB **de dados**.
 O script prepara sozinho um ambiente Python (`mido` + `python-rtmidi`) em `~/.local/share/jangada/`
 e confere o SHA-256 do que baixou.
 
-- **Se a instalação falhar**: segure **OCT−** ao ligar o FM-1 (resgate por USB) e instale de novo.
+- **Se a instalação falhar**: segure **OCT−** ao ligar o FM-1 (resgate por USB) e instale de novo. Já
+  passamos por isso de verdade: uma gravação da 0.5.1 caiu no meio (cabo), o FM-1 ligou em *JANGADA USB
+  RESCUE*, o instalador gravou por ele e o aparelho voltou inteiro.
 - **Voltar ao oficial**: pelo instalador web (com um backup antes), `./instalar-linux.sh --original`,
   ou o M-UPGRADE da M-VAVE.
 - Desde a 0.2 o FM-1 aparece no computador como **Jangada** (MIDI e áudio). O instalador web do
@@ -269,7 +271,9 @@ gravar abre a tela **TRACKS**: BPM, compasso.beat, uma linha por trilha com pass
 - Projetos e presets guardam cada valor com uma **chave estável**: versões novas abrem o que as velhas
   salvaram. Projetos e presets do Felucca são lidos e convertidos.
 - **Atualização segura**: o instalador recusa pacote danificado; o loader confere o CRC antes de
-  liberar o firmware novo; **OCT−** ao ligar (ou dois boots que falham) abre o **resgate por USB**.
+  liberar o firmware novo; **OCT−** ao ligar (ou dois boots que falham) abre o **resgate por USB**,
+  testado numa gravação interrompida de verdade. A área de boot nunca é escrita, então um FM-1 com a
+  Jangada sempre tem como voltar.
 
 ## Ferramentas
 

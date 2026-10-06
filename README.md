@@ -132,7 +132,9 @@ Plug the FM-1 straight into the computer with a USB **data** cable.
 It sets up its own Python environment (`mido` + `python-rtmidi`) in `~/.local/share/jangada/` and
 checks the SHA-256 of what it downloaded.
 
-- **If an install fails**: hold **OCT−** while switching the FM-1 on (USB rescue) and install again.
+- **If an install fails**: hold **OCT−** while switching the FM-1 on (USB rescue) and install again. We
+  have been through it for real: a 0.5.1 write dropped halfway (the cable), the FM-1 came up in *JANGADA
+  USB RESCUE*, the installer wrote through it and the device came back whole.
 - **Back to the official firmware**: from the web installer (a backup first), `./instalar-linux.sh
   --original`, or M-VAVE's M-UPGRADE.
 - Since 0.2 the FM-1 shows up on the computer as **Jangada** (MIDI and audio). Felucca's web installer
@@ -270,7 +272,9 @@ record opens the **TRACKS** view: BPM, bar.beat, one row per track with its step
 - Projects and presets store each value under a **stable key**: newer versions open what older ones
   saved. Felucca's projects and presets are read and converted.
 - **Safe updates**: the installer refuses a damaged package; the loader checks the CRC before it lets
-  the new firmware start; **OCT−** at power-on (or two failed boots) opens the **USB rescue**.
+  the new firmware start; **OCT−** at power-on (or two failed boots) opens the **USB rescue**, proven
+  on a real interrupted write. The boot area is never written, so an FM-1 running Jangada always has a
+  way back.
 
 ## Tools
 
