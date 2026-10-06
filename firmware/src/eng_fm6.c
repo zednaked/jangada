@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: GPL-3.0-only
  * Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments
  * Jangada: ported from Felucca 1.0.1 as engine 9 (the DIGITAL 4-op stays). PTCH F1..F8 (the factory patches) and
- * B1..B32 (the patch bank in flash, fm6_bank.c: a whole 32-voice bank); the track's own patch is stored in
+ * B1..B64 (the patch banks in flash, fm6_bank.c: two whole 32-voice banks, B1..B32 and B33..B64; their voices are
+ * in the PRESETS list too, ui.c); the track's own patch is stored in
  * projects (project.c, JNG1 section 1), the autosave and the editor's backup; a project from before has the
  * patch of its PTCH value. */
 /* FM6: classic 6-operator FM. The synthesis is msfa (Dexed's core), ported to integer C in fm6_core.c
@@ -19,7 +20,7 @@
  *   MEG   the modulators' envelope times: + slower (rates down to 40 steps), - faster
  *   VMOD  added to the modulators' velocity sensitivity (0..7)
  *   DTUN  spreads the carriers apart in pitch (up to about +-36 cents between the outer ones)
- *   PTCH  loads a patch: F1..F8 the factory patches, B1..B32 the patch bank (fm6_bank.c, flash). The
+ *   PTCH  loads a patch: F1..F8 the factory patches, B1..B64 the patch banks (fm6_bank.c, flash). The
  *         patch stays the track's own (a project keeps it); turning PTCH loads another
  * The operator envelopes are the voice's amplitude and end it (engine_t.ownenv / done): the track's ADSR,
  * ENV DEST and the matrix's ENV do nothing here. The track's FLT moves MLVL (ENV / LFO -> FLT, the
@@ -34,8 +35,10 @@
 
 #define ENGI_FM6 9u              /* engines.c ENGINES[] (Jangada: after GRAIN) */
 #define FM6_POLY 6               /* engine_t.poly */
-#define FM6_BANK_N 32u           /* patch bank slots (Jangada: a whole 32-voice bank, fm6_bank.c) */
-#define FM6_NSLOT (FM6_NFACTORY + FM6_BANK_N)   /* PTCH: F1..F8, B1..B32 */
+#define FM6_BANKS 2u             /* Jangada: two banks of 32 voices (fm6_bank.c), B1..B32 and B33..B64 */
+#define FM6_BANK_VOICES 32u      /* a 32-voice bank, as a DX7 bulk dump holds it */
+#define FM6_BANK_N (FM6_BANKS * FM6_BANK_VOICES)   /* patch bank slots */
+#define FM6_NSLOT (FM6_NFACTORY + FM6_BANK_N)   /* PTCH: F1..F8, B1..B64 */
 #define FM6_PACKED 128u
 
 static uint8_t fm6_patch[NTRK][FP_SIZE + 1u];   /* the tracks' patches (main loop writes, then fm6_pgen) */
@@ -50,6 +53,16 @@ static struct {                                  /* the patch through the macros
 static fm6_lfo_t fm6_lfo[NTRK];
 static int32_t fm6_lfo_v[NTRK], fm6_lfo_d[NTRK]; /* this block's LFO value and delay (Q24) */
 static fm6_note_t fm6_note[NTRK][FM6_POLY];
+/* Jangada: which bank slots hold a patch (bit k of word b: B(32 b + k + 1)) and their names, kept by fm6_bank.c
+ * (from flash at power-on, after every bank write; all empty without flash). The PRESETS list (ui.c) browses the
+ * used ones by name without reading the flash */
+static uint32_t fm6_bank_used[FM6_BANKS];
+static char fm6_bank_nm[FM6_BANK_N][11];
+static uint8_t fm6_bank_gen;                     /* +1 after each change of them (the PRESETS page redraws) */
+/* Jangada 0.6 (after SLOOP's "DX7 BANK n? SAVE=YES", majnikool): a 32-voice SysEx bank with no clear bank to go
+ * to waits (fm6_sysex.c, in usb.c's dx_rx) while the top bar asks "FM6 BANK n? SAVE=YES"; ui_input.c answers:
+ * SAVE yes, OCT- / OCT+ bank 1 / 2 (the question stays), any other button no. answer: 0 open, 1 yes, 2 no */
+static struct { uint8_t on, bank, answer; uint32_t ms; } fm6_ask;
 
 /* ------------------------------------------------------- patch formats --- */
 /* the highest value of each byte of the 155-byte voice */
@@ -194,6 +207,14 @@ static void fm6_name(char *s, const uint8_t *v)
             n = i + 1u;
     }
     s[n] = 0;
+}
+
+/* Jangada: the name of a packed 128-byte record (bytes 118..127) -> s[11], as fm6_name */
+static void fm6_pk_name(char *s, const uint8_t *pk)
+{
+    uint8_t v[FP_SIZE + 1u];
+    memcpy(v + FP_NAME, pk + 118, 10);
+    fm6_name(s, v);
 }
 
 /* power-on: every track the init voice (what a project stores for the tracks that never played FM6) */
@@ -345,11 +366,13 @@ static void fm6_render(track_t *t, voice_t *v, int32_t *out, uint32_t len, const
 static const char *const N_FM6_ALG[] = {"PAT", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13",
                                         "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25",
                                         "26", "27", "28", "29", "30", "31", "32", 0};
-static const char *const N_FM6_PATCH[] = {"F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8",
-                                          "B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8", "B9", "B10", "B11",
-                                          "B12", "B13", "B14", "B15", "B16", "B17", "B18", "B19", "B20", "B21",
-                                          "B22", "B23", "B24", "B25", "B26", "B27", "B28", "B29", "B30", "B31",
-                                          "B32", 0};
+static const char *const N_FM6_PATCH[] = {"F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "B1", "B2", "B3", "B4",
+                                          "B5", "B6", "B7", "B8", "B9", "B10", "B11", "B12", "B13", "B14", "B15",
+                                          "B16", "B17", "B18", "B19", "B20", "B21", "B22", "B23", "B24", "B25", "B26",
+                                          "B27", "B28", "B29", "B30", "B31", "B32", "B33", "B34", "B35", "B36", "B37",
+                                          "B38", "B39", "B40", "B41", "B42", "B43", "B44", "B45", "B46", "B47", "B48",
+                                          "B49", "B50", "B51", "B52", "B53", "B54", "B55", "B56", "B57", "B58", "B59",
+                                          "B60", "B61", "B62", "B63", "B64", 0};
 _Static_assert(sizeof N_FM6_PATCH / sizeof N_FM6_PATCH[0] == FM6_NSLOT + 1u, "a PTCH name per slot");
 
 /* {ALG, FB, MLVL, MRAT, MEG, VMOD, DTUN, PTCH}: the factory patch F1..F8 as it is, DTUN on the pad */

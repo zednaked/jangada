@@ -19,11 +19,16 @@
 /* flash map (FL_DATA 0x97000..0xDFFFF, FL_GLOB 0xFC000..): settings 0xFC000, projects 0x97000..0x9EFFF,
  * user sample slots 0xA0000..0xDBFFF (eng_sample.c), user preset banks 0xDC000..0xDFFFF (upreset.c),
  * Jangada: the working project (autosave, project.c): copy A 0x9F000, copy B 0xFE000 (the two sectors
- * left free, as SLOOP uses them); the FM6 patch bank (fm6_bank.c, FL_FM6 0xE5000..0xE8FFF): B1..B16
+ * left free, as SLOOP uses them); the FM6 patch bank 1 (fm6_bank.c, FL_FM6 0xE5000..0xE8FFF): B1..B16
  * 0xE5000 / 0xE6000, B17..B32 0xE7000 / 0xE8000 (after the update staging 0xE0000..0xE4FFF, before the
- * official firmware's BTIF sector 0xE9000). Not used: 0x93000..0x96FFF, 0xE9000..0xFBFFF (BTIF, USR) */
+ * official firmware's BTIF sector 0xE9000); the FM6 patch bank 2 (FL_FM6B 0x93000..0x96FFF, the four sectors
+ * between the app area and FL_DATA): B33..B48 0x93000 / 0x94000, B49..B64 0x95000 / 0x96000. The app is linked
+ * into [0x4120, 0x920DC) (app.ld) and its package region ends below 0x93000 (fm1pkg_make.py: a fixed app slot);
+ * the update loader writes only [0x4000, 0x93000) and above it erases only a sector whose last 256 bytes hold an
+ * update record (ldr_core.c ldr_records_drop: a bank half ends 2320 bytes into its sector, the tail stays
+ * erased). Not used: 0xE9000..0xFBFFF (BTIF, USR) */
 enum { OBJ_SETTINGS, OBJ_PROJECT0, OBJ_UPRESET0 = OBJ_PROJECT0 + 4, OBJ_AUTOSAVE = OBJ_UPRESET0 + 2, OBJ_FM6BANK0,
-       OBJ_COUNT = OBJ_FM6BANK0 + 2 };
+       OBJ_FM6BANK2 = OBJ_FM6BANK0 + 2, OBJ_COUNT = OBJ_FM6BANK2 + 2 };   /* (Jangada 0.6: bank 2 appended) */
 
 typedef struct {
     uint32_t magic;
@@ -57,6 +62,8 @@ static uint32_t st_sector(uint32_t obj, uint32_t copy)  /* flash offset of copy 
         return 0xFC000u + copy * ST_SECTOR;
     if (obj == OBJ_AUTOSAVE)
         return copy ? 0xFE000u : 0x9F000u;
+    if (obj >= OBJ_FM6BANK2)                         /* Jangada: FM6 bank 2, below FL_DATA */
+        return 0x93000u + (obj - OBJ_FM6BANK2) * 2u * ST_SECTOR + copy * ST_SECTOR;
     if (obj >= OBJ_FM6BANK0)
         return 0xE5000u + (obj - OBJ_FM6BANK0) * 2u * ST_SECTOR + copy * ST_SECTOR;
     if (obj >= OBJ_UPRESET0)

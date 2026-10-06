@@ -5,7 +5,8 @@
  * "JNG1", the working project loaded, the settings, the user preset banks), the CRC checked before
  * anything is written, malformed objects refused, the song playing, USB resets and timeouts, the
  * snapshot gone after another object, and the autosave held while a backup runs; the FM6 patch bank
- * (ids 8, 9) and the tracks' FM6 patches in the working project (Jangada 0.5).
+ * (ids 8, 9) and the tracks' FM6 patches in the working project (Jangada 0.5); the FM6 bank 2 (ids 10, 11, at
+ * 0x93000..0x96FFF; Jangada 0.6), a Jangada 0.5 backup without it keeping it.
  * Build: cc -w -Ibuild/gen -Ifirmware/src tests/backup_test.c -lm */
 #include <stdio.h>
 #include <stdint.h>
@@ -34,8 +35,10 @@ static void fm1_wdt_feed(void) {}
 static void fm1_irq_off(void) {}
 static void fm1_irq_on(void) {}
 static void fm1_led_key(uint32_t k, int on) { (void)k; (void)on; }
-static int32_t fm1_enc_take(uint32_t i) { (void)i; return 0; }
-static uint32_t fm1_input_edges(int x) { (void)x; return 0; }
+static int32_t host_enc[8];                         /* detents waiting per encoder (dx7_test.c turns PRESETS) */
+static uint32_t host_edges;                         /* buttons pressed since the last ui_input */
+static int32_t fm1_enc_take(uint32_t i) { int32_t v = i < 8u ? host_enc[i] : 0; if (i < 8u) host_enc[i] = 0; return v; }
+static uint32_t fm1_input_edges(int x) { uint32_t e = host_edges; (void)x; host_edges = 0; return e; }
 static uint32_t fm1_input_note_edges(void) { return 0; }
 #include "gfx.c"
 #include "core.h"
@@ -296,10 +299,11 @@ int main(void)
 
     power_on();
     rc = list();
-    check("LIST: 13 objects; the working project (with its FM6 patches) and the settings, the rest empty",
-          !rc && ED_BK_N == 13u && arc[0].id == 0 && arc[0].len == JNG_SIZE(P_COUNT, G_COUNT) + JNG_FM6_SIZE &&
+    check("LIST: 15 objects; the working project (with its FM6 patches) and the settings, the rest empty",
+          !rc && ED_BK_N == 15u && arc[0].id == 0 && arc[0].len == JNG_SIZE(P_COUNT, G_COUNT) + JNG_FM6_SIZE &&
           arc[1].len == sizeof(persist_t) && arc[2].len == 0 && arc[6].len == 0 && arc[8].id == 8 && arc[8].len == 0 &&
-          arc[9].id == 9 && arc[9].len == 0 && arc[10].id == 32 && arc[10].len == 0 && arc[12].id == 34);
+          arc[9].id == 9 && arc[9].len == 0 && arc[10].id == 10 && arc[10].len == 0 && arc[11].id == 11 &&
+          arc[11].len == 0 && arc[12].id == 32 && arc[12].len == 0 && arc[14].id == 34);
     check("LIST: the autosave waits while a backup runs", (int32_t)(autosave_hold - fm1_ms) > 0);
 
     /* something on every kind of object */
@@ -331,11 +335,13 @@ int main(void)
         up_put(17, &r);                              /* bank 2 */
     }
     sample_slot(1, 3000);
-    {   /* the FM6 bank: B3 = F2, B20 = F5; the working project's track 2 plays an edited patch */
+    {   /* the FM6 banks: B3 = F2, B20 = F5, B40 = F7, B60 = F8; the working project's track 2 plays an edited patch */
         uint8_t v[FP_SIZE + 1u];
         fm1_ms += ED_BK_HOLD + 1u;                   /* (the LIST above holds the bank off proj_io for 15 s) */
         fm6_bank_put(2, FM6_FACTORY[1]);
         fm6_bank_put(19, FM6_FACTORY[4]);
+        fm6_bank_put(39, FM6_FACTORY[6]);
+        fm6_bank_put(59, FM6_FACTORY[7]);
         fm6_unpack(FM6_FACTORY[6], v);
         v[FP_ALG] = 21;
         fm6_set_patch(1, v);
@@ -361,11 +367,17 @@ int main(void)
         uint8_t b[16];
         check("GET of the working project after another object: rc 5 (LIST again)", get(0, 0, 16, b) == 5);
         check("GET past the end: rc 1", get(3, obj(3)->len - 8u, 16, b) == 1);
-        check("GET of an unknown object: rc 1", get(10, 0, 16, b) == 1 && get(31, 0, 16, b) == 1);
+        check("GET of an unknown object: rc 1", get(12, 0, 16, b) == 1 && get(31, 0, 16, b) == 1);
     }
     check("capture: the FM6 bank, both halves ('FM6B', B3 and B20 used)",
           obj(8)->len == sizeof(fm6_half_t) && obj(9)->len == sizeof(fm6_half_t) && !memcmp(obj(8)->data, "FM6B", 4) &&
           ((fm6_half_t *)(void *)obj(8)->data)->used == 1u << 2 && ((fm6_half_t *)(void *)obj(9)->data)->used == 1u << 3);
+    check("capture: the FM6 bank 2, both halves (B40 and B60 used, halves 2 and 3, from 0x93000..0x96FFF)",
+          obj(10)->len == sizeof(fm6_half_t) && obj(11)->len == sizeof(fm6_half_t) &&
+          ((fm6_half_t *)(void *)obj(10)->data)->used == 1u << 7 && ((fm6_half_t *)(void *)obj(10)->data)->half == 2 &&
+          ((fm6_half_t *)(void *)obj(11)->data)->used == 1u << 11 && ((fm6_half_t *)(void *)obj(11)->data)->half == 3 &&
+          (!memcmp(nor + 0x93000u + 256u, "FM6B", 4) || !memcmp(nor + 0x94000u + 256u, "FM6B", 4)) &&
+          (!memcmp(nor + 0x95000u + 256u, "FM6B", 4) || !memcmp(nor + 0x96000u + 256u, "FM6B", 4)));
     memcpy(src, arc, sizeof arc);
 
     /* the change while backing up: the CRC of LIST does not match any more */
@@ -391,11 +403,14 @@ int main(void)
     check("restore: every object accepted", !rc);
     {
         uint8_t pk[FM6_PACKED], v[FP_SIZE + 1u];
-        int ok = fm6_bank_used == (1u << 2 | 1u << 19) && !fm6_bank_get(2, pk) && !memcmp(pk, FM6_FACTORY[1], FM6_PACKED) &&
-                 !fm6_bank_get(19, pk) && !memcmp(pk, FM6_FACTORY[4], FM6_PACKED) && fm6_bank_get(3, pk);
-        fm6_bank_used = 0;
+        int ok = fm6_bank_used[0] == (1u << 2 | 1u << 19) && fm6_bank_used[1] == (1u << 7 | 1u << 27) &&
+                 !fm6_bank_get(2, pk) && !memcmp(pk, FM6_FACTORY[1], FM6_PACKED) && !fm6_bank_get(19, pk) &&
+                 !memcmp(pk, FM6_FACTORY[4], FM6_PACKED) && fm6_bank_get(3, pk) && !fm6_bank_get(59, pk) &&
+                 !memcmp(pk, FM6_FACTORY[7], FM6_PACKED);
+        memset(fm6_bank_used, 0, sizeof fm6_bank_used);
         fm6_bank_boot();                                 /* power-off: from flash */
-        check("restore: the FM6 bank (B3, B20) in use and in flash", ok && fm6_bank_used == (1u << 2 | 1u << 19));
+        check("restore: the FM6 banks (B3, B20, B40, B60) in use and in flash",
+              ok && fm6_bank_used[0] == (1u << 2 | 1u << 19) && fm6_bank_used[1] == (1u << 7 | 1u << 27));
         fm6_unpack(FM6_FACTORY[6], v);
         v[FP_ALG] = 21;
         fm6_sanitize(v);
@@ -495,12 +510,20 @@ int main(void)
     check("an empty project / bank in the backup empties the slot (RAM and flash)", !rc && !project_used(1) && !up_used(17));
 
     {   /* a backup of Jangada 0.4 (11 objects, no FM6 bank): it restores, the bank stays */
-        uint32_t used;
-        rc = put_all(8, src[8].data, src[8].len, src[8].crc) | put_all(9, src[9].data, src[9].len, src[9].crc);
-        used = fm6_bank_used;
+        uint32_t used, used2;
+        rc = put_all(8, src[8].data, src[8].len, src[8].crc) | put_all(9, src[9].data, src[9].len, src[9].crc) |
+             put_all(10, src[10].data, src[10].len, src[10].crc) | put_all(11, src[11].data, src[11].len, src[11].crc);
+        used = fm6_bank_used[0];
+        used2 = fm6_bank_used[1];
         for (i = 2; !rc && i < 8u; i++)
             rc = put_all(src[i].id, src[i].data, src[i].len, src[i].crc);
-        check("a backup without ids 8 / 9 restores and keeps the FM6 bank", !rc && used && fm6_bank_used == used);
+        check("a backup without ids 8 / 9 restores and keeps the FM6 bank", !rc && used && fm6_bank_used[0] == used);
+        rc = put_all(8, src[8].data, 0, 0);              /* a backup of Jangada 0.5 (13 objects): bank 1 only */
+        for (i = 2; !rc && i < 8u; i++)
+            rc = put_all(src[i].id, src[i].data, src[i].len, src[i].crc);
+        rc |= put_all(8, src[8].data, src[8].len, src[8].crc) | put_all(9, src[9].data, src[9].len, src[9].crc);
+        check("a backup without ids 10 / 11 (Jangada 0.5) restores bank 1 and keeps bank 2",
+              !rc && fm6_bank_used[0] == used && used2 && fm6_bank_used[1] == used2);
     }
     {   /* FM6 bank halves: refused when malformed; an empty one empties it */
         static uint8_t b[4096];
@@ -514,10 +537,16 @@ int main(void)
         rc = put_all(9, b, src[9].len, st_crc32(b, src[9].len));
         check("an FM6 bank half with a byte above 127: rc 2", rc == 2 && !erases);
         check("BEGIN of an FM6 bank half with a wrong length: rc 1", put_begin(9, 2000, 0) == 1);
-        rc = put_all(9, b, 0, 0);
-        fm6_bank_used = 0;
+        memcpy(b, src[10].data, src[10].len);
+        ((fm6_half_t *)(void *)b)->half = 0;             /* bank 1's first half stored as bank 2's */
+        rc = put_all(10, b, src[10].len, st_crc32(b, src[10].len));
+        check("an FM6 bank 2 half stored as a bank 1 half: rc 2, nothing written", rc == 2 && !erases);
+        rc = put_all(9, b, 0, 0) | put_all(11, b, 0, 0);
+        memset(fm6_bank_used, 0, sizeof fm6_bank_used);
         fm6_bank_boot();
-        check("an empty FM6 bank half in the backup empties B17..B32 (RAM and flash)", !rc && fm6_bank_used == 1u << 2);
+        check("an empty FM6 bank half in the backup empties B17..B32 / B49..B64 (RAM and flash)",
+              !rc && fm6_bank_used[0] == 1u << 2 && fm6_bank_used[1] == 1u << 7 && !fm6_bank_nm[59][0] &&
+                  fm6_bank_nm[39][0]);
     }
 
     {   /* a project's FM6 patches (proj_apply): its own; one without (Jangada 0.4): its PTCH's patch */
@@ -545,7 +574,7 @@ int main(void)
         uint32_t ok;
         power_on();
         fm6_bank_boot();
-        uint32_t want = 2u + 32u * 2u, k;
+        uint32_t want = 2u + 64u * 2u, k;
         for (k = 0; k < FM6_NFACTORY; k++) {
             char nm[11];
             fm6_unpack(FM6_FACTORY[k], v);
@@ -554,14 +583,14 @@ int main(void)
         }
         rep_n = 0;
         ed_fm6_handle(ED_FM6_LIST, a, 0);
-        check("FM6 LIST: 8 factory patches by name, 32 empty bank slots",
-              rep[0] == 8 && rep[1] == 32 && rep[2] == 1 && !memcmp(rep + 3, "TINE EP", 8) && rep_n == want);
+        check("FM6 LIST: 8 factory patches by name, 64 empty bank slots (two banks)",
+              rep[0] == 8 && rep[1] == 64 && rep[2] == 1 && !memcmp(rep + 3, "TINE EP", 8) && rep_n == want);
         a[0] = ED_FM6_BANK;
         a[1] = 30;                                       /* B31 */
         memcpy(a + 2, FM6_FACTORY[3], FM6_PACKED);
         rep_n = 0;
         ed_fm6_handle(ED_FM6_PUT, a, sizeof a);
-        ok = rep[2] == 0 && fm6_bank_used == 1u << 30;
+        ok = rep[2] == 0 && fm6_bank_used[0] == 1u << 30;
         rep_n = 0;
         ed_fm6_handle(ED_FM6_GET, a, 2);
         check("FM6 PUT into B31, GET it back (flash: the second half)",
@@ -574,7 +603,7 @@ int main(void)
         rep_n = 0;
         ed_fm6_handle(ED_FM6_ERASE, a + 1, 1);
         song.playing = 0;
-        check("FM6 PUT / ERASE of the bank while the song plays: rc 3", ok && rep[1] == 3 && fm6_bank_used == 1u << 30);
+        check("FM6 PUT / ERASE of the bank while the song plays: rc 3", ok && rep[1] == 3 && fm6_bank_used[0] == 1u << 30);
         set_engine_of(&trk[2], ENGI_FM6);
         trk[2].p[P_E7] = FM6_NFACTORY + 30;              /* B31 */
         fm6_poll();
@@ -593,7 +622,7 @@ int main(void)
         a[1] = 30;
         rep_n = 0;
         ed_fm6_handle(ED_FM6_ERASE, a + 1, 1);
-        ok = rep[1] == 0 && !fm6_bank_used;
+        ok = rep[1] == 0 && !fm6_bank_used[0] && !fm6_bank_used[1];
         a[0] = ED_FM6_BANK;
         rep_n = 0;
         ed_fm6_handle(ED_FM6_GET, a, 2);
@@ -606,13 +635,41 @@ int main(void)
         ed_fm6_handle(ED_FM6_PUT, a, sizeof a);
         ok = rep[2] == 1;
         a[0] = ED_FM6_BANK;
-        a[1] = 32;
+        a[1] = 64;
         rep_n = 0;
         ed_fm6_handle(ED_FM6_PUT, a, sizeof a);
         ok &= rep[2] == 1;
         rep_n = 0;
         ed_fm6_handle(ED_FM6_PUT, a, 20);
-        check("FM6 PUT of a factory slot, of B33, of a short record: rc 1", ok && rep[2] == 1 && !erases);
+        check("FM6 PUT of a factory slot, of B65, of a short record: rc 1", ok && rep[2] == 1 && !erases);
+        a[1] = 45;                                       /* B46: bank 2, its first half (0x93000 / 0x94000) */
+        memcpy(a + 2, FM6_FACTORY[2], FM6_PACKED);
+        rep_n = 0;
+        ed_fm6_handle(ED_FM6_PUT, a, sizeof a);
+        ok = rep[2] == 0 && fm6_bank_used[1] == 1u << 13 && erases == 1;
+        rep_n = 0;
+        ed_fm6_handle(ED_FM6_GET, a, 2);
+        ok &= rep[2] == 0 && !memcmp(rep + 3, FM6_FACTORY[2], FM6_PACKED);
+        rep_n = 0;
+        ed_fm6_handle(ED_FM6_LIST, a, 0);
+        {
+            char nm[11];
+            uint32_t p = 2, k2;
+            for (k2 = 0; k2 < FM6_NFACTORY + 45u; k2++) {   /* walk to B46's entry: used, name, 0 */
+                p++;
+                while (rep[p])
+                    p++;
+                p++;
+            }
+            fm6_pk_name(nm, FM6_FACTORY[2]);
+            check("FM6 PUT into B46 (bank 2): in flash at 0x93000..0x94FFF, GET and LIST give it back",
+                  ok && rep[1] == 64 && rep[p] == 1 && !strcmp((const char *)rep + p + 1, nm) && !strcmp(fm6_bank_nm[45], nm) &&
+                      (!memcmp(nor + 0x93000u + 256u, "FM6B", 4) || !memcmp(nor + 0x94000u + 256u, "FM6B", 4)));
+        }
+        a[1] = 45;
+        rep_n = 0;
+        ed_fm6_handle(ED_FM6_ERASE, a + 1, 1);
+        check("FM6 ERASE B46: bank 2 empty again, its name gone", rep[1] == 0 && !fm6_bank_used[1] && !fm6_bank_nm[45][0]);
     }
 
     {   /* a bank write while the editor's backup holds proj_io (Jangada): refused with rc 4, so the snapshot being
@@ -626,7 +683,7 @@ int main(void)
         fm6_bank_boot();
         fm6_bank_put(4, FM6_FACTORY[2]);                 /* B5 */
         memcpy(h0, fm6_half_view(0), sizeof h0);
-        used = fm6_bank_used;
+        used = fm6_bank_used[0];
         rc = list();                                     /* the session: proj_io holds the snapshot */
         a[0] = ED_FM6_BANK;
         a[1] = 9;
@@ -635,13 +692,13 @@ int main(void)
         rep_n = 0;
         ed_fm6_handle(ED_FM6_PUT, a, sizeof a);
         rc4 = rep[2];
-        rcd = fm6_bank_put_all(dump);                    /* a DX7 bank dump (fm6_sysex.c) */
+        rcd = fm6_bank_put_all(0, dump);                 /* a DX7 bank dump (fm6_sysex.c) */
         check("a bank PUT and a DX7 bank dump during a backup: rc 4, nothing written, the snapshot whole",
-              !rc && rc4 == 4u && rcd == 4u && !erases && fm6_bank_used == used && ed_bk_cur == 0 &&
+              !rc && rc4 == 4u && rcd == 4u && !erases && fm6_bank_used[0] == used && ed_bk_cur == 0 &&
                   st_crc32(ED_BK_RAW, arc[0].len) == arc[0].crc);
         rep_n = 0;
         ed_fm6_handle(ED_FM6_ERASE, a + 1, 1);
-        ok = rep[1] == 4u && fm6_bank_used == used;
+        ok = rep[1] == 4u && fm6_bank_used[0] == used;
         rc = put_begin(8, sizeof h0, st_crc32(h0, sizeof h0));   /* a restore of B1..B16 half way */
         rc |= put_chunk(8, 0, h0, 256);
         rep_n = 0;
@@ -650,15 +707,15 @@ int main(void)
         for (k = 256; !rc && k < sizeof h0; k += 256u)
             rc |= put_chunk(8, k, h0 + k, sizeof h0 - k > 256u ? 256u : sizeof h0 - k);
         rc |= put_end(8, 2);
-        check("ERASE and PUT during a restore: rc 4; the staged half restores whole", ok && !rc && erases == 1 && fm6_bank_used == used);
+        check("ERASE and PUT during a restore: rc 4; the staged half restores whole", ok && !rc && erases == 1 && fm6_bank_used[0] == used);
         rep_n = 0;
         ed_fm6_handle(ED_FM6_PUT, a, sizeof a);
-        ok = rep[2] == 0 && fm6_bank_used == (used | 1u << 9);
+        ok = rep[2] == 0 && fm6_bank_used[0] == (used | 1u << 9);
         rc = list();
         fm1_ms += ED_BK_HOLD + 1u;
         rep_n = 0;
         ed_fm6_handle(ED_FM6_ERASE, a + 1, 1);
-        check("after the commit, or 15 s after the last request: the bank writes again", ok && !rc && rep[1] == 0 && fm6_bank_used == used);
+        check("after the commit, or 15 s after the last request: the bank writes again", ok && !rc && rep[1] == 0 && fm6_bank_used[0] == used);
     }
 
     {   /* the editor's staged bank half (FM6_PUT target 3, then FM6_COMMIT; Jangada): up to 16 records and one
@@ -673,7 +730,7 @@ int main(void)
         check("FM6 COMMIT with nothing staged: rc 5", rep[0] == 5 && rep_n == 1u);
         erases = 0;
         a[0] = ED_FM6_STAGE;
-        for (k = 0; k < FM6_BANK_N; k++) {
+        for (k = 0; k < FM6_BANK_VOICES; k++) {          /* bank 1 */
             a[1] = (uint8_t)k;
             memcpy(a + 2, FM6_FACTORY[k % FM6_NFACTORY], FM6_PACKED);
             rep_n = 0;
@@ -682,7 +739,7 @@ int main(void)
                 ok &= rep[2] == 5 && !erases;
                 rep_n = 0;
                 ed_fm6_handle(ED_FM6_COMMIT, a, 0);
-                ok &= rep[0] == 0 && erases == 1 && fm6_bank_used == 0xFFFFu;
+                ok &= rep[0] == 0 && erases == 1 && fm6_bank_used[0] == 0xFFFFu;
                 rep_n = 0;
                 ed_fm6_handle(ED_FM6_PUT, a, sizeof a);
             }
@@ -692,12 +749,12 @@ int main(void)
         ed_fm6_handle(ED_FM6_COMMIT, a, 0);
         ok &= rep[0] == 0;
         check("32 records staged, two COMMITs: two erases; the other half refused until the first is written",
-              ok && erases == 2 && fm6_bank_used == 0xFFFFFFFFu);
-        for (k = 0; k < FM6_BANK_N; k++)
+              ok && erases == 2 && fm6_bank_used[0] == 0xFFFFFFFFu && !fm6_bank_used[1]);
+        for (k = 0; k < FM6_BANK_VOICES; k++)
             ok &= !fm6_bank_get(k, pk) && !memcmp(pk, FM6_FACTORY[k % FM6_NFACTORY], FM6_PACKED);
-        fm6_bank_used = 0;
+        memset(fm6_bank_used, 0, sizeof fm6_bank_used);
         fm6_bank_boot();
-        check("... every record in its slot, in flash", ok && fm6_bank_used == 0xFFFFFFFFu);
+        check("... every record in its slot, in flash", ok && fm6_bank_used[0] == 0xFFFFFFFFu);
         a[1] = 3;                                        /* B4 alone: the half's other slots stay */
         memcpy(a + 2, FM6_FACTORY[1], FM6_PACKED);
         rep_n = 0;
@@ -706,7 +763,7 @@ int main(void)
         ed_fm6_handle(ED_FM6_COMMIT, a, 0);
         ok = rep[0] == 0 && erases == 3 && !fm6_bank_get(3, pk) && !memcmp(pk, FM6_FACTORY[1], FM6_PACKED);
         check("one record staged: the half written with its other slots as they were",
-              ok && !fm6_bank_get(4, pk) && !memcmp(pk, FM6_FACTORY[4], FM6_PACKED) && fm6_bank_used == 0xFFFFFFFFu);
+              ok && !fm6_bank_get(4, pk) && !memcmp(pk, FM6_FACTORY[4], FM6_PACKED) && fm6_bank_used[0] == 0xFFFFFFFFu);
         a[1] = 20;                                       /* B21 = F1 staged, then ... */
         memcpy(a + 2, FM6_FACTORY[0], FM6_PACKED);
         rep_n = 0;
@@ -751,10 +808,25 @@ int main(void)
         rep_n = 0;
         ed_fm6_handle(ED_FM6_PUT, a, sizeof a);
         check("a record staged during a backup: rc 4", !rc && rep[2] == 4);
-        a[1] = 32;
+        a[1] = 64;
         rep_n = 0;
         ed_fm6_handle(ED_FM6_PUT, a, sizeof a);
-        check("a record staged for B33: rc 1", rep[2] == 1);
+        check("a record staged for B65: rc 1", rep[2] == 1);
+        fm1_ms += ED_BK_HOLD + 1u;
+        erases = 0;
+        for (k = 48; k < 64u; k++) {                     /* B49..B64: bank 2's second half, one COMMIT */
+            a[1] = (uint8_t)k;
+            memcpy(a + 2, FM6_FACTORY[k % FM6_NFACTORY], FM6_PACKED);
+            rep_n = 0;
+            ed_fm6_handle(ED_FM6_PUT, a, sizeof a);
+            ok &= rep[2] == 0;
+        }
+        rep_n = 0;
+        ed_fm6_handle(ED_FM6_COMMIT, a, 0);
+        check("16 records staged into B49..B64 (bank 2): one COMMIT, one erase, at 0x95000..0x96FFF",
+              rep[0] == 0 && erases == 1 && fm6_bank_used[1] == 0xFFFF0000u &&
+                  (!memcmp(nor + 0x95000u + 256u, "FM6B", 4) || !memcmp(nor + 0x96000u + 256u, "FM6B", 4)) &&
+                  !fm6_bank_get(63, pk) && !memcmp(pk, FM6_FACTORY[63 % FM6_NFACTORY], FM6_PACKED));
     }
 
     /* without flash */

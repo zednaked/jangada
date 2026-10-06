@@ -432,29 +432,126 @@ static void select_engine(uint32_t e)
     ui.force = 1;
 }
 
-/* the presets of every engine, then the used user presets, as one list (the PRESETS knob and the PRESETS page browse it) */
+/* the presets of every engine, then (Jangada 0.6) the used FM6 bank voices by name, then the used user presets, as
+ * one list (the PRESETS knob and the PRESETS page browse it). After SLOOP's DX7 engine (majnikool, GPL-3.0): there
+ * the loaded DX7 voices follow the factory sounds; here they are the FM6 banks' (eng_fm6.c fm6_bank_used / _nm,
+ * kept by fm6_bank.c: no flash read). PRESET_FM6 marks a bank voice in the list, *k its slot (0..63: B1..B64) */
+#define PRESET_FM6 (NENGINES + 1u)
+
+static int fm6_list_used(uint32_t k)                 /* bank slot k holds a patch */
+{
+    return k < FM6_BANK_N && ((fm6_bank_used[k / FM6_BANK_VOICES] >> (k % FM6_BANK_VOICES)) & 1u);
+}
+static uint32_t fm6_list_count(void)                 /* the used bank slots */
+{
+    uint32_t b, w, n = 0;
+    for (b = 0; b < FM6_BANKS; b++)
+        for (w = fm6_bank_used[b]; w; w &= w - 1u)
+            n++;
+    return n;
+}
+static uint32_t fm6_list_nth(uint32_t n)             /* the n-th used slot (n < fm6_list_count()) */
+{
+    uint32_t k;
+    for (k = 0; k < FM6_BANK_N; k++)
+        if (fm6_list_used(k) && !n--)
+            return k;
+    return 0;
+}
+static uint32_t fm6_list_rank(uint32_t k)            /* the used slots before slot k */
+{
+    uint32_t i, n = 0;
+    for (i = 0; i < k && i < FM6_BANK_N; i++)
+        n += (uint32_t)fm6_list_used(i);
+    return n;
+}
+
 static uint32_t preset_pos(uint32_t *total)          /* list index of the selected track's preset */
 {
-    uint32_t n = 0, cur = 0, e;
+    uint32_t n = 0, cur = 0, e, nb = fm6_list_count();
+    int32_t s = TSEL->p[P_E7] - (int32_t)FM6_NFACTORY;
     for (e = 0; e < NENGINES; e++) {
         if (e == TSEL->eng_req)
             cur = n + TSEL->preset % (ENGINES[e]->npresets ? ENGINES[e]->npresets : 1u);
         n += ENGINES[e]->npresets;
     }
+    if (TSEL->eng_req == ENGI_FM6 && s >= 0 && fm6_list_used((uint32_t)s))   /* an FM6 track on a bank voice */
+        cur = n + fm6_list_rank((uint32_t)s);
     if (user_of(TSEL) < UP_SLOTS)
-        cur = n + up_rank(user_of(TSEL));
-    *total = n + up_count();
+        cur = n + nb + up_rank(user_of(TSEL));
+    *total = n + nb + up_count();
     return cur;
 }
 
-/* list index n (< total) -> engine, *k its preset; NENGINES = user preset, *k its slot */
+/* list index n (< total) -> engine, *k its preset; PRESET_FM6 = an FM6 bank voice, *k its slot; NENGINES = a user
+ * preset, *k its slot */
 static uint32_t preset_at(uint32_t n, uint32_t *k)
 {
-    uint32_t e;
+    uint32_t e, nb;
     for (e = 0; e < NENGINES && n >= ENGINES[e]->npresets; e++)
         n -= ENGINES[e]->npresets;
-    *k = e < NENGINES ? n : up_nth(n);
-    return e;
+    if (e < NENGINES) {
+        *k = n;
+        return e;
+    }
+    if (n < (nb = fm6_list_count())) {
+        *k = fm6_list_nth(n);
+        return PRESET_FM6;
+    }
+    *k = up_nth(n - nb);
+    return NENGINES;
+}
+
+/* Jangada 0.6 (after SLOOP's kind jump, majnikool): the group of list index n, in the list's own order: an engine's
+ * presets (0..NENGINES-1), an FM6 bank's voices (PG_FM6 + 0 / 1), the user presets (PG_USER). Hold HOME and turn
+ * PRESETS, or turn KNOB 3 on the PRESETS page, to go a group at a time; the top bar names it */
+enum { PG_FM6 = NENGINES, PG_USER = PG_FM6 + FM6_BANKS };
+static uint32_t preset_group(uint32_t n)
+{
+    uint32_t k, e = preset_at(n, &k);
+    return e == PRESET_FM6 ? PG_FM6 + k / FM6_BANK_VOICES : e == NENGINES ? (uint32_t)PG_USER : e;
+}
+static const char *preset_kind(uint32_t n)           /* the group's short name (the KIND column) */
+{
+    static const char *const BK[FM6_BANKS] = {"BANK 1", "BANK 2"};
+    uint32_t g = preset_group(n);
+    return g < PG_FM6 ? ENGINES[g]->name : g < PG_USER ? BK[g - PG_FM6] : "USER";
+}
+static const char *preset_kind_long(uint32_t n)      /* ... and in the top bar */
+{
+    static const char *const BK[FM6_BANKS] = {"FM6 BANK 1", "FM6 BANK 2"};
+    uint32_t g = preset_group(n);
+    return g < PG_FM6 ? ENGINES[g]->name : g < PG_USER ? BK[g - PG_FM6] : "USER PRESETS";
+}
+/* the first entry of the next (dir > 0) or the previous group, wrapping round */
+static uint32_t preset_group_jump(uint32_t cur, int32_t dir)
+{
+    uint32_t total, n, g;
+    preset_pos(&total);
+    if (!total)
+        return 0;
+    cur %= total;
+    g = preset_group(cur);
+    if (dir > 0) {
+        for (n = (cur + 1u) % total; n != cur; n = (n + 1u) % total)
+            if (preset_group(n) != g)
+                return n;
+        return cur;
+    }
+    n = cur;
+    while (n && preset_group(n - 1u) == g)               /* the start of this group ... */
+        n--;
+    if (n == 0u) {                                       /* ... was the first: the last group's start */
+        g = preset_group(total - 1u);
+        for (n = total - 1u; n && preset_group(n - 1u) == g; n--)
+            ;
+        return n;
+    }
+    n--;                                                 /* the previous group: back to its start */
+    g = preset_group(n);
+    while (n && preset_group(n - 1u) == g)
+        n--;
+    return n;
 }
 
 static void preset_go(uint32_t n)                    /* load list index n into the selected track */
@@ -466,10 +563,34 @@ static void preset_go(uint32_t n)                    /* load list index n into t
         up_load(k);
         return;
     }
+    if (e == PRESET_FM6) {                           /* an FM6 bank voice: the engine's first preset, then PTCH */
+        if (TSEL->eng_req != ENGI_FM6)
+            select_engine(ENGI_FM6);
+        else
+            apply_preset(0);                         /* (the rest of the sound as any preset sets it) */
+        fm1_irq_off();
+        TSEL->p[P_E7] = (int16_t)(FM6_NFACTORY + k);
+        fm1_irq_on();
+        fm6_load_slot(song.sel, FM6_NFACTORY + k);   /* (now: also a slot the track had loaded before) */
+        ui.force = 1;
+        return;
+    }
     if (e != TSEL->eng_req)
         select_engine(e);
     apply_preset(k);
     ui.force = 1;
+}
+
+/* Jangada 0.6: an FM6 track on a bank voice (PTCH B1..B64, as the PRESETS list loads one) is named by its patch,
+ * not by the preset it started from: the name -> b (11 bytes or more), 1; 0 = not one */
+static int fm6_bank_sound(const track_t *t, char *b)
+{
+    uint32_t tr = (uint32_t)(t - trk);
+    if (tr >= NTRK || is_drum(t) || t->eng_req != ENGI_FM6 || user_of(t) < UP_SLOTS ||
+        t->p[P_E7] < (int16_t)FM6_NFACTORY)
+        return 0;
+    fm6_name(b, fm6_patch[tr]);
+    return 1;
 }
 
 /* HOME: what KNOB k edits: the engine's four main parameters; on the drum track

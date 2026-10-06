@@ -399,6 +399,8 @@ static uint32_t graph_signature(void)
             h = (h ^ (uint32_t)(d->on ? d->w[i] >> 10 : 0)) * 16777619u;
         h = (h ^ (uint32_t)(d->tens >> 24) ^ (uint32_t)d->on << 16) * 16777619u;
     }
+    if (pg->graph == GR_BROWSE)                      /* Jangada 0.6: the FM6 bank voices listed (a write) */
+        h ^= (uint32_t)fm6_bank_gen * 2654435761u;
     if (pg->graph == GR_SLOTS)                       /* (a checksum over each slot) */
         for (i = 0; i < 4u; i++)
             h ^= (uint32_t)project_used(i) << (20u + i);
@@ -410,7 +412,7 @@ static uint32_t graph_signature(void)
     }
     return h;
 }
-/* preset browser: the global list (every engine), current one in white */
+/* preset browser: the global list (every engine, the FM6 bank voices, the user presets), current one in white */
 static void graph_browse(void)
 {
     uint32_t total, cur = preset_pos(&total), e, k;
@@ -425,6 +427,9 @@ static void graph_browse(void)
         if (e == NENGINES) {                             /* user preset: "U07" and its name */
             up_slot_label(tag, k);
             up_name(k, nm);
+        } else if (e == PRESET_FM6) {                    /* Jangada 0.6: an FM6 bank voice: its bank, its name */
+            str_cpy(tag, k < FM6_BANK_VOICES ? "BK1" : "BK2", sizeof tag);
+            str_cpy(nm, fm6_bank_nm[k % FM6_BANK_N], sizeof nm);
         } else {
             str_cpy(tag, ENGINES[e]->name, sizeof tag);
             str_cpy(nm, ENGINES[e]->presets[k].name, sizeof nm);
@@ -514,6 +519,8 @@ static void trk_short_name(uint32_t c, char *b)      /* the track's sound, b hol
         str_cpy(b, drum_kit() ? DRUM_KIT_NAMES[drum_kit()] : "DRUM", 13);   /* Jangada: the kit */
     else if (user_of(t) < UP_SLOTS)
         up_name(user_of(t), b);
+    else if (fm6_bank_sound(t, b))                   /* Jangada 0.6: an FM6 bank voice */
+        ;
     else if (e->npresets)
         str_cpy(b, e->presets[t->preset % e->npresets].name, 13);
     else
@@ -752,6 +759,8 @@ static void draw_foot(void)
         str_cpy(pn, "GM KIT", sizeof pn);
     else if (user_of(t) < UP_SLOTS)
         up_name(user_of(t), pn);                       /* a user preset */
+    else if (fm6_bank_sound(t, pn))                    /* Jangada 0.6: an FM6 bank voice, by its name */
+        ;
     else if (e->npresets)
         str_cpy(pn, e->presets[TSEL->preset % e->npresets].name, sizeof pn);
     if (ui.home) {
@@ -870,7 +879,7 @@ static void draw_columns(void)
         fmt_int(u + 1, (int32_t)total);
         draw_column(0, "No.", val, u, VAL(0u), -1, ICON_NONE);
         draw_column(1, "ENG", ENGINES[TSEL->eng_req]->name, "", VAL(1u), -1, engine_icon(ENGINES[TSEL->eng_req]->name));
-        draw_column(2, "", "", "", C_HI, -1, ICON_AUTO);
+        draw_column(2, "KIND", is_drum(TSEL) || !total ? "" : preset_kind(cur), "", VAL(2u), -1, ICON_AUTO);   /* (Jangada 0.6) */
         draw_column(3, "", "", "", C_HI, -1, ICON_AUTO);
         return;
     }

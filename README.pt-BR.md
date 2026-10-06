@@ -101,7 +101,7 @@ FM-1, e nada sai do seu navegador.
 | **Motores** | 10: ANALOG (superwave, filtro ladder), FM6 (6 operadores, Dexed), DIGITAL (FM 4 op), PHASE, LOFI, SAMPLE, VOICE, TRIO, WHEEL, GRAIN |
 | **Vozes e trilhas** | 8 vozes por 4 trilhas (3 synths + bateria, ou 4 synths) |
 | **Parâmetros** | 16 por motor, matriz de modulação de 4 slots com 9 origens |
-| **Presets** | 93 de fábrica (31 escuros, drones e nordestinos da Jangada), 32 de usuário, 40 patches FM6 (8 + banco de 32) |
+| **Presets** | 93 de fábrica (31 escuros, drones e nordestinos da Jangada), 32 de usuário, 72 patches FM6 (8 + dois bancos de 32) |
 | **Bateria** | 5 kits da Jangada + 32 sintetizados + GM; 7 batidas de fábrica |
 | **Sequencer** | 64 passos por trilha, acordes, ratchet, chance, acento, slide, swing; arp UDI / RPT até 4 compassos |
 | **Efeitos** | distorção por trilha (5 tipos), SLICER, chorus, delay, 3 reverbs, DUST / DUCK / FILT / TAPE / HUM no master, 16 punch-ins |
@@ -211,11 +211,19 @@ solte, e ele continua respirando sozinho, inclusive enquanto você toca outras t
   graves como no hardware, o DRV empurra para o rosnado. Presets **PICHE BASS**, **MOTOR LEAD** e
   **LODO** (um drone).
 - **FM6**: FM de 6 operadores (o núcleo msfa do Dexed), 32 algoritmos, 8 patches de fábrica (PTCH
-  F1–F8) e um **banco de 32** na flash (B1–B32), com macros nos knobs (ALG FB MLVL MRAT MEG VMOD DTUN).
-  O patch de cada trilha vai junto no projeto, no autosave e no backup.
+  F1–F8) e **dois bancos de 32** na flash (B1–B32 e B33–B64: dois cartuchos inteiros), com macros nos
+  knobs (ALG FB MLVL MRAT MEG VMOD DTUN). O patch de cada trilha vai junto no projeto, no autosave e no
+  backup.
+- **As vozes dos bancos no PRESETS**: depois dos presets de fábrica, o PRESETS lista pelo nome cada voz
+  gravada nos bancos (com a marca BK1 / BK2), antes dos presets de usuário; escolher uma põe a trilha no
+  FM6 com aquele patch. **Segure HOME e gire PRESETS** para pular um grupo de cada vez (os presets de
+  cada motor, FM6 BANK 1, FM6 BANK 2, os presets de usuário; o grupo aparece na barra de cima, e esse
+  toque no HOME não abre nada); o **KNOB 3 (KIND)** da página PRESETS faz o mesmo.
 - **O Dexed edita a Jangada ao vivo**: com o MIDI do Dexed (ou outro editor DX7) apontado para o FM-1,
-  girar um knob lá muda a trilha FM6 na hora; mande uma voz para a trilha ou um cartucho de 32 para o
-  banco, e peça de volta.
+  girar um knob lá muda a trilha FM6 na hora; mande uma voz para a trilha ou um cartucho de 32 para um
+  banco, e peça de volta. O cartucho vai para o banco em que está o PTCH da trilha FM6 (B33–B64: banco
+  2); com o PTCH num patch de fábrica a tela pergunta **FM6 BANK 1? SAVE=YES**: OCT- / OCT+ escolhem o
+  banco 1 ou 2, SAVE grava, qualquer outro botão cancela.
 - E os outros: DIGITAL (FM de 4 operadores), PHASE, LOFI, SAMPLE, VOICE, TRIO, WHEEL, GRAIN.
 - **16 parâmetros por motor** (o Felucca tem 8).
 - **Matriz de modulação** (LFO → MOD 1–4): origens LFO, ENV, VEL, KEY, RND, MODW, AT, EXPR e DRIFT;
@@ -263,8 +271,8 @@ gravar abre a tela **TRACKS**: BPM, compasso.beat, uma linha por trilha com pass
 ### No site
 - **[Studio](https://zednaked.github.io/jangada/webapp/studio/)**: a Jangada no navegador.
 - **[Editor](https://zednaked.github.io/jangada/webapp/editor/)** (Chrome ou Edge, com o FM-1 no USB):
-  todos os parâmetros, os passos, os presets; a aba **6-OP FM** (o patch FM6 inteiro, o banco B1–B32,
-  `.syx` do DX7 de ida e volta); **CHOP** (corte uma gravação de qualquer tamanho em até 16 fatias para
+  todos os parâmetros, os passos, os presets; a aba **6-OP FM** (o patch FM6 inteiro, os bancos B1–B32 e
+  B33–B64, `.syx` do DX7 de ida e volta); **CHOP** (corte uma gravação de qualquer tamanho em até 16 fatias para
   USR1–3); **Backup e restauração** de tudo num arquivo `jangada-backup-DATA.json`.
 - **[Instalador](https://zednaked.github.io/jangada/)**: instala a última versão, ou volta ao oficial.
 

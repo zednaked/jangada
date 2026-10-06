@@ -111,9 +111,10 @@ int main(void)
     }
     {   /* Jangada: the flash map. Every sector of every object (A and B) and the other users of the flash
          * (the user sample slots, the update staging) are disjoint, 4 KiB aligned, inside the regions the
-         * firmware may write (hal/fm1_flash.h FL_STORE_OK: FL_DATA, FL_GLOB, FL_FM6), never the app
+         * firmware may write (hal/fm1_flash.h FL_STORE_OK: FL_DATA, FL_GLOB, FL_FM6, FL_FM6B), never the app
          * (< 0x93000), the official firmware's BTIF / USR sectors (0xE9000..0xFBFFF) or key_mac (0xFF000) */
-        static const uint32_t REG[3][2] = {{0x97000u, 0xE0000u}, {0xFC000u, 0xFF000u}, {0xE5000u, 0xE9000u}};
+        static const uint32_t REG[4][2] = {{0x97000u, 0xE0000u}, {0xFC000u, 0xFF000u}, {0xE5000u, 0xE9000u},
+                                           {0x93000u, 0x97000u}};
         uint32_t lo[2 * OBJ_COUNT + 2], hi[2 * OBJ_COUNT + 2], nr = 0, i, j, o, c, inreg = 1, apart = 1, al = 1;
         for (o = 0; o < OBJ_COUNT; o++)
             for (c = 0; c < 2u; c++) {
@@ -125,7 +126,7 @@ int main(void)
         lo[nr] = 0xE0000u, hi[nr++] = 0xE5000u;          /* ota.c: the update loader's staging */
         for (i = 0; i < nr; i++) {
             int in = 0;
-            for (j = 0; j < 3u; j++)
+            for (j = 0; j < 4u; j++)
                 in |= lo[i] >= REG[j][0] && hi[i] <= REG[j][1];
             inreg &= in || i == nr - 1u;                 /* (the staging is FL_OTA, its own window) */
             al &= !(lo[i] & 0xFFFu) && !(hi[i] & 0xFFFu);
@@ -133,11 +134,14 @@ int main(void)
                 apart &= hi[i] <= lo[j] || hi[j] <= lo[i];
         }
         bad += check("flash map: every object A/B sector apart from the others", apart);
-        bad += check("flash map: 4 KiB sectors inside FL_DATA / FL_GLOB / FL_FM6", inreg && al);
-        bad += check("flash map: the FM6 bank at 0xE5000..0xE8FFF (B1..B16, B17..B32)",
+        bad += check("flash map: 4 KiB sectors inside FL_DATA / FL_GLOB / FL_FM6 / FL_FM6B", inreg && al);
+        bad += check("flash map: the FM6 bank 1 at 0xE5000..0xE8FFF (B1..B16, B17..B32)",
                      st_sector(OBJ_FM6BANK0, 0) == 0xE5000u && st_sector(OBJ_FM6BANK0, 1) == 0xE6000u &&
-                         st_sector(OBJ_FM6BANK0 + 1, 0) == 0xE7000u && st_sector(OBJ_FM6BANK0 + 1, 1) == 0xE8000u &&
-                         OBJ_COUNT == OBJ_FM6BANK0 + 2);
+                         st_sector(OBJ_FM6BANK0 + 1, 0) == 0xE7000u && st_sector(OBJ_FM6BANK0 + 1, 1) == 0xE8000u);
+        bad += check("flash map: the FM6 bank 2 at 0x93000..0x96FFF (B33..B48, B49..B64), ids appended",
+                     st_sector(OBJ_FM6BANK2, 0) == 0x93000u && st_sector(OBJ_FM6BANK2, 1) == 0x94000u &&
+                         st_sector(OBJ_FM6BANK2 + 1, 0) == 0x95000u && st_sector(OBJ_FM6BANK2 + 1, 1) == 0x96000u &&
+                         OBJ_FM6BANK0 == 8 && OBJ_FM6BANK2 == 10 && OBJ_COUNT == OBJ_FM6BANK2 + 2);
     }
     {   /* st_view: the current copy in place */
         uint32_t len = 0;

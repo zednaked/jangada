@@ -3,7 +3,8 @@
 The firmware side is `firmware/src/editor.c`. Commands 16-26 (user presets and live sync) form protocol v2; commands 27-30 (tracks) form protocol v3; commands 31-32 (any track's parameters) form protocol v4; commands 34-36 (Jangada: backup / restore, `firmware/src/editor_backup.c`) form protocol v5; v6 (Jangada 0.5)
 adds the FM6 patch bank to the backup (objects 8, 9) and the FM6 patch commands 68-72 (`firmware/src/editor_fm6.c`,
 numbered as Felucca 1.0 numbers them; 72 and PUT target 3, the staged bank half, came after 0.5: INFO says `46 02`;
-see "FM6 patches").
+see "FM6 patches"); v7 (Jangada 0.6) has two FM6 banks of 32 (B1..B64, INFO says `46 03 08 40`) and adds the
+second bank to the backup (objects 10, 11).
 
 **v3 (four tracks):** the device has four tracks: 1..3 are synth parts, 4 is the drum track. One
 of them is *selected* (the TRACKS page on the device, or `TRACK`). Every v1 / v2 command acts on the
@@ -41,7 +42,7 @@ after an engine change.
 
 | cmd | Request args | Reply args |
 | --- | --- | --- |
-| 1 INFO | — | version string, NENGINES, P_COUNT, G_COUNT, NSTEP, P_E0, then NENGINES engine-name strings, then (v3) NTRK (4), then (v5, Jangada) the protocol version (5; 6 since Jangada 0.5); older firmware ends after the names or after NTRK |
+| 1 INFO | — | version string, NENGINES, P_COUNT, G_COUNT, NSTEP, P_E0, then NENGINES engine-name strings, then (v3) NTRK (4), then (v5, Jangada) the protocol version (5; 6 since Jangada 0.5; 7 since Jangada 0.6); older firmware ends after the names or after NTRK |
 | 2 GET | scope, id | scope, id, v14 |
 | 3 SET | scope, id, v14 | scope, id, v14 (the value after clamping). Setting global `G_ENGSEL` (id from DESC label "ENG") changes the engine with its defaults |
 | 4 DUMP | — | engine, preset, then P_COUNT × v14 (the selected track), then G_COUNT × v14 (globals) |
@@ -203,7 +204,8 @@ Requests name **objects**, never flash addresses:
 | 1 | the settings | `persist_t` "PER2": palette, low cut, zoom (reserved since Jangada: written 0, 0 / 1 accepted), the panel calibration (`panel_t`), the lights word (LIGHTS / KEYS / NOTES / USB AUDIO); one without the lights word (Jangada 0.2) is restored too, with the lights off |
 | 2..5 | the projects 1..4 | "JNG1"; length 0 = empty slot |
 | 6..7 | the user preset banks (presets 1..16, 17..32) | `up_bank_t` "UPB2" (`upreset.c`, keyed); length 0 = empty |
-| 8..9 | (v6) the FM6 patch bank, B1..B16 and B17..B32 | `fm6_half_t` "FM6B" (`fm6_bank.c`): magic, version 1, 16 slots, the used bits, the half (0 / 1), 16 packed 128-byte records; 2064 bytes, length 0 = empty |
+| 8..9 | (v6) the FM6 patch bank 1, B1..B16 and B17..B32 | `fm6_half_t` "FM6B" (`fm6_bank.c`): magic, version 1, 16 slots, the used bits, the half (0 / 1), 16 packed 128-byte records; 2064 bytes, length 0 = empty |
+| 10..11 | (v7) the FM6 patch bank 2, B33..B48 and B49..B64 | the same `fm6_half_t`, the half 2 / 3 |
 | 32..34 | the user sample slots USR1..3 | header + ADPCM data as in flash (512 + data length); 0 = empty |
 
 Numbers are 5 × 7 bit, LSB first (u35); data is pack7. Objects 0..7 are at most 3840 bytes (one storage
@@ -211,9 +213,9 @@ object), a sample slot at most 80 KiB.
 
 | cmd (v5) | Request args | Reply args |
 | --- | --- | --- |
-| 34 BK_LIST | — | rc (0 ok, 4 no flash), count (13; 11 from v5 firmware, without 8 / 9), then per object: id, length u35, CRC-32 u35 (zlib). Takes a snapshot of the working project for `BK_GET` |
+| 34 BK_LIST | — | rc (0 ok, 4 no flash), count (15; 13 from v6 firmware, without 10 / 11; 11 from v5 firmware, without 8..11), then per object: id, length u35, CRC-32 u35 (zlib). Takes a snapshot of the working project for `BK_GET` |
 | 35 BK_GET | id, offset u35, count (2 × 7 bit, 1..256) | id, rc (0 ok, 1 arguments, 5 the snapshot is gone: `BK_LIST` again), offset u35, count, pack7 data |
-| 36 BK_PUT | op 0 begin: id 0..9 (v5: 0..7), length u35, CRC-32 u35 · op 1 data: id, offset u35, pack7 (≤ 256 bytes, in order) · op 2 commit: id · op 3 abort: id | op, id, rc: 0 ok, 1 arguments, 2 not a valid object, 3 stop the song first, 4 flash, 5 no begin for this object (or a USB reset, or more than 15 s since the last request) |
+| 36 BK_PUT | op 0 begin: id 0..11 (v6: 0..9, v5: 0..7), length u35, CRC-32 u35 · op 1 data: id, offset u35, pack7 (≤ 256 bytes, in order) · op 2 commit: id · op 3 abort: id | op, id, rc: 0 ok, 1 arguments, 2 not a valid object, 3 stop the song first, 4 flash, 5 no begin for this object (or a USB reset, or more than 15 s since the last request) |
 
 - **Reading.** `BK_LIST` once, then each object from offset 0 in order (object 0 first: the snapshot of
   the working project lives in the device's project buffer, and reading another project, or a project
@@ -232,9 +234,10 @@ object), a sample slot at most 80 KiB.
   of the object, the data from byte 512), an empty slot with `SMP_ERASE`. An interrupted sample restore
   leaves that slot empty.
 - **The file** (`jangada-backup-YYYY-MM-DD.json`): `{format: "jangada-backup", version: 1, firmware,
-  created, objects: [{id, size, crc, data (base64)}]}`, the 13 objects in the order above (a file of Jangada
-  0.3 / 0.4: the 11 without the FM6 bank; it restores and leaves the device's bank as it is; into v5 firmware
-  the editor leaves 8 / 9 out). It is checked whole (every size and CRC, the sample headers as the device
+  created, objects: [{id, size, crc, data (base64)}]}`, the 15 objects in the order above (a file of Jangada
+  0.5: the 13 without the FM6 bank 2, it restores and leaves the device's bank 2 as it is; of Jangada 0.3 / 0.4:
+  the 11 without the FM6 bank, it restores and leaves the device's banks as they are; into v6 firmware the editor
+  leaves 10 / 11 out, into v5 firmware 8..11). It is checked whole (every size and CRC, the sample headers as the device
   reads them) before anything is written; restore order: the projects and banks (the FM6 bank too), the
   samples, the settings, the working project last.
 - **Projects** carry each track's FM6 patch since Jangada 0.5: "JNG1" byte 11 counts tagged sections after the
@@ -244,11 +247,13 @@ object), a sample slot at most 80 KiB.
 ## FM6 patches (68-71, Jangada 0.5; after Felucca 1.0)
 
 The FM6 engine (engine 9 in Jangada) plays a 6-operator patch per track; its EDIT parameters are macros on top of it
-(ALG 0 = the patch's algorithm, 1..32 another; FB, MLVL, MRAT, MEG, VMOD offsets; DTUN; PTCH 0..39 = F1..F8 the
-factory patches, then B1..B32 the bank: setting PTCH loads that patch into the track). The patch itself only travels
-through these commands. `INFO` advertises `46 vv nfactory nbank` after the protocol version (this firmware:
-`46 02 08 20`; `46 01` is Jangada 0.5: the same without PUT target 3 and `FM6_COMMIT`, which it answers with rc 1 and
-not at all); firmware without it (Jangada 0.4 and before) does not answer 68..72.
+(ALG 0 = the patch's algorithm, 1..32 another; FB, MLVL, MRAT, MEG, VMOD offsets; DTUN; PTCH 0..71 = F1..F8 the
+factory patches, then B1..B32 the bank 1 and B33..B64 the bank 2: setting PTCH loads that patch into the track; the
+used bank slots are in the device's PRESETS list too). The patch itself only travels through these commands. `INFO`
+advertises `46 vv nfactory nbank` after the protocol version (this firmware: `46 03 08 40`, two banks of 32; `46 02
+08 20` is Jangada 0.5.x, one bank; `46 01` is Jangada 0.5: one bank, without PUT target 3 and `FM6_COMMIT`, which it
+answers with rc 1 and not at all); firmware without it (Jangada 0.4 and before) does not answer 68..72. A bank
+index (target 1 / 3, ERASE) is 0..nbank-1.
 
 A patch is the 128-byte packed record of the generic 6-operator voice (the 32-voice bank's record; every byte is
 7-bit, so it travels as it is, no pack7). Operators come sixth first: per operator 17 bytes (R1..R4, L1..L4,
@@ -266,9 +271,9 @@ The device stores every value clamped into its range.
 | 72 FM6_COMMIT | — | rc: the staged bank half (PUT target 3) to flash, one write (`46 02` firmware) |
 
 target: 0 a track's own patch (index 0..3: what it plays and what its project, the autosave and a backup keep; a
-PUT is heard at once and keeps PTCH as it is), 1 a bank slot (index 0..31 = B1..B32; a PUT writes flash, allow
+PUT is heard at once and keeps PTCH as it is), 1 a bank slot (index 0..63 = B1..B64; a PUT writes flash, allow
 1 s; tracks playing that slot reload it), 2 a factory patch (0..7, GET only), 3 a bank slot *staged* (PUT only,
-`46 02` firmware): the record goes into a copy of its half (B1..B16 or B17..B32) in the device's RAM, the half's
+`46 02` firmware): the record goes into a copy of its half (B1..B16, B17..B32, B33..B48 or B49..B64) in the device's RAM, the half's
 other slots as they are in flash, and `FM6_COMMIT` writes the half whole: one flash erase (one pause of the
 audio) for up to 16 slots instead of one each. Stage the slots of one half, commit, then the other half: a slot
 of the other half while one is staged answers rc 5 (commit first). A staging lapses 15 s after its last record,
@@ -280,21 +285,25 @@ a flash erase stops the audio for a moment; stop it first; a staging survives it
 device's buffer (its snapshot being read, or a restore being staged: `LIST` / `BK_GET` / `BK_PUT` within the
 last 15 s, until the restore's commit or abort; a bank write then would corrupt them, so PUT / ERASE / COMMIT
 of the bank, and a DX7 bank dump, are refused: wait, then try again), 5 nothing staged (COMMIT: or the staging
-lapsed) or the other half is staged (PUT target 3). The bank is in flash (`fm6_bank.c`: B1..B16 at 0xE5000 /
-0xE6000, B17..B32 at 0xE7000 / 0xE8000) and in a full backup (ids 8, 9).
+lapsed) or another half is staged (PUT target 3). The banks are in flash (`fm6_bank.c`: B1..B16 at 0xE5000 /
+0xE6000, B17..B32 at 0xE7000 / 0xE8000, B33..B48 at 0x93000 / 0x94000, B49..B64 at 0x95000 / 0x96000) and in a full
+backup (ids 8, 9, 10, 11).
 
 The web editor (6-OP FM tab) reads and writes these, and imports / exports the DX7-format SysEx files: a single
 voice `F0 43 0n 00 01 1B`, the 155-byte unpacked voice, checksum, `F7` (163 bytes), and 32 voices
 `F0 43 0n 09 20 00`, 32 x 128 packed, checksum, `F7` (4104 bytes); the checksum is the two's complement of the
-data's sum, 7 bits. Raw 155 / 4096-byte files are read too. A file of one 32-voice bank can go into B1..B32 at
-once: 16 `FM6_PUT`s of target 3 and a `FM6_COMMIT` per half (two flash writes; on `46 01` firmware 32 `FM6_PUT`s
+data's sum, 7 bits. Raw 155 / 4096-byte files are read too. A file of one 32-voice bank can go into B1..B32 (or
+B33..B64, the editor's bank choice) at once: 16 `FM6_PUT`s of target 3 and a `FM6_COMMIT` per half (two flash writes; on `46 01` firmware 32 `FM6_PUT`s
 of target 1, one flash write each).
 
 **The same patches as DX7 SysEx** (Jangada 0.5, `firmware/src/fm6_sysex.c`, after Melodee): the device also takes,
 on any channel n, a voice `F0 43 0n 00 01 1B ..` (into the FM6 track: the selected one when it plays FM6, else
-track n + 1, else the first FM6 track), a bank of 32 `F0 43 0n 09 20 00 ..` (into B1..B32, not while the song
-plays), parameter changes `F0 43 1n gg pp dd F7` (voice parameter `(gg & 3) << 7 | pp`, 0..154; 155 and the
-function group are ignored) and dump requests `F0 43 2n 00 F7` / `F0 43 2n 09 F7` (answered on channel n). These
+track n + 1, else the first FM6 track), a bank of 32 `F0 43 0n 09 20 00 ..` (not while the song plays: into the bank
+of that FM6 track's PTCH, B1..B32 or B33..B64; with none on a bank slot the device asks `FM6 BANK 1? SAVE=YES` on
+its screen, OCT- / OCT+ choose bank 1 / 2, SAVE writes, any other button or 15 s drop it; a voice or a bank dump
+request meanwhile is not taken), parameter changes `F0 43 1n gg pp dd F7` (voice parameter `(gg & 3) << 7 | pp`, 0..154; 155 and the
+function group are ignored) and dump requests `F0 43 2n 00 F7` / `F0 43 2n 09 F7` (answered on channel n; the bank
+of the FM6 track's PTCH, else bank 1). These
 frames never use the editor's frame buffer (the first byte 43 tells them apart), so Dexed and the editor can be
 open together.
 

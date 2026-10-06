@@ -234,13 +234,19 @@ static void edit_param(uint32_t slot, int32_t steps)
         tracks_edit(slot, steps);
         return;
     }
-    if (pg->graph == GR_BROWSE) {                         /* KNOB 1: one preset, KNOB 2: the next / previous engine */
+    if (pg->graph == GR_BROWSE) {                         /* KNOB 1: one preset, KNOB 2: the next / previous engine,
+                                                           * KNOB 3 (Jangada 0.6, after SLOOP): the next / previous
+                                                           * group (an engine's presets, an FM6 bank, the user presets) */
         if (slot == 0u && !is_drum(TSEL)) {
             uint32_t total, cur = preset_pos(&total);
             if (total)
                 preset_go((cur + (steps > 0 ? 1u : total - 1u)) % total);
         } else if (slot == 1u && !is_drum(TSEL)) {
             select_engine((TSEL->eng_req + (steps > 0 ? 1u : NENGINES - 1u)) % NENGINES);
+        } else if (slot == 2u && !is_drum(TSEL)) {
+            uint32_t total, cur = preset_pos(&total);
+            if (total)
+                preset_go(preset_group_jump(cur, steps));
         }
         return;
     }
@@ -382,6 +388,31 @@ static uint32_t btn_hold(uint32_t *t0, uint32_t label, uint32_t now, int hold_ok
     return tap ? BT_TAP : BT_NONE;
 }
 
+/* Jangada 0.6: a button pressed while the top bar asks "FM6 BANK n? SAVE=YES" (fm6_sysex.c) answers it and does
+ * nothing else: SAVE yes, OCT- / OCT+ bank 1 / 2 (the question stays), any other no. The press is no tap, no hold,
+ * no layer */
+static void fm6_ask_input(uint32_t *pressed)
+{
+    uint32_t dn = 1u << panel.btn[B_OCTDN], up = 1u << panel.btn[B_OCTUP];
+    if (!fm6_ask.on || fm6_ask.answer || !*pressed)
+        return;
+    if (*pressed & (1u << panel.btn[B_SAVE]))
+        fm6_ask.answer = 1;
+    else if (!(*pressed & ~(dn | up))) {
+        fm6_ask.bank = (*pressed & up) ? 1u : 0u;
+        fm6_ask.ms = fm1_ms;                            /* (another 15 s) */
+        ui.msg_t = 0;                                   /* (fm6_sysex.c says the question again) */
+    } else
+        fm6_ask.answer = 2;
+    if (*pressed & (1u << panel.btn[B_HOME]))
+        ui.home_t0 |= 2u;
+    if (*pressed & (1u << panel.btn[B_REC]))
+        ui.rec_t0 |= 2u;
+    if (*pressed & (1u << panel.btn[B_ARP]))
+        ui.arp_t0 |= 2u;
+    *pressed = 0;
+}
+
 static void ui_input(void)
 {
     uint32_t pressed = fm1_input_edges(0), notes = fm1_input_note_edges(), now = fm1_ticks(), id, b, k, fam = cur_fam();
@@ -393,6 +424,7 @@ static void ui_input(void)
     t4_follow();
     if (pressed || notes || fm1_in.buttons || fm1_in.notes)
         ui_input_ms = fm1_ms;                           /* Jangada: not idle (project.c autosave) */
+    fm6_ask_input(&pressed);                            /* Jangada 0.6: "FM6 BANK n? SAVE=YES" */
     layers_input(&pressed, fm1_ms);                     /* Jangada: FX / GLO tap, hold, lock (ui_layers.c) */
     fm6_poll();                                         /* Jangada: FM6 PTCH turned -> its patch */
     /* Jangada: the punch-in effect's name on screen when one starts (ui_layers.c: the FX layer) */
@@ -516,14 +548,24 @@ static void ui_input(void)
         seq_entry(notes);
 
     if ((s = panel_enc(EN_PRESET)) != 0 && (ui.home || cur_page()->graph == GR_BROWSE || cur_fam() == FAM_TRK)) {
-        /* PRESETS browses the selected part's presets (all engines, then user presets) on HOME, the PRESETS
-         * page and TRACKS only (the drum track: nothing):
-         * elsewhere a stray turn would throw away the sound being edited */
+        /* PRESETS browses the selected part's presets (all engines, the FM6 bank voices, then user presets) on
+         * HOME, the PRESETS page and TRACKS only (the drum track: nothing):
+         * elsewhere a stray turn would throw away the sound being edited. Jangada 0.6 (after SLOOP): HOME held
+         * while turning goes a group at a time (an engine's presets, each FM6 bank, the user presets), as KNOB 3
+         * on the PRESETS page, the group named in the top bar; that HOME press then opens nothing (no tap, no
+         * menu) */
         uint32_t total, cur = preset_pos(&total);
+        int kind = ((fm1_in.buttons >> panel.btn[B_HOME]) & 1u) && ui.home_t0;
+        if (kind)
+            ui.home_t0 |= 2u;                           /* (as a hold already taken: btn_hold) */
         if (is_drum(TSEL)) {                        /* Jangada: the drum track browses the kits */
             drum_kit_set(drum_kit_step(drum_kit(), s > 0 ? 1 : -1, 1));   /* the browser's order (DS_KIT_NAV) */
             ui_say("KIT ", DRUM_KIT_NAMES[drum_kit()]);
             ui.force = 1;
+        } else if (total && kind) {
+            uint32_t n = preset_group_jump(cur, s);
+            preset_go(n);
+            ui_message(preset_kind_long(n));
         } else if (total)
             preset_go((cur + (s > 0 ? 1u : total - 1u)) % total);   /* past the factory ones: user presets */
     }

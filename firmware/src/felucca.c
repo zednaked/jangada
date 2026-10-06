@@ -109,7 +109,7 @@ static int st_prog(uint32_t off, const void *src, uint32_t n)
 #include "upreset.c"          /* user presets (RAM mirror; flash with FELUCCA_FLASH) */
 #include "project.c"
 #if FELUCCA_FLASH
-#include "fm6_bank.c"          /* Jangada: the FM6 patch bank B1..B32 (after Felucca 1.0 / Melodee) */
+#include "fm6_bank.c"          /* Jangada: the FM6 patch banks B1..B64 (after Felucca 1.0 / Melodee) */
 #endif
 #if FELUCCA_OTA
 static uint8_t recovery_active;              /* Jangada: the USB rescue runs (recovery.c) */

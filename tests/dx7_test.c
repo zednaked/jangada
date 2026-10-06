@@ -1,10 +1,13 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
 /* Jangada (after Melodee's fm6_store.c): DX7 SysEx over USB-MIDI for the FM6 engine (usb.c dx_byte, fm6_sysex.c),
  * as USB-MIDI event packets from the host: a voice (VCED) into the selected FM6 track, a bank of 32 (VMEM) into
- * B1..B32 in flash, parameter changes live (a burst of them while the main loop is busy, none lost; coalesced into
- * one patch write), dump requests answered (byte for byte the DX7 format, checksums), the bytes of a long dump sent
+ * B1..B32 or B33..B64 in flash (Jangada 0.6: the bank of the FM6 track's PTCH, else the top bar asks "FM6 BANK n?
+ * SAVE=YES" and the buttons answer), parameter changes live (a burst of them while the main loop is busy, none
+ * lost; coalesced into one patch write), dump requests answered (byte for byte the DX7 format, checksums), the bytes of a long dump sent
  * as CIN 0xF single bytes (macOS), wrong checksums / other makers / no FM6 track ignored, the editor's frame (F0 7D
- * 46 4C) never taken nor blocked by a DX7 frame, and the bank not written while the song plays.
+ * 46 4C) never taken nor blocked by a DX7 frame, and the bank not written while the song plays. And the FM6 bank
+ * voices in PRESETS (ui.c, after SLOOP's DX7 voices there, majnikool): listed by name after the factory presets,
+ * loaded, the jump by group (HOME held + PRESETS, KNOB 3 on the PRESETS page) with no HOME tap after it.
  * Built on tests/backup_test.c's host FM-1 (its main renamed). Build:
  *   cc -w -Ibuild/gen -Ifirmware/src tests/dx7_test.c -lm */
 #define FELUCCA_OTA 1
@@ -148,7 +151,8 @@ int main(void)
               !memcmp(host_in + 6, FM6_INIT, 128) && !memcmp(host_in + 6 + 31u * 128u, FM6_INIT, 128) &&
               host_in[4102] == chk(host_in + 6, 4096) && host_in[4103] == 0xF7 && !dx_hold);
 
-    /* a bank of 32 (VMEM) in, its bytes as CIN 0xF singles (macOS): B1..B32, in flash */
+    /* a bank of 32 (VMEM) in, its bytes as CIN 0xF singles (macOS). The FM6 track's PTCH is F1: no bank is named,
+     * so the top bar asks "FM6 BANK 1? SAVE=YES" (Jangada 0.6, two banks); SAVE writes B1..B32 */
     m[0] = 0xF0; m[1] = 0x43; m[2] = 0x00; m[3] = 0x09; m[4] = 0x20; m[5] = 0x00;
     for (i = 0; i < 32u; i++) {
         memcpy(m + 6 + i * 128u, FM6_FACTORY[i % 8u], 128);
@@ -159,25 +163,35 @@ int main(void)
     song.playing = 1;
     host_send(m, 4104, 1);
     dx_service();
-    check("VMEM while the song plays: not written (STOP TO SAVE)", fm6_bank_used == 1u << 6 && !strcmp(ui.msg, "STOP TO SAVE"));
+    check("VMEM while the song plays: not written, nothing asked (STOP TO SAVE)",
+          fm6_bank_used[0] == 1u << 6 && !strcmp(ui.msg, "STOP TO SAVE") && !fm6_ask.on && !dx_hold);
     song.playing = 0;
     erases = 0;
     host_send(m, 4104, 1);
     check("VMEM sent as CIN 0xF single bytes: collected whole", dx_ready && dx_n == 4102u);
     dx_service();
-    fm6_bank_used = 0;
+    check("VMEM with PTCH on a factory patch: the bank is asked for, held in dx_rx, nothing written",
+          fm6_ask.on && dx_hold && !dx_ready && !erases && !strcmp(ui.msg, "FM6 BANK 1? SAVE=YES"));
+    host_send(m, 163, 0);                            /* (a voice meanwhile: dropped, the bank kept) */
+    n = ui.page;
+    host_edges = 1u << panel.btn[B_SAVE];
+    ui_input();
+    check("SAVE answers yes; the press opens nothing (no SAVE page)", fm6_ask.answer == 1 && ui.page == n);
+    dx_service();
+    memset(fm6_bank_used, 0, sizeof fm6_bank_used);
     fm6_bank_boot();
     {
-        int ok = fm6_bank_used == 0xFFFFFFFFu && erases == 2u;
+        int ok = fm6_bank_used[0] == 0xFFFFFFFFu && !fm6_bank_used[1] && erases == 2u && !fm6_ask.on && !dx_hold &&
+                 !strcmp(ui.msg, "FM6 BANK 1 SAVED");
         for (i = 0; i < 32u && ok; i++)
-            ok = !fm6_bank_get(i, pk) && pk[118] == 'A' + i && !memcmp(pk, FM6_FACTORY[i % 8u], 118);
-        check("VMEM: B1..B32 in flash (two objects), each voice in its slot", ok);
+            ok = !fm6_bank_get(i, pk) && pk[118] == 'A' + i && !memcmp(pk, FM6_FACTORY[i % 8u], 118) &&
+                 fm6_bank_nm[i][0] == 'A' + (int)i;
+        check("VMEM: B1..B32 in flash (two objects), each voice in its slot, the names kept", ok);
     }
     trk[1].p[P_E7] = FM6_NFACTORY + 9;               /* B10 */
     fm6_poll();
     fm6_unpack(m + 6 + 9u * 128u, w);
     check("PTCH B10 then plays the bank's tenth voice", !memcmp(fm6_patch[1], w, FP_SIZE));
-
     /* the editor's frame and a DX7 frame side by side; other makers; no FM6 track */
     {
         uint8_t ed[6] = {0xF0, 0x7D, 0x46, 0x4C, 25, 0xF7}, other[8] = {0xF0, 0x41, 0x10, 0x42, 0x12, 0x00, 0x00, 0xF7};
@@ -199,6 +213,168 @@ int main(void)
         host_send(m, n, 0);
         dx_service();
         check("... with track 3 on FM6 (not selected): it takes it", !memcmp(fm6_patch[2], w, FP_SIZE));
+    }
+
+    /* Jangada 0.6: the FM6 bank 2 (B33..B64, flash 0x93000..0x96FFF). A VMEM with the FM6 track's PTCH on a bank 2
+     * slot goes there at once; a dump request then sends bank 2 */
+    set_engine_of(&trk[1], ENGI_FM6);
+    song.sel = 1;
+    ui.home = 0;
+    ui.menu = 0;
+    trk[1].p[P_E7] = FM6_NFACTORY + 40;              /* B41 */
+    fm6_poll();
+    m[0] = 0xF0; m[1] = 0x43; m[2] = 0x00; m[3] = 0x09; m[4] = 0x20; m[5] = 0x00;
+    for (i = 0; i < 32u; i++) {
+        memcpy(m + 6 + i * 128u, FM6_FACTORY[(i + 3u) % 8u], 128);
+        m[6 + i * 128u + 118] = (uint8_t)('a' + i % 26u);   /* the name's first letter: a.. */
+    }
+    m[4102] = (uint8_t)chk(m + 6, 4096);
+    m[4103] = 0xF7;
+    erases = 0;
+    host_send(m, 4104, 0);
+    dx_service();
+    fm6_poll();
+    fm6_unpack(m + 6 + 8u * 128u, w);
+    check("VMEM with PTCH on B41: into bank 2 at once (0x93000..0x96FFF), no question, B41 plays its voice",
+          !fm6_ask.on && fm6_bank_used[0] == 0xFFFFFFFFu && fm6_bank_used[1] == 0xFFFFFFFFu && erases == 2u &&
+              !strcmp(ui.msg, "FM6 BANK 2 SAVED") && fm6_bank_nm[40][0] == 'i' && fm6_bank_nm[8][0] == 'I' &&
+              (!memcmp(nor + 0x93000u + 256u, "FM6B", 4) || !memcmp(nor + 0x94000u + 256u, "FM6B", 4)) &&
+              !memcmp(fm6_patch[1], w, FP_SIZE));
+    host_n = 0;
+    {
+        uint8_t q[5] = {0xF0, 0x43, 0x20, 0x09, 0xF7};
+        host_send(q, 5, 0);
+        dx_service();
+        ota_idle();
+    }
+    check("bank dump request with PTCH on B41: bank 2 (B33..B64)",
+          host_n == 4104u && host_in[6 + 118] == 'a' && !memcmp(host_in + 6 + 8u * 128u, m + 6 + 8u * 128u, 128) &&
+              host_in[4102] == chk(host_in + 6, 4096));
+
+    /* the question: OCT+ / OCT- pick the bank, any other button says no, 15 s drop it; a dump request waits */
+    trk[1].p[P_E7] = 3;                              /* F4: no bank named */
+    fm6_poll();
+    erases = 0;
+    {
+        int8_t oct = song.octave;
+        int ok;
+        host_send(m, 4104, 0);
+        dx_service();
+        ok = fm6_ask.on && !strcmp(ui.msg, "FM6 BANK 1? SAVE=YES");
+        host_edges = 1u << panel.btn[B_OCTUP];
+        ui_input();
+        dx_service();
+        ok &= fm6_ask.on && fm6_ask.bank == 1u && !strcmp(ui.msg, "FM6 BANK 2? SAVE=YES") && song.octave == oct;
+        host_n = 0;
+        {
+            uint8_t q[5] = {0xF0, 0x43, 0x20, 0x09, 0xF7};
+            host_send(q, 5, 0);
+            dx_service();
+            ota_idle();
+        }
+        ok &= host_n == 0u && fm6_ask.on && dx_hold;
+        host_edges = 1u << panel.btn[B_PLAY];
+        ui_input();
+        dx_service();
+        check("asked: OCT+ picks bank 2 (octave kept), a dump request waits; PLAY says no and does not play",
+              ok && !fm6_ask.on && !dx_hold && !erases && !strcmp(ui.msg, "FM6 BANK: CANCELLED") && !transport_req);
+    }
+    host_send(m, 4104, 0);
+    dx_service();
+    fm1_ms += DX_ASK_MS + 1u;
+    dx_service();
+    check("asked, no answer for 15 s: dropped", !fm6_ask.on && !dx_hold && !erases && !strcmp(ui.msg, "FM6 BANK: CANCELLED"));
+    host_send(m, 4104, 0);
+    dx_service();
+    fm1_in.buttons = 1u << panel.btn[B_HOME];
+    host_edges = 1u << panel.btn[B_HOME];
+    ui_input();
+    fm1_ms += 50u;
+    fm1_in.buttons = 0;
+    ui_input();
+    dx_service();
+    check("HOME says no; its release opens no HOME screen, no menu", !fm6_ask.on && !erases && !ui.home && !ui.menu);
+    host_send(m, 4104, 0);
+    dx_service();
+    host_edges = 1u << panel.btn[B_OCTUP];
+    ui_input();
+    host_edges = 1u << panel.btn[B_OCTDN];
+    ui_input();
+    host_edges = 1u << panel.btn[B_SAVE];
+    ui_input();
+    dx_service();
+    check("OCT+, OCT-, SAVE: bank 1 written (the a.. voices in B1..B32)",
+          !fm6_ask.on && erases == 2u && !strcmp(ui.msg, "FM6 BANK 1 SAVED") && fm6_bank_nm[0][0] == 'a' && fm6_bank_nm[32][0] == 'a');
+
+    /* the PRESETS list (ui.c, after SLOOP's DX7 voices in PRESETS): the factory presets, the used FM6 bank voices
+     * by name, the user presets; loading one; the groups (HOME + PRESETS, KNOB 3) */
+    {
+        uint32_t nf = 0, total, cur, k, e, pg;
+        char nm[13];
+        for (e = 0; e < NENGINES; e++)
+            nf += ENGINES[e]->npresets;
+        fm1_ms += ED_BK_HOLD + 1u;
+        fm6_bank_put(2, 0);                          /* B3 empty */
+        trk[1].user = 0;
+        trk[1].p[P_E7] = FM6_NFACTORY + 40;          /* B41 */
+        fm6_poll();
+        cur = preset_pos(&total);
+        check("PRESETS: the factory presets, then the 63 used bank voices; the FM6 track on B41 sits on it",
+              total == nf + 63u + up_count() && cur == nf + 39u);
+        e = preset_at(nf + 2u, &k);
+        check("... B3 empty: the third voice listed is B4, BANK 1", e == PRESET_FM6 && k == 3u && !strcmp(preset_kind(nf + 2u), "BANK 1"));
+        e = preset_at(nf + 31u, &k);
+        check("... then B33, BANK 2 (FM6 BANK 2 in the top bar)",
+              e == PRESET_FM6 && k == 32u && !strcmp(preset_kind(nf + 31u), "BANK 2") &&
+                  !strcmp(preset_kind_long(nf + 31u), "FM6 BANK 2") && !strcmp(preset_kind(0), ENGINES[0]->name));
+        song.sel = 0;                                /* track 1: ANALOG */
+        preset_go(nf + 31u);
+        fm6_poll();
+        fm6_unpack(m + 6, w);
+        trk_short_name(0, nm);
+        check("loading B33 from PRESETS: the track on FM6, PTCH B33, its patch, named by it",
+              trk[0].eng_req == ENGI_FM6 && trk[0].p[P_E7] == FM6_NFACTORY + 32 && !memcmp(fm6_patch[0], w, FP_SIZE) &&
+                  nm[0] == 'a' && !strcmp(nm, fm6_bank_nm[32]) && preset_pos(&total) == nf + 31u);
+        check("group jumps: next / previous group, wrapping round",
+              preset_group_jump(nf + 5u, 1) == nf + 31u && preset_group_jump(nf + 40u, -1) == nf &&
+                  preset_group_jump(nf + 40u, 1) == 0u && preset_group_jump(0, -1) == nf + 31u &&
+                  preset_group_jump(0, 1) == ENGINES[0]->npresets && preset_group_jump(3, -1) == nf + 31u);
+        for (pg = 0; pg < NPAGES && PAGES[pg].graph != GR_BROWSE; pg++)
+            ;
+        ui.page = (uint8_t)pg;
+        ui.home = 0;
+        edit_param(2, 1);
+        check("PRESETS page, KNOB 3: the next group (from bank 2: round to the first preset)",
+              trk[0].eng_req == 0 && trk[0].preset == 0 && preset_pos(&total) == 0u);
+        fm1_in.buttons = 1u << panel.btn[B_HOME];
+        host_edges = 1u << panel.btn[B_HOME];
+        ui_input();
+        fm1_ms += 100u;
+        host_enc[panel.enc[EN_PRESET]] = panel.dir[EN_PRESET];
+        ui_input();
+        cur = preset_pos(&total);
+        check("HOME held + PRESETS: the next group, named in the top bar",
+              cur == ENGINES[0]->npresets && trk[0].eng_req == 1 && !strcmp(ui.msg, ENGINES[1]->name));
+        fm1_ms += 100u;
+        host_enc[panel.enc[EN_PRESET]] = -panel.dir[EN_PRESET];
+        ui_input();
+        fm1_ms += 100u;
+        fm1_in.buttons = 0;
+        ui_input();
+        check("... back again; let go: no HOME screen, no menu", preset_pos(&total) == 0u && !ui.home && !ui.menu);
+        fm1_in.buttons = 1u << panel.btn[B_HOME];
+        host_edges = 1u << panel.btn[B_HOME];
+        ui_input();
+        fm1_ms += 100u;
+        fm1_in.buttons = 0;
+        ui_input();
+        check("(a HOME tap alone still opens HOME)", ui.home && !ui.menu);
+        memset(fm6_bank_used, 0, sizeof fm6_bank_used);
+        song.sel = 1;
+        cur = preset_pos(&total);
+        check("no bank voice: the list is as before; an FM6 track on an empty slot sits on its preset",
+              total == nf + up_count() && cur < nf && preset_at(cur, &k) == ENGI_FM6);
+        fm6_bank_boot();
     }
 
     printf(fails ? "DX7 TESTS FAILED (%d)\n" : "dx7 tests passed\n", fails);
