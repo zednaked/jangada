@@ -6,11 +6,46 @@
  * Jangada (EDIT 3 / 4): SUPR up to 6 more copies of oscillator 1, spread by SDTN (a superwave:
  * copy k sits k steps of the spread above or below, so one accumulator of the spread phase drives
  * them all); SUB a square an octave below; DRFT a slow random wander of the pitch per voice;
- * FTYP LP12 (Felucca's), LP24, BP or HP. With more than 4 voices sounding the superwave keeps
+ * FTYP LP12 (Felucca's), LP24, BP, HP or LADR (a four-pole transistor ladder, ladder_*). With
+ * more than 4 voices sounding the superwave keeps
  * fewer copies (the CPU, see analog_render_x). With all of them at their defaults the original
  * render runs, sample for sample (analog_render); otherwise analog_render_x. */
 static const char *const N_ANALOG_WAVE[] = {"SAW", "SQR", "TRI", "SIN", "PWM"};
-static const char *const N_ANALOG_FTYP[] = {"LP12", "LP24", "BP", "HP"};
+static const char *const N_ANALOG_FTYP[] = {"LP12", "LP24", "BP", "HP", "LADR"};
+
+/* Jangada: LADR, the transistor ladder: four one-pole low-passes in a row (each the trapezoidal one,
+ * G = g / (1 + g) from the SVF's table), the fourth fed back to the input through a tanh. RES 0..127 is
+ * the feedback k 0 .. 3.9 (at the top it rings, just short of oscillating); as in the hardware the lows thin out as the
+ * resonance rises, half made up by the input gain (1 + k / 2). The tanh at the input is the growl: DRV
+ * pushes into it. State: v->s[0], s[1], s[3], s[4] (the four stages, where LP12 / LP24 keep theirs) and
+ * v->s[7] (the output). */
+typedef struct { int32_t g, k, comp; } ladder_t;
+static inline void ladder_coef(ladder_t *c, int32_t cut, int32_t reso)   /* cut: 0..127 << 8 */
+{
+    int32_t i, g;
+    cut = clamp(cut, 0, 127 << 8);
+    i = cut >> 8;
+    g = SVF_G[i];
+    if (i < 127)
+        g += ((SVF_G[i + 1] - g) * (cut & 255)) >> 8;
+    c->g = (g << 12) / (4096 + g);                   /* Q12, < 4096 */
+    c->k = reso * 15974 / 127;                       /* Q12, 0 .. 3.9 */
+    c->comp = 4096 + (c->k >> 1);                    /* Q12 */
+}
+static inline int32_t ladder_stage(int32_t x, int32_t g, int32_t *st)
+{
+    int32_t v = ((x - *st) * g) >> 12, y = v + *st;
+    *st = clamp(y + v, -150000, 150000);
+    return y;
+}
+static inline int32_t ladder_run(const ladder_t *c, int32_t in, int32_t *st, int32_t *y4)
+{   /* st: the four stages; y4: the last output, the feedback (one sample late) */
+    int32_t y = softclip(((in * c->comp) >> 12) - ((*y4 * c->k) >> 12));
+    y = ladder_stage(y, c->g, &st[0]);
+    y = ladder_stage(y, c->g, &st[1]);
+    y = ladder_stage(y, c->g, &st[2]);
+    return *y4 = ladder_stage(y, c->g, &st[3]);
+}
 
 static void analog_note_on(track_t *t, voice_t *v)
 {
@@ -21,6 +56,7 @@ static void analog_note_on(track_t *t, voice_t *v)
     v->s[3] = v->s[4] = 0;                            /* second stage (LP24) */
     v->s[5] = (int32_t)(v->ph[0] >> 1);               /* sub phase */
     v->s[6] = 0;                                      /* drift */
+    v->s[7] = 0;                                      /* LADR output */
     if (!v->s[2])
         v->s[2] = 0x1234567 + (int32_t)v->age;        /* noise state */
 }
@@ -60,6 +96,7 @@ __attribute__((noinline)) static void analog_render_x(track_t *t, voice_t *v, in
     int32_t det = p[P_E1], mix = p[P_E2], noise = p[P_E3], sub = p[P_E10], drift = p[P_E11];
     int32_t cut = (p[P_E4] << 8) + m->cutoff + (p[P_E7] * (v->pitch16 - 60 * 16) >> 4);
     tsvf_t flt;
+    ladder_t lad;
     int32_t drive = 32768 + p[P_E6] * 512, kq = tsvf_k(p[P_E5]);
     uint32_t inc1 = m->inc, inc2, dinc, subinc;
     int32_t d16 = det * 16 / 100, rem = det * 16 - d16 * 100;
@@ -77,6 +114,7 @@ __attribute__((noinline)) static void analog_render_x(track_t *t, voice_t *v, in
     int32_t sg = sub * 200;
     uint32_t ph0 = v->ph[0], ph1 = v->ph[1], spr = v->ph[2], sph = (uint32_t)v->s[5];
     int32_t ic1 = v->s[0], ic2 = v->s[1], nst = v->s[2], jc1 = v->s[3], jc2 = v->s[4];
+    int32_t ls[4] = {ic1, ic2, jc1, jc2}, l4 = v->s[7];
     if (drift) {                                       /* a random walk per block, cents x 256 */
         int32_t d = v->s[6], lim = drift * 30 * 256 / 127;   /* up to +-30 ct */
         d += ((int32_t)(noise32(&nst) >> 24) - 128) * drift / 8;
@@ -94,7 +132,10 @@ __attribute__((noinline)) static void analog_render_x(track_t *t, voice_t *v, in
     /* spread: SDTN 127 puts the outer copies (3 steps) about 50 ct away */
     dinc = (uint32_t)((int32_t)(inc1 >> 12) * (p[P_E9] * 50 * 2367 / (127 * 3 * 1000)));
     subinc = inc1 >> 1;
-    tsvf_coef(&flt, cut, p[P_E5]);
+    if (ftyp == 4)
+        ladder_coef(&lad, cut, p[P_E5]);
+    else
+        tsvf_coef(&flt, cut, p[P_E5]);
     for (i = 0; i < n; i++) {
         int32_t a = analog_osc(wave, ph0, inc1, pw), b = analog_osc(wave, ph1, inc2, pw), s, y, bp, ab;
         if (ncopy) {
@@ -117,7 +158,10 @@ __attribute__((noinline)) static void analog_render_x(track_t *t, voice_t *v, in
             s += mulq15((int32_t)(noise32(&nst) >> 17) - 16384, nz);
         if (drv)
             s = softclip(((s >> 2) * (drive >> 2)) >> 11);
-        y = tsvf_lpbp(&flt, s >> 1, &ic1, &ic2, &bp);
+        if (ftyp == 4)
+            y = ladder_run(&lad, s >> 1, ls, &l4);
+        else
+            y = tsvf_lpbp(&flt, s >> 1, &ic1, &ic2, &bp);
         if (ftyp == 1)
             y = tsvf_lp(&flt, clamp(y, -100000, 100000), &jc1, &jc2);   /* LP24: the low-pass again
                                                                           * (input bounded: no overflow at CUT/RES 127) */
@@ -135,6 +179,13 @@ __attribute__((noinline)) static void analog_render_x(track_t *t, voice_t *v, in
     v->ph[0] = ph0;
     v->ph[1] = ph1;
     v->ph[2] = spr;
+    if (ftyp == 4) {
+        ic1 = ls[0];
+        ic2 = ls[1];
+        jc1 = ls[2];
+        jc2 = ls[3];
+        v->s[7] = l4;
+    }
     v->s[0] = ic1;
     v->s[1] = ic2;
     v->s[2] = nst;
@@ -254,6 +305,13 @@ static const preset_t ANALOG_PRESETS[] = {
     {"FERRUGEM", {0, 30, 64, 22, 34, 40, 30, 20}, {120, 90, 127, 120}, 0, 0, FX(25, 50, 30, 115), ARP(7, 9, 1, 127),
      .x = {7, 41, 61, 41, 2},                       /* superwave 6, SUB, DRFT, LP24 */
      SET({P_AHOLD, 1}, {P_LRATE, 5}, {P_LD_FLT, 10}, {P_EVOL, 90}, {P_TENS, 110}, {P_TRAMP, 5})},
+    /* Jangada: the ladder (FTYP LADR): tar, an engine, mud */
+    {"PICHE BASS", {0, 6, 64, 0, 30, 70, 60, 50}, {0, 55, 40, 25}, 45, 1, FX(30, 0, 0, 10), PAT(2),
+     .x = {1, 1, 41, 1, 5}},                        /* two saws into the ladder, + SUB */
+    {"MOTOR LEAD", {0, 8, 50, 0, 55, 95, 90, 64}, {2, 70, 90, 40}, 35, 1, FX(40, 0, 35, 30), .x = {1, 1, 1, 11, 5}},
+    {"LODO", {4, 14, 64, 8, 40, 110, 30, 40}, {110, 90, 127, 110}, 0, 0, FX(15, 40, 30, 100), ARP(7, 9, 1, 127),
+     .x = {4, 41, 1, 51, 5},                        /* a little superwave, DRFT; the resonance sings, the LFO moves it */
+     SET({P_AHOLD, 1}, {P_LRATE, 7}, {P_LD_FLT, 22})},
 };
 
 static void analog_render(track_t *t, voice_t *v, int32_t *out, uint32_t n, const vmod_t *m)
@@ -279,7 +337,7 @@ static const engine_t ENG_ANALOG = {
         {"SDTN", F_PCT, 0, 127, 40, 0, 0},
         {"SUB", F_PCT, 0, 127, 0, 0, 0},
         {"DRFT", F_PCT, 0, 127, 0, 0, 0},
-        {"FTYP", F_ENUM, 0, 3, 0, N_ANALOG_FTYP, 0},  /* EDIT 4 */
+        {"FTYP", F_ENUM, 0, 4, 0, N_ANALOG_FTYP, 0},  /* EDIT 4 (Jangada: LADR 4) */
     },
     ANALOG_PRESETS, sizeof(ANALOG_PRESETS) / sizeof(ANALOG_PRESETS[0]), 1, analog_note_on, analog_render,
     0xF986, {P_E4, P_E5, P_ATK, P_REL},

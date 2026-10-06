@@ -98,10 +98,10 @@ FM-1, e nada sai do seu navegador.
 
 | | |
 |---|---|
-| **Motores** | 10: ANALOG (superwave), FM6 (6 operadores, Dexed), DIGITAL (FM 4 op), PHASE, LOFI, SAMPLE, VOICE, TRIO, WHEEL, GRAIN |
+| **Motores** | 10: ANALOG (superwave, filtro ladder), FM6 (6 operadores, Dexed), DIGITAL (FM 4 op), PHASE, LOFI, SAMPLE, VOICE, TRIO, WHEEL, GRAIN |
 | **Vozes e trilhas** | 8 vozes por 4 trilhas (3 synths + bateria, ou 4 synths) |
 | **Parâmetros** | 16 por motor, matriz de modulação de 4 slots com 9 origens |
-| **Presets** | 90 de fábrica (28 escuros, drones e nordestinos da Jangada), 32 de usuário, 40 patches FM6 (8 + banco de 32) |
+| **Presets** | 93 de fábrica (31 escuros, drones e nordestinos da Jangada), 32 de usuário, 40 patches FM6 (8 + banco de 32) |
 | **Bateria** | 5 kits da Jangada + 32 sintetizados + GM; 7 batidas de fábrica |
 | **Sequencer** | 64 passos por trilha, acordes, ratchet, chance, acento, slide, swing; arp UDI / RPT até 4 compassos |
 | **Efeitos** | distorção por trilha (5 tipos), SLICER, chorus, delay, 3 reverbs, DUST / DUCK / FILT / TAPE / HUM no master, 16 punch-ins |
@@ -170,7 +170,7 @@ solte, e ele continua respirando sozinho, inclusive enquanto você toca outras t
   - A tela mostra os quatro passeios e a barra da tensão.
 - Na matriz de modulação, a origem **DRIFT** é o passeio da trilha, para qualquer destino.
 - Presets: **FERRUGEM** (ANALOG), **ABISMO** (DIGITAL), **SERTAO** (WHEEL), **CINZA** (GRAIN),
-  **CARVAO** (FM6), **RABECA** e **SANFONA**, e os DRONE SAW, RING, FM, DUST, VOX e ORGAN.
+  **CARVAO** (FM6), **LODO** (ANALOG no ladder), **RABECA** e **SANFONA**, e os DRONE SAW, RING, FM, DUST, VOX e ORGAN.
 - Para sequenciar um drone: arp OFF, PATTERN com **DIV 4BAR**, um acorde por passo.
 
 ### Mangue e Nordeste
@@ -206,7 +206,10 @@ solte, e ele continua respirando sozinho, inclusive enquanto você toca outras t
 
 ### Motores
 - **ANALOG turbinado** (EDIT 3 / 4): **SUPR** superwave (até 6 cópias desafinadas), **SDTN**, **SUB**,
-  **DRFT** (desafinação lenta por voz), **FTYP** LP12 / LP24 / BP / HP.
+  **DRFT** (desafinação lenta por voz), **FTYP** LP12 / LP24 / BP / HP / **LADR**: um ladder de
+  transistores, 4 polos (24 dB/oitava) com realimentação saturada: o RES faz ele cantar e afina os
+  graves como no hardware, o DRV empurra para o rosnado. Presets **PICHE BASS**, **MOTOR LEAD** e
+  **LODO** (um drone).
 - **FM6**: FM de 6 operadores (o núcleo msfa do Dexed), 32 algoritmos, 8 patches de fábrica (PTCH
   F1–F8) e um **banco de 32** na flash (B1–B32), com macros nos knobs (ALG FB MLVL MRAT MEG VMOD DTUN).
   O patch de cada trilha vai junto no projeto, no autosave e no backup.

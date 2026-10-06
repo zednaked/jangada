@@ -78,6 +78,8 @@ $CC -O2 -w -Ibuild/gen -Ifirmware/src -o "$OUT/reverb_test" tests/reverb_test.c 
 run "reverbs: ROOM, SPRING, PLATE (Jangada)" "$OUT/reverb_test"
 $CC -O2 -w -Ibuild/gen -Ifirmware/src -o "$OUT/grit_test" tests/grit_test.c -lm
 run "GRIT: TAPE, HUM, DIST FUZZ / FOLD / CRUSH / RING (Jangada)" "$OUT/grit_test"
+$CC -O2 -w -Ibuild/gen -Ifirmware/src -o "$OUT/ladder_test" tests/ladder_test.c -lm
+run "ANALOG LADR: the four-pole ladder low-pass (Jangada)" "$OUT/ladder_test"
 $CC -O1 -w -Ibuild/gen -Ifirmware/src -o "$OUT/layers_test" tests/layers_test.c -lm
 run "layers: SEQ steps and tools, undo, ENGINE, screens (Jangada)" "$OUT/layers_test"
 $CC -O2 -w -Ibuild/gen -Ifirmware/src -o "$OUT/kit_test" tests/kit_test.c -lm
