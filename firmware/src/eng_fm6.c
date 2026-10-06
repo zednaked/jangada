@@ -218,7 +218,9 @@ static void fm6_poll(void)
 }
 
 /* -------------------------------------------------------------- macros --- */
-/* the patch through E0..E6 (audio ISR; cheap when nothing changed) */
+/* the patch through E0, E1, E3..E6 (audio ISR; cheap when nothing changed). E2 (MLVL) is not part of the
+ * effective patch: fm6_render reads it live, so it is left out of the comparison (a rebuild resets the
+ * LFO: the CARVAO drone moves MLVL every block and had the LFO held at its start) */
 static void fm6_sync(const track_t *t)
 {
     uint32_t tr = (uint32_t)(t - trk), k, j, car, n = 0;
@@ -227,7 +229,7 @@ static void fm6_sync(const track_t *t)
     if (tr >= NTRK)
         return;
     if (fm6_eff[tr].ok && fm6_eff[tr].gen == fm6_pgen[tr]) {
-        for (k = 0; k < 7u && fm6_eff[tr].e[k] == e[k]; k++)
+        for (k = 0; k < 7u && (k == 2u || fm6_eff[tr].e[k] == e[k]); k++)
             ;
         if (k == 7u)
             return;
