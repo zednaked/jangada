@@ -423,6 +423,17 @@ static const uint8_t FM6_EXPSCALE[33] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 14, 1
                                          80, 94, 110, 126, 142, 158, 174, 190, 206, 222, 238, 250};
 static const uint8_t FM6_PMS[8] = {0, 10, 20, 33, 55, 92, 153, 255};
 static const uint32_t FM6_AMSENS[4] = {0, 4342338, 7171437, 16777216};
+
+/* the AMS share of an operator's level (msfa: pt = exp(sensamp / 262144 * 0.07 + 12.2), sensamp 0 .. 2^24:
+ * 2^17.6 .. 2^24.1) as 2^lg, lg its log2 in Q24 (FM6_AMS_C0 + the slope): the Q30 mantissa brought down to the
+ * integer part (17 .. 24: by 13 .. 6). The level loses level * pt / 2^24 of itself: 1.2 % with the LFO at rest,
+ * all of it at the deepest modulation. (Jangada: it was shifted up by 14 bits too many and the share truncated
+ * to 32 bits: any AMS > 0 pinned the level or lost it) */
+static inline uint32_t fm6_ams_pt(uint32_t sensamp)
+{
+    int32_t lg = FM6_AMS_C0 + (int32_t)(((uint64_t)sensamp * FM6_AMS_K) >> 10);
+    return fm6_mant(lg) >> (30 - (lg >> 24));
+}
 #define FM6_LOGF0 50857777       /* log2 of MIDI note 0's frequency, Q24 */
 
 static int32_t fm6_scale_vel(int32_t vel, int32_t sens)
@@ -525,11 +536,9 @@ static int fm6_note_compute(fm6_note_t *n, const uint8_t *p, int32_t *out, int32
         int32_t level = fm6_env_get(&n->env[k], op);
         uint32_t ams = FM6_AMSENS[op[FP_AMS] & 3u];
         n->op[k].freq = fm6_freq((n->fixed >> k) & 1u ? n->base[k] : logfreq + n->base[k] + pitch_mod + dt[k]);
-        if (ams) {                                 /* msfa: pt = exp(sensamp / 262144 * 0.07 + 12.2) */
+        if (ams) {                                 /* msfa: level -= level * pt / 2^24 */
             uint32_t sensamp = (uint32_t)(((uint64_t)amod * ams) >> 24);
-            int32_t lg = FM6_AMS_C0 + (int32_t)(((uint64_t)sensamp * FM6_AMS_K) >> 10);
-            uint32_t pt = fm6_mant(lg) << ((lg >> 24) - 16);   /* (2^17.6 .. 2^24.1: shift 1..8) */
-            level -= (int32_t)(((uint64_t)(uint32_t)level * ((uint64_t)pt << 4)) >> 28);
+            level -= (int32_t)(((uint64_t)(uint32_t)level * ((uint64_t)fm6_ams_pt(sensamp) << 4)) >> 28);
         }
         if (!((car >> k) & 1u))
             level += modlvl;
