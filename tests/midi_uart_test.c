@@ -202,6 +202,28 @@ static int test_usb_ep1(void)
                      midi_in_q[(w0 + 3u) % MQ] == 0x0005C00Cu);
     }
     mi_r = mi_w;
+    {   /* the USB rescue (recovery.c): nothing drains the ring, so it fills with a clock or notes arriving;
+         * the packet must not be held back (the installer's SysEx would never get through): the events are
+         * dropped, the SysEx frame still collected (Jangada) */
+        static const uint8_t m[] = {
+            0x0F, 0xF8, 0, 0,                         /* clock */
+            0x09, 0x90, 60, 100,                      /* a note */
+            0x04, 0xF0, 0x7D, 0x46,                   /* an editor / installer frame: F0 7D 46 4C 01 F7 */
+            0x07, 0x4C, 0x01, 0xF7,
+            0x0F, 0xF8, 0, 0,                         /* clock */
+        };
+        ota_frame_done();
+        midi_in_unread = 1;
+        mi_w += MQ;                                   /* the ring full, nobody reading */
+        w0 = mi_w;
+        n = ep1_take(m, sizeof m);
+        bad += check("usb ep1 (rescue): full ring -> events dropped, packet taken, SysEx collected",
+                     n == 1u && mi_w == w0 && sx_ready && sx_frame_len == 4u && sx_frame[0] == 0x7D &&
+                     sx_frame[1] == 0x46 && sx_frame[2] == 0x4C && sx_frame[3] == 0x01);
+        ota_frame_done();
+        midi_in_unread = 0;
+        mi_r = mi_w;
+    }
     return bad;
 }
 
