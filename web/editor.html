@@ -1014,7 +1014,7 @@ const LIB = { FORMAT: "felucca-library", VERSION: 1 };
 function paramKeys(pdesc, pe0, pcount) {
   const seen = {}, out = [];
   for (let i = 0; i < pcount; i++) {
-    if (i >= pe0) { out.push("E" + (i - pe0)); continue; }
+    if (i >= pe0 && i < pe0 + 16) { out.push("E" + (i - pe0)); continue; }   /* (after the engine's 16: by label) */
     const l = (pdesc[i] && pdesc[i].label) || "P" + i;
     seen[l] = (seen[l] || 0) + 1;
     out.push(seen[l] > 1 ? `${l}#${seen[l]}` : l);
@@ -1234,14 +1234,15 @@ function makeMockDevice(opt = {}) {
     D("REV", F.PCT, 0, 127, 0), D("VCE", F.ENUM, 0, 3, 0, ["POLY", "MONO", "LEG", "UNI"]), D("GLD", F.TIME, 0, 127, 0), D("PAN", F.BIPCT, -64, 63, 0),
     D("MUTE", F.ENUM, 0, 1, 0, ["OFF", "ON"]), D("GLMOD", F.ENUM, 0, 1, 0, ["RATE", "TIME"]), D("PRIO", F.ENUM, 0, 2, 0, ["LAST", "LOW", "HIGH"]), D("ALLOC", F.ENUM, 0, 1, 0, ["ROT", "REUSE"]),
     D("DTUNE", F.INT, 0, 127, 40), D("SLCR", F.ENUM, 0, 2, 0, ["OFF", "GATE", "STUT"]), D("PAT", F.INT, 1, 16, 1), D("RATE", F.ENUM, 0, 5, 1, ["1/8", "1/16", "1/32", "8T", "16T", "32T"]),
-    D("DEPTH", F.PCT, 0, 127, 127), D("SRC", F.ENUM, 0, 8, 0, ["OFF", "LFO", "ENV", "VEL", "KEY", "RND", "MODW", "AT", "EXPR"]), D("DST", F.ENUM, 0, 18, 0, ["CUT", "PIT", "SHP", "E1", "E2", "E3", "E4", "E5", "E6", "E7", "E8", "E9", "E10", "E11", "E12", "E13", "E14", "E15", "E16"]), D("AMT", F.BIPCT, -64, 63, 0),
-    D("SRC", F.ENUM, 0, 8, 0, ["OFF", "LFO", "ENV", "VEL", "KEY", "RND", "MODW", "AT", "EXPR"]), D("DST", F.ENUM, 0, 18, 0, ["CUT", "PIT", "SHP", "E1", "E2", "E3", "E4", "E5", "E6", "E7", "E8", "E9", "E10", "E11", "E12", "E13", "E14", "E15", "E16"]), D("AMT", F.BIPCT, -64, 63, 0), D("SRC", F.ENUM, 0, 8, 0, ["OFF", "LFO", "ENV", "VEL", "KEY", "RND", "MODW", "AT", "EXPR"]),
-    D("DST", F.ENUM, 0, 18, 0, ["CUT", "PIT", "SHP", "E1", "E2", "E3", "E4", "E5", "E6", "E7", "E8", "E9", "E10", "E11", "E12", "E13", "E14", "E15", "E16"]), D("AMT", F.BIPCT, -64, 63, 0), D("SRC", F.ENUM, 0, 8, 0, ["OFF", "LFO", "ENV", "VEL", "KEY", "RND", "MODW", "AT", "EXPR"]), D("DST", F.ENUM, 0, 18, 0, ["CUT", "PIT", "SHP", "E1", "E2", "E3", "E4", "E5", "E6", "E7", "E8", "E9", "E10", "E11", "E12", "E13", "E14", "E15", "E16"]),
+    D("DEPTH", F.PCT, 0, 127, 127), D("SRC", F.ENUM, 0, 9, 0, ["OFF", "LFO", "ENV", "VEL", "KEY", "RND", "MODW", "AT", "EXPR", "DRIFT"]), D("DST", F.ENUM, 0, 18, 0, ["CUT", "PIT", "SHP", "E1", "E2", "E3", "E4", "E5", "E6", "E7", "E8", "E9", "E10", "E11", "E12", "E13", "E14", "E15", "E16"]), D("AMT", F.BIPCT, -64, 63, 0),
+    D("SRC", F.ENUM, 0, 9, 0, ["OFF", "LFO", "ENV", "VEL", "KEY", "RND", "MODW", "AT", "EXPR", "DRIFT"]), D("DST", F.ENUM, 0, 18, 0, ["CUT", "PIT", "SHP", "E1", "E2", "E3", "E4", "E5", "E6", "E7", "E8", "E9", "E10", "E11", "E12", "E13", "E14", "E15", "E16"]), D("AMT", F.BIPCT, -64, 63, 0), D("SRC", F.ENUM, 0, 9, 0, ["OFF", "LFO", "ENV", "VEL", "KEY", "RND", "MODW", "AT", "EXPR", "DRIFT"]),
+    D("DST", F.ENUM, 0, 18, 0, ["CUT", "PIT", "SHP", "E1", "E2", "E3", "E4", "E5", "E6", "E7", "E8", "E9", "E10", "E11", "E12", "E13", "E14", "E15", "E16"]), D("AMT", F.BIPCT, -64, 63, 0), D("SRC", F.ENUM, 0, 9, 0, ["OFF", "LFO", "ENV", "VEL", "KEY", "RND", "MODW", "AT", "EXPR", "DRIFT"]), D("DST", F.ENUM, 0, 18, 0, ["CUT", "PIT", "SHP", "E1", "E2", "E3", "E4", "E5", "E6", "E7", "E8", "E9", "E10", "E11", "E12", "E13", "E14", "E15", "E16"]),
     D("AMT", F.BIPCT, -64, 63, 0), D("CHRD", F.ENUM, 0, 5, 0, ["OFF", "TRIAD", "7TH", "9TH", "SUS4", "POWER"]), D("TYPE", F.ENUM, 0, 4, 0, ["SOFT", "FUZZ", "FOLD", "CRUSH", "RING"]), D("FREQ", F.CUTOFF, 0, 127, 48),
     NONE, NONE, NONE, NONE,
     NONE, NONE, NONE, NONE,
     NONE, NONE, NONE, NONE,
     NONE, NONE, NONE, NONE,
+    D("EVOL", F.PCT, 0, 127, 0), D("TENS", F.PCT, 0, 127, 0), D("RAMP", F.ENUM, 0, 6, 0, ["OFF", "1BAR", "2BAR", "4BAR", "8BAR", "16BAR", "32BAR"]),
   ];
   const GP = [
     D("BPM", F.BPM, 40, 240, 120), D("SWG", F.PCT, 0, 100, 0), D("CLK", F.ENUM, 0, 2, 0, ["INT", "USB", "TRS"]), D("TUNE", F.INT, -50, 50, 0),
@@ -1281,7 +1282,8 @@ function makeMockDevice(opt = {}) {
         P("SUPER PAD", [0, 20, 64, 0, 60, 20, 0, 30, 5, 70, 0, 30, 1, 0, 0, 0], [90, 90, 115, 100], 0, 0),
         P("HP SHIMMER", [0, 30, 64, 10, 70, 60, 0, 64, 4, 80, 0, 20, 3, 0, 0, 0], [60, 90, 110, 100], 0, 0),
         P("BAIAO BASS", [1, 8, 64, 0, 36, 40, 40, 50, 0, 0, 50, 10, 1, 0, 0, 0], [0, 50, 60, 20], 1, 12),
-        P("RABECA", [0, 8, 64, 12, 70, 60, 30, 40, 0, 0, 0, 30, 2, 0, 0, 0], [40, 90, 127, 90], 0, 0)] },
+        P("RABECA", [0, 8, 64, 12, 70, 60, 30, 40, 0, 0, 0, 30, 2, 0, 0, 0], [40, 90, 127, 90], 0, 0),
+        P("FERRUGEM", [0, 30, 64, 22, 34, 40, 30, 20, 6, 40, 60, 40, 1, 0, 0, 0], [120, 90, 127, 120], 0, 0)] },
     { name: "DIGITAL", titles: ["OPS", "MOD"], edit: [
       D("ALG", F.ENUM, 0, 7, 0, ["1", "2", "3", "4", "5", "6", "7", "8"]), D("R2", F.ENUM, 0, 14, 1, [".5", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "14", "16"]), D("R3", F.ENUM, 0, 14, 1, [".5", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "14", "16"]), D("R4", F.ENUM, 0, 14, 1, [".5", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "14", "16"]),
       D("IDX", F.PCT, 0, 127, 60), D("MDEC", F.TIME, 0, 127, 60), D("FB", F.PCT, 0, 127, 0), D("-", F.INT, 0, 0, 0),
@@ -1297,7 +1299,8 @@ function makeMockDevice(opt = {}) {
         P("MARIMBA", [4, 4, 1, 1, 60, 30, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 80, 0, 60], 0, 3),
         P("FUNK KEY", [3, 1, 3, 5, 90, 25, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 45, 30, 30], 0, 6),
         P("METAL HIT", [4, 13, 6, 0, 110, 30, 60, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 50, 0, 40], 0, 6),
-        P("DRONE FM", [5, 2, 1, 3, 50, 127, 30, 0, 0, 0, 0, 0, 0, 0, 0, 0], [110, 90, 127, 120], 0, 0)] },
+        P("DRONE FM", [5, 2, 1, 3, 50, 127, 30, 0, 0, 0, 0, 0, 0, 0, 0, 0], [110, 90, 127, 120], 0, 0),
+        P("ABISMO", [5, 0, 2, 7, 34, 127, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0], [120, 90, 127, 118], 0, 0)] },
     { name: "PHASE", titles: ["PHS", "LINE"], edit: [
       D("WAVE", F.ENUM, 0, 7, 0, ["SAW", "SQR", "PLS", "DSIN", "SPLS", "RSAW", "RTRI", "RTRP"]), D("WAVE2", F.ENUM, 0, 8, 0, ["-", "SAW", "SQR", "PLS", "DSIN", "SPLS", "RSAW", "RTRI", "RTRP"]), D("DCW", F.PCT, 0, 127, 60), D("ENV", F.PCT, 0, 127, 64),
       D("DTN", F.INT, 0, 127, 0, null, "ct"), D("LINE", F.ENUM, 0, 1, 0, ["MIX", "RING"]), D("SUB", F.PCT, 0, 127, 0), D("-", F.INT, 0, 0, 0),
@@ -1374,7 +1377,8 @@ function makeMockDevice(opt = {}) {
         P("ROCK DRIVE", [7, 0, 0, 0, 0, 70, 100, 2, 0, 0, 0, 0, 0, 0, 0, 0], [0, 64, 127, 40], 0, 4),
         P("DIRTY ORGN", [7, 0, 0, 0, 0, 60, 127, 2, 0, 0, 0, 0, 0, 0, 0, 0], [0, 64, 127, 40], 0, 6),
         P("DRONE ORGN", [4, 4, 2, -4, 0, 0, 30, 1, 0, 0, 0, 0, 0, 0, 0, 0], [90, 64, 127, 110], 0, 0),
-        P("SANFONA", [10, 0, 0, 2, 0, 10, 30, 2, 0, 0, 0, 0, 0, 0, 0, 0], [60, 64, 127, 90], 0, 0)] },
+        P("SANFONA", [10, 0, 0, 2, 0, 10, 30, 2, 0, 0, 0, 0, 0, 0, 0, 0], [60, 64, 127, 90], 0, 0),
+        P("SERTAO", [10, 1, 0, 1, 0, 0, 20, 1, 0, 0, 0, 0, 0, 0, 0, 0], [90, 64, 127, 110], 0, 0)] },
     { name: "GRAIN", titles: ["GRAN", "SPRY"], edit: [
       D("SRC", F.ENUM, 0, 7, 0, ["PIANO", "TRANH", "FLUTE", "SAX", "PERC", "USR1", "USR2", "USR3"]), D("POS", F.PCT, 0, 127, 32), D("SIZE", F.PCT, 0, 127, 80), D("DENS", F.PCT, 0, 127, 80),
       D("PTCH", F.SEMI, -24, 24, 0), D("SPRD", F.PCT, 0, 127, 30), D("RAND", F.PCT, 0, 127, 10), D("TONE", F.PCT, 0, 127, 127),
@@ -1386,7 +1390,8 @@ function makeMockDevice(opt = {}) {
         P("FROZEN", [0, 40, 108, 72, 0, 0, 10, 92, 0, 0, 0, 0, 0, 0, 0, 0], [50, 100, 127, 100], 0, 5),
         P("SHIMMER", [1, 30, 70, 100, 12, 30, 24, 110, 0, 0, 0, 0, 0, 0, 0, 0], [30, 90, 110, 90], 0, 7),
         P("GHOST KEYS", [0, 40, 110, 90, 0, 50, 20, 80, 0, 0, 0, 0, 0, 0, 0, 0], [90, 90, 120, 110], 0, 0),
-        P("DRONE DUST", [2, 50, 100, 120, -12, 90, 70, 70, 0, 0, 0, 0, 0, 0, 0, 0], [110, 90, 127, 118], 0, 0)] },
+        P("DRONE DUST", [2, 50, 100, 120, -12, 90, 70, 70, 0, 0, 0, 0, 0, 0, 0, 0], [110, 90, 127, 118], 0, 0),
+        P("CINZA", [0, 60, 110, 100, -12, 70, 40, 60, 0, 0, 0, 0, 0, 0, 0, 0], [120, 90, 127, 120], 0, 0)] },
     { name: "FM6", titles: ["OPS", "PATCH"], edit: [
       D("ALG", F.INT, 0, 32, 0, ["PAT", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32"]), D("FB", F.INT, -7, 7, 0), D("MLVL", F.BIPCT, -64, 63, 0), D("MRAT", F.INT, -16, 16, 0),
       D("MEG", F.BIPCT, -64, 63, 0), D("VMOD", F.INT, -7, 7, 0), D("DTUN", F.PCT, 0, 127, 0), D("PTCH", F.INT, 0, 7, 0, ["F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8"]),
@@ -1402,7 +1407,7 @@ function makeMockDevice(opt = {}) {
         P("ORGAN", [0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 127, 0], 0, 6),
         P("PLUCK", [0, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 127, 0], 0, 13)] },
   ];
-  const P_COUNT = 80, G_COUNT = 35, NSTEP = 64, P_E0 = 64, NEDIT = 16, G_ENGSEL = 20, P_SLCR = 45;
+  const P_COUNT = 83, G_COUNT = 35, NSTEP = 64, P_E0 = 64, NEDIT = 16, G_ENGSEL = 20, P_SLCR = 45;
   /* </generated> */
   /* factory PATTERNS[] (ui.c): absolute notes, 0 rest; flags 1 accent, 2 slide, 4 tie (holds the previous note) */
   const T_ = 4;
@@ -1439,7 +1444,7 @@ function makeMockDevice(opt = {}) {
   const drumSel = () => st.tracks[st.sel].drum;
   const engOf = (t) => (t.drum ? ENG.length : t.engine);   /* the engine byte: NENGINES = drums */
   const watchMs = opt.watchMs || 3000;
-  const desc = (scope, id) => (scope === 0 && id < P_COUNT ? (id >= P_E0 ? ENG[st.engine].edit[id - P_E0] : TP[id])
+  const desc = (scope, id) => (scope === 0 && id < P_COUNT ? (id >= P_E0 && id < P_E0 + NEDIT ? ENG[st.engine].edit[id - P_E0] : TP[id])
     : scope === 1 && id < G_COUNT ? GP[id] : null);
   const seqEmpty = () => st.step.every((s) => !s.n);
   function loadPat16(pat) {                       /* ui.c load_pat16 */
@@ -1458,7 +1463,7 @@ function makeMockDevice(opt = {}) {
     [1, 2, 3, 4].forEach((id, k) => { st.p[id] = pr.env[k]; });
     st.p[37] = pr.mono ? 2 : 0;
     st.p[33] = 0; st.p[34] = 24; st.p[35] = 28; st.p[36] = 36;
-    for (let i = P_SLCR; i < P_E0; i++) st.p[i] = TP[i].def;   /* a factory preset turns the SLICER off */
+    for (let i = P_SLCR; i < P_COUNT; i++) if (i < P_E0 || i >= P_E0 + NEDIT) st.p[i] = TP[i].def;   /* a factory preset turns the SLICER off (and the DRONE values) */
     if (pr.pat && seqEmpty()) loadPattern(pr.pat - 1);
   }
   function setEngine(ei) {
@@ -1644,7 +1649,7 @@ function makeMockDevice(opt = {}) {
       }
       case CMD.TRACK_PARAM: {
         if (a.length < 2 || a[0] >= NTRK || a[1] >= P_COUNT) return null;
-        const t = st.tracks[a[0]], d = a[1] >= P_E0 ? ENG[t.engine].edit[a[1] - P_E0] : TP[a[1]];
+        const t = st.tracks[a[0]], d = a[1] >= P_E0 && a[1] < P_E0 + NEDIT ? ENG[t.engine].edit[a[1] - P_E0] : TP[a[1]];
         if (a.length >= 4 && d.max > d.min) t.p[a[1]] = clamp(v14dec(a[2], a[3]), d.min, d.max);
         b(a[0]); b(a[1]); v(t.p[a[1]]);
         break;
@@ -1858,7 +1863,7 @@ function makeMockDevice(opt = {}) {
     mute(on = !st.p[40]) { st.p[40] = on ? 1 : 0; push(CMD.CHANGED, [0, 40, ...v14enc(st.p[40])]); return st.p[40]; },
     /* a parameter of track i changed on the device: CHANGED for the selected track, else TRACK_CHANGED (v4 watch) */
     param(i, id, val) {
-      const t = st.tracks[i], d = id >= P_E0 ? ENG[t.engine].edit[id - P_E0] : TP[id];
+      const t = st.tracks[i], d = id >= P_E0 && id < P_E0 + NEDIT ? ENG[t.engine].edit[id - P_E0] : TP[id];
       t.p[id] = clamp(val, d.min, d.max);
       if (i === st.sel) push(CMD.CHANGED, [0, id, ...v14enc(t.p[id])]);
       else if (st.v4) push(CMD.TRACK_CHANGED, [i, id, ...v14enc(t.p[id])]);
@@ -2206,7 +2211,7 @@ function selfLoad() {
 const stepEdit = new Map(); /* index -> time of the last edit */
 
 /* parameter ids (firmware/src/core.h); used only when P_COUNT / G_COUNT match */
-const EXPECT = { pcount: 80, gcount: 35, pe0: 64 };   /* tools/gen_editor_tables.py --check: == the firmware */
+const EXPECT = { pcount: 83, gcount: 35, pe0: 64 };   /* tools/gen_editor_tables.py --check: == the firmware */
 const P = { LEVEL: 0, SLEN: 29 };
 const LAYOUT = (pe0) => [
   { t: "ENV", pages: [["ENV", 0, [1, 2, 3, 4]], ["ENV DEST", 0, [5, 6, 7, 8]]] },
@@ -2217,7 +2222,7 @@ const LAYOUT = (pe0) => [
   { t: "VOICE", pages: [["LEVEL", 0, [0]], ["VOICE", 0, [37, 38, 41, 42]], ["VOICE 2", 0, [43, 44, 39, 40]]] },
   { t: "FX", pages: [["FX", 0, [33, 34, 35, 36]], ["DIST", 0, [62, 33, 63]], ["SLICER", 0, [45, 46, 47, 48]], ["DLY", 1, [4, 5, 6, 7]], ["REV/CHO", 1, [8, 9, 10, 11]], ["REVERB", 1, [32, 8, 9]]] },   /* Jangada: TYPE; GRIT: DIST TYPE DIST FREQ */
   { t: "SCL", pages: [["SCL", 0, [25, 26, 27, 28]], ["CHORD", 0, [61]]] },   /* Jangada: CHORD */
-  { t: "ARP", pages: [["ARP", 0, [17, 18, 19, 20]], ["ARP 2", 0, [21, 22, 23, 24]]] },
+  { t: "ARP", pages: [["ARP", 0, [17, 18, 19, 20]], ["ARP 2", 0, [21, 22, 23, 24]], ["DRONE", 0, [23, pe0 + 16, pe0 + 17, pe0 + 18]]] },   /* Jangada DRONES: HOLD EVOL TENS RAMP */
   { t: "SEQ PATTERN", tab: "seqgroups", pages: [["PATTERN", 0, [29, 30, 31, 32]]] },
   { t: "GLOBAL", tab: "setgroups", pages: [["GLOBAL", 1, [0, 1, 2, 3]]] },
   { t: "DRUMS", tab: "setgroups", pages: [["DRUMS", 1, [31, 24, 25, 26]]] },   /* Jangada: KIT first */
@@ -2472,7 +2477,7 @@ function buildGroups() {
     const a = el("div", { class: "group" }, el("h2", { ic: HEAD_IC.INSTRUMENT, text: "INSTRUMENT" }), el("p", { class: "dim", text: t("layout") }));
     const b = el("div", { class: "group" }, el("h2", { ic: HEAD_IC.EDIT, text: "EDIT" }));
     const c = el("div", { class: "group" }, el("h2", { ic: HEAD_IC.GLOBAL, text: "GLOBAL" }));
-    for (let i = 0; i < info.pcount; i++) { const r = paramRow(0, i); if (r) (i >= info.pe0 ? b : a).append(r); }
+    for (let i = 0; i < info.pcount; i++) { const r = paramRow(0, i); if (r) (i >= info.pe0 && i < info.pe0 + 16 ? b : a).append(r); }
     for (let i = 0; i < info.gcount; i++) { const r = paramRow(1, i); if (r) c.append(r); }
     groups.groups.push(a, b);
     groups.setgroups.push(c);

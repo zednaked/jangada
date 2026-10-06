@@ -12,7 +12,7 @@ static const char *const N_SCALE[] = {"CHR", "MAJ", "MIN", "DOR", "MIX", "PEN", 
 static const char *const N_ONOFF[] = {"OFF", "ON"};
 static const char *const N_T4[] = {"DRUM", "SYNTH"};
 /* Jangada modulation matrix (mod.c): sources, and the targets before the engine's own (MD_E0..) */
-static const char *const N_MSRC[] = {"OFF", "LFO", "ENV", "VEL", "KEY", "RND", "MODW", "AT", "EXPR"};
+static const char *const N_MSRC[] = {"OFF", "LFO", "ENV", "VEL", "KEY", "RND", "MODW", "AT", "EXPR", "DRIFT"};
 static const char *const N_MDST[] = {"CUT", "PIT", "SHP", "E1", "E2", "E3", "E4", "E5", "E6", "E7", "E8",
                                      "E9", "E10", "E11", "E12", "E13", "E14", "E15", "E16"};
 static const char *const N_QUANT[] = {"OFF", "SNAP", "WHITE"};   /* seq.c kb_map; 1 = SNAP as the old ON */
@@ -29,6 +29,8 @@ static const char *const N_BEAT[] = {"--", DS_BEAT_NAME_LIST};  /* Jangada: GLO 
 static const char *const N_RTYPE[] = {"ROOM", "SPRING", "PLATE"};   /* fx.c (Jangada) */
 /* Jangada GRIT: the DIST types (fx.c track_dist); SOFT first: older projects and presets keep their sound */
 static const char *const N_DTYPE[] = {"SOFT", "FUZZ", "FOLD", "CRUSH", "RING"};
+/* Jangada DRONES (drone.c): the RAMP of TENSION, in bars (DR_RAMP_BARS) */
+static const char *const N_TRAMP[] = {"OFF", "1BAR", "2BAR", "4BAR", "8BAR", "16BAR", "32BAR"};
 static const char *const N_NOTE[] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
 static const char *const N_DASH[] = {"--"};
 static const char *const N_GO[] = {"--", "GO"};
@@ -102,6 +104,10 @@ static const param_desc_t TP[P_COUNT] = {
     /* Jangada GRIT: the DIST type and the RING carrier (30 Hz .. 16 kHz, CUTOFF_HZ; 48 = 320 Hz) */
     [P_DTYPE] = PE("TYPE", N_DTYPE, 0),
     [P_DRING] = PD("FREQ", F_CUTOFF, 0, 127, 48),
+    /* Jangada DRONES (drone.c): EVOL the slow walk, TENS the tension macro, RAMP its time in bars */
+    [P_EVOL] = PD("EVOL", F_PCT, 0, 127, 0),
+    [P_TENS] = PD("TENS", F_PCT, 0, 127, 0),
+    [P_TRAMP] = PE("RAMP", N_TRAMP, 0),
 };
 
 static const param_desc_t GP[G_COUNT] = {
@@ -272,7 +278,7 @@ enum { FAM_HOME, FAM_ENV, FAM_LFO, FAM_FX, FAM_SCL, FAM_EDIT, FAM_GLO, FAM_SAVE,
        FAM_COUNT };
 enum { SC_TRACK, SC_GLOBAL, SC_ENGINE, SC_STEP, SC_TRK };   /* SC_TRK: the TRACKS page (ui_input.c tracks_edit) */
 enum { GR_NONE, GR_ADSR, GR_LFO, GR_STEPS, GR_ARP, GR_SCALE, GR_FX, GR_ROLL, GR_BROWSE, GR_SLOTS, GR_USER, GR_TRK,
-       GR_SLCR };
+       GR_SLCR, GR_DRONE };
 
 typedef struct {
     const char *title;
@@ -316,6 +322,7 @@ static const page_t PAGES[] = {
     {"TOOLS", FAM_SAVE, SC_GLOBAL, GR_NONE, {G_CLRSEQ, G_INITSND, 0xFF, 0xFF}},
     {"ARP", FAM_ARP, SC_TRACK, GR_ARP, {P_AMODE, P_ARATE, P_AOCT, P_AGATE}},
     {"ARP 2", FAM_ARP, SC_TRACK, GR_NONE, {P_ASWING, P_APROB, P_AHOLD, P_AORDER}},
+    {"DRONE", FAM_ARP, SC_TRACK, GR_DRONE, {P_AHOLD, P_EVOL, P_TENS, P_TRAMP}},   /* Jangada DRONES (drone.c) */
     {"STEP", FAM_SEQ, SC_STEP, GR_ROLL, {0, 1, 2, 3}},
     {"STEP 2", FAM_SEQ, SC_STEP, GR_ROLL, {0, 4, 5, 0xFF}},   /* Jangada: STEP RTCH CHNC */
     {"PATTERN", FAM_SEQ, SC_TRACK, GR_STEPS, {P_SLEN, P_SDIV, P_SSWING, P_SGATE}},

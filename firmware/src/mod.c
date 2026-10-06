@@ -4,7 +4,8 @@
  *
  * Sources: LFO (the part's LFO, bipolar), ENV (the voice's ADSR), VEL (note velocity),
  * KEY (the note around C4: +-1 at +-4 octaves), RND (a value fixed per note, from its age:
- * it does not draw from rng(), so nothing else changes when it is used).
+ * it does not draw from rng(), so nothing else changes when it is used), MODW / AT / EXPR (MIDI),
+ * DRIFT (the part's slow random walk, drone.c: tens of seconds to minutes, never the same twice).
  *
  * Targets: FLT / PIT / SHP add to the voice's modulation as LFO DEST and ENV DEST do (the
  * same scale: AMT 63 is what DEST 63 is there). E1..E16 move the engine's own parameter for
@@ -12,8 +13,10 @@
  * it renders; values an engine only reads at note-on are not modulated.
  *
  * With every SRC at OFF nothing here runs, and the sound is Felucca's to the sample. */
-enum { MS_OFF, MS_LFO, MS_ENV, MS_VEL, MS_KEY, MS_RND, MS_MODW, MS_AT, MS_EXPR };   /* (MIDI: appended) */
+enum { MS_OFF, MS_LFO, MS_ENV, MS_VEL, MS_KEY, MS_RND, MS_MODW, MS_AT, MS_EXPR,   /* (MIDI: appended) */
+       MS_DRIFT };                                     /* Jangada DRONES: the part's slow walk (drone.c) */
 enum { MD_FLT, MD_PIT, MD_SHP, MD_E0 };
+#include "drone.c"                                     /* Jangada DRONES: EVOL, TENS, RAMP and DRIFT */
 
 /* DST names follow the engine: E1.. become its labels */
 static const char *mod_dst_names[MD_E0 + NEDIT];
@@ -69,7 +72,19 @@ static int32_t mod_src(const track_t *t, const voice_t *v, uint32_t src, int32_t
         return (int32_t)t->at * 258;
     case MS_EXPR:
         return (int32_t)t->ex * 258;
+    case MS_DRIFT:
+        return drn[(uint32_t)(t - trk) % NTRK].w[0];
     }
+    return 0;
+}
+
+/* DRIFT in a slot: the walks run (drone.c) */
+__attribute__((noinline)) static uint32_t mod_drift(const track_t *t)
+{
+    uint32_t k;
+    for (k = 0; k < NMOD; k++)
+        if (t->p[P_M1SRC + 3u * k] == MS_DRIFT && t->p[P_M1AMT + 3u * k])
+            return 1;
     return 0;
 }
 

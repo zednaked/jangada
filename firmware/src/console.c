@@ -402,6 +402,12 @@ static void con_voices(void)
         con_dec(t->p[P_AMODE]);
         con_puts(" hold ");
         con_dec(t->p[P_AHOLD]);
+        con_puts(" evol ");                            /* Jangada DRONES: EVOL, TENS, the tension now (%) */
+        con_dec(t->p[P_EVOL]);
+        con_puts(" tens ");
+        con_dec(t->p[P_TENS]);
+        con_puts(" now ");
+        con_dec((drn[i].tens >> 16) * 100 / 32767);
         con_puts("\r\n");
     }
     con_kv("playing", song.playing);

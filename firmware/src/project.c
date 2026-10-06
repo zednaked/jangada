@@ -151,7 +151,7 @@ static int proj_from_v1(project_t *q, const project_v1_t *v1, int n)
     for (i = 1; i < NTRK; i++) {               /* the other tracks: their defaults, no steps */
         uint32_t k;
         for (k = 0; k < P_COUNT; k++)
-            q->t[i].p[k] = k >= P_E0 ? ENGINES[trk_def_engine(i)]->edit[k - P_E0].def : TP[k].def;
+            q->t[i].p[k] = k >= P_E0 && k < P_E0 + NEDIT ? ENGINES[trk_def_engine(i)]->edit[k - P_E0].def : TP[k].def;
         q->t[i].engine = (uint8_t)trk_def_engine(i);
         q->t[i].preset = 0xFF;                 /* 0xFF: its default preset (project_load) */
         for (k = 0; k < NSTEP; k++)

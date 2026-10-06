@@ -114,6 +114,16 @@ int main(void){
  layer_key(LY_ENGINE,key_of_white(6),1,0); assert(t->eng_req==6);
  printf("%-46s ok\n", "layers: SEQ tools, undo / redo, step keys");
  printf("%-46s ok\n", "layers: ENGINE keys pick the engine");
+ { /* Jangada DRONES: a preset sets EVOL / TENS / RAMP, the next one puts them back (they sit after P_E15) */
+   track_t *u = &trk[1]; uint32_t k, f = 0;
+   set_engine_of(u, 0);
+   for (k = 0; k < ENGINES[0]->npresets; k++) if (!strcmp(ENGINES[0]->presets[k].name, "FERRUGEM")) f = k;
+   apply_preset_to(u, f); assert(f && u->p[P_EVOL] == 90 && u->p[P_TENS] == 110 && u->p[P_TRAMP] == 5);
+   apply_preset_to(u, 0); assert(!u->p[P_EVOL] && !u->p[P_TENS] && !u->p[P_TRAMP]);
+   u->p[P_EVOL] = 50; track_defaults(u); assert(!u->p[P_EVOL]);
+   set_engine_of(u, TRK_DEF[1][0]); apply_preset_to(u, TRK_DEF[1][1]); u->engine = u->eng_req;
+   printf("%-46s ok\n", "presets: EVOL TENS RAMP set and reset");
+ }
  { /* every layer's screen draws, in every palette, with something on it; leaving it restores the page */
    uint32_t l, p, lit;
    for (p = 0; p < NPALETTES; p++) for (l = LY_FX; l < LY_COUNT; l++) {

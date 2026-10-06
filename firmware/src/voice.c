@@ -532,7 +532,7 @@ static uint32_t track_render(track_t *t, int32_t *out, uint32_t n)
     /* TUNE in cents: whole 1/16 semitones in the pitch, the rest as a fine factor (no dead zone) */
     int32_t tune = song.g[G_TUNE] >= 0 ? song.g[G_TUNE] * 16 / 100 : -((-song.g[G_TUNE] * 16 + 99) / 100);
     int32_t tune_fine = (song.g[G_TUNE] * 16 - tune * 100) * 2367 / 16000;   /* rest, in 1/4096 (1 ct = 2.367) */
-    uint32_t nr = 0, fade = t->xf_on && t->xf, mods = mod_active(t);
+    uint32_t nr = 0, fade = t->xf_on && t->xf, mods = mod_active(t), dr;
     int16_t pe_new[NEDIT], keep[NEDIT];
     for (i = 0; i < n; i++)
         out[i] = 0;
@@ -541,6 +541,7 @@ static uint32_t track_render(track_t *t, int32_t *out, uint32_t n)
         memcpy(&t->p[P_E0], t->pe_old, sizeof pe_new);
     }
     track_lfo_tick(t);
+    dr = !fade && drone_tick(t, mods && mod_drift(t));  /* Jangada DRONES: EVOL / TENS (drone.c) */
     if (e->block)                                       /* the engine's per-part work (DRAWBAR: bars, rotor) */
         e->block(t);
     for (i = 0; i < NVOICE; i++) {
@@ -596,6 +597,8 @@ static uint32_t track_render(track_t *t, int32_t *out, uint32_t n)
                 m.cutoff += (m.envq15 * 24) >> 7;
             m.shape = (64 << 8) + ((lfo * p[P_LD_SHP]) >> 7) + ((m.envq15 * p[P_ED_SHP]) >> 7) + md[2];
             m.cutoff += md[0];
+            if (dr)                                     /* the drone's walks and tension (drone.c) */
+                drone_voice(t, i, &m);
             m.shape = clamp(m.shape, 0, 127 << 8);      /* Jangada: stacked LFO + ENV + matrix stay in range */
             m.cutoff = clamp(m.cutoff, -(127 << 8), 127 << 8);
             e->render(t, v, out, n, &m);
@@ -604,6 +607,8 @@ static uint32_t track_render(track_t *t, int32_t *out, uint32_t n)
         }
         nr++;
     }
+    if (dr)
+        drone_restore(t);
     if (fade) {
         memcpy(&t->p[P_E0], pe_new, sizeof pe_new);
         t->xf--;

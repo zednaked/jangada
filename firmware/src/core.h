@@ -59,6 +59,10 @@ enum {                          /* per-track parameters */
      * on these positions: projects and user presets store stable keys (P_KEY, params.c) */
     P_E0, P_E1, P_E2, P_E3, P_E4, P_E5, P_E6, P_E7,
     P_E8, P_E9, P_E10, P_E11, P_E12, P_E13, P_E14, P_E15,
+    /* Jangada DRONES (drone.c): evolution (a slow random walk on the engine's natural targets), TENSION
+     * (a macro that opens the sound) and its RAMP (bars to reach it). After the engine's own: P_E0 keeps
+     * its place (saved data use the keys anyway) */
+    P_EVOL, P_TENS, P_TRAMP,
     P_COUNT
 };
 #define NEDIT 16                 /* engine parameters P_E0.. */
