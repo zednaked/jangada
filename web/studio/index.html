@@ -66,7 +66,7 @@
   <button class="lang" id="lang"></button>
   <h1>JANGADA <b>STUDIO</b></h1>
   <p class="small" data-t="intro"></p>
-  <p class="row"><button class="main" id="power" data-t="power"></button> <span id="status" class="small"></span></p>
+  <p class="row"><button class="main" id="demo" data-t="demo"></button> <button id="power" data-t="power"></button> <span id="status" class="small"></span></p>
 
   <section>
     <div class="tabs" id="tabs"></div>
@@ -159,7 +159,7 @@ const TEXT = {
     droneTitle: "Drone", hold: "HOLD (segura o acorde)", release: "Soltar drones",
     droneHelp: "Os presets DRONE já vêm com ARP RPT e HOLD: toque um acorde, solte as teclas e ele fica respirando sozinho. Toque outro acorde para trocar; Esc ou \"Soltar drones\" para parar (de novo: silencia as caudas).",
     droning: "drone soando nas trilhas ",
-    seqTitle: "Sequenciador", play: "PLAY", stop: "STOP",
+    seqTitle: "Sequenciador", play: "PLAY", stop: "STOP", demo: "▶ Ouça a demo", demoStop: "■ Parar a demo",
     masterTitle: "Master e efeitos", volume: "VOLUME",
     keysTitle: "Teclado", fx: "FX (Shift)",
     keysHelp: "As 27 teclas do FM-1 (Fá a Sol): fileira de baixo Z X C V B N M , . / (brancas) e S D F H J L ; (pretas); fileira de cima Q W E R T Y U I O (brancas) e 2 3 4 6 7 9 (pretas). − e = mudam a oitava, Espaço é PLAY, Esc solta os drones. Segure Shift (ou FX) e toque uma tecla branca: efeitos punch-in na mixagem.",
@@ -178,7 +178,7 @@ const TEXT = {
     droneTitle: "Drone", hold: "HOLD (keeps the chord)", release: "Let the drones go",
     droneHelp: "The DRONE presets come with ARP RPT and HOLD: play a chord, let go of the keys and it keeps breathing on its own. Play another chord to change it; Esc or \"Let the drones go\" to stop (again: silences the tails).",
     droning: "drone sounding on tracks ",
-    seqTitle: "Sequencer", play: "PLAY", stop: "STOP",
+    seqTitle: "Sequencer", play: "PLAY", stop: "STOP", demo: "▶ Play the demo", demoStop: "■ Stop the demo",
     masterTitle: "Master and effects", volume: "VOLUME",
     keysTitle: "Keyboard", fx: "FX (Shift)",
     keysHelp: "The FM-1's 27 keys (F to G): bottom row Z X C V B N M , . / (white) and S D F H J L ; (black); top row Q W E R T Y U I O (white) and 2 3 4 6 7 9 (black). − and = change the octave, Space is PLAY, Esc lets the drones go. Hold Shift (or FX) and play a white key: punch-in effects on the mix.",
@@ -249,7 +249,6 @@ async function power() {
 function showPower() {
   const on = ctx?.state === "running";
   $("power").textContent = t(on ? "powerOff" : "power");
-  $("power").classList.toggle("main", !on);
   $("status").textContent = on ? `${t("running")} · ${ctx.sampleRate} Hz` : "";
 }
 const ensure = () => { if (!ctx || ctx.state !== "running") power(); };
@@ -362,6 +361,7 @@ function showLive() {
   if (!x) return;
   $("play").textContent = t(live.playing ? "stop" : "play");
   $("play").classList.toggle("on", !!live.playing);
+  $("demo").textContent = t(live.playing ? "demoStop" : "demo");
   const box = $("steps"), now = live.steps[sel];
   [...box.children].forEach((d, i) => d.className = live.playing && i === now ? "now" : x.st_step_on(sel, i) ? "note" : "");
   const tr = [0, 1, 2, 3].filter((i) => live.droning >> i & 1).map((i) => i + 1);
@@ -489,7 +489,9 @@ $("kit").onchange = () => { call("st_global", ID.G_KIT, +$("kit").value); $("kit
 $("t4").onchange = () => { call("st_global", ID.G_T4, +$("t4").value); $("t4").blur(); refresh(); };
 $("hold").onclick = () => { call("st_param", sel, ID.P_AHOLD, x.st_param_get(sel, ID.P_AHOLD) ? 0 : 1); refresh(); };
 $("release").onclick = () => call("st_drone_off");
-$("play").onclick = () => { ensure(); call("st_play", live.playing ? 0 : 1); live.playing ^= 1; showLive(); };
+const togglePlay = () => { ensure(); call("st_play", live.playing ? 0 : 1); live.playing ^= 1; showLive(); };
+$("play").onclick = togglePlay;
+$("demo").onclick = togglePlay;   /* the same PLAY, at the top: a visitor hears it in one click */
 $("vol").oninput = setVolume;
 $("octdn").onclick = () => octave(-1);
 $("octup").onclick = () => octave(1);
