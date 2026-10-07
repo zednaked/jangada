@@ -341,6 +341,9 @@ Hügelton Instruments**. Parts come from other forks, with our thanks:
 - [Melodee](https://github.com/keremimo/melodee) (Kerem Kilic / Ellic Studio): DX7 SysEx.
 - msfa / Dexed (Google, Pascal Gauthier): the FM6 core (Apache-2.0).
 
+Going the other way: the ratchets went upstream and ship in
+[Felucca 1.0.5](https://github.com/hugelton/Felucca/releases/tag/v1.0.5) ([PR #100](https://github.com/hugelton/Felucca/pull/100)).
+
 See [README.felucca.md](README.felucca.md) and [LICENSING.md](LICENSING.md) for the full credits
 (fonts, samples, engines).
 
