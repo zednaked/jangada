@@ -112,7 +112,7 @@ FM-1, e nada sai do seu navegador.
 
 ## Instalar
 
-Versão atual: **[Jangada 0.5.1](https://github.com/zednaked/jangada/releases/tag/v0.5.1)** (alfa).
+Versão atual: **[Jangada 0.6](https://github.com/zednaked/jangada/releases/tag/v0.6)** (alfa).
 Conecte o FM-1 direto no computador por um cabo USB **de dados**.
 
 **Mac / Windows / Linux, pelo navegador**: abra o
@@ -123,7 +123,7 @@ Conecte o FM-1 direto no computador por um cabo USB **de dados**.
 
 ```
 ./instalar-linux.sh                    # baixa e instala a última versão publicada
-./instalar-linux.sh jangada-0.5.1.fwsc # instala um arquivo baixado das releases
+./instalar-linux.sh jangada-0.6.fwsc   # instala um arquivo baixado das releases
 ./instalar-linux.sh --original         # volta ao firmware oficial da M-VAVE (V15)
 ./instalar-linux.sh --info             # o que o FM-1 está rodando
 ./instalar-linux.sh --console          # acesso ao console serial (regra udev, pede sudo)
@@ -208,7 +208,8 @@ solte, e ele continua respirando sozinho, inclusive enquanto você toca outras t
 - **ANALOG turbinado** (EDIT 3 / 4): **SUPR** superwave (até 6 cópias desafinadas), **SDTN**, **SUB**,
   **DRFT** (desafinação lenta por voz), **FTYP** LP12 / LP24 / BP / HP / **LADR**: um ladder de
   transistores, 4 polos (24 dB/oitava) com realimentação saturada: o RES faz ele cantar e afina os
-  graves como no hardware, o DRV empurra para o rosnado. Presets **PICHE BASS**, **MOTOR LEAD** e
+  graves como no hardware, o DRV empurra para o rosnado. Para achar: toque **EDIT** (sem
+  segurar) até a página EDIT 4 e gire o knob 1 até o fim; CUT, RES e DRV ficam no EDIT 2. Presets **PICHE BASS**, **MOTOR LEAD** e
   **LODO** (um drone).
 - **FM6**: FM de 6 operadores (o núcleo msfa do Dexed), 32 algoritmos, 8 patches de fábrica (PTCH
   F1–F8) e **dois bancos de 32** na flash (B1–B32 e B33–B64: dois cartuchos inteiros), com macros nos

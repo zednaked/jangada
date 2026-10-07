@@ -112,7 +112,7 @@ and nothing leaves your browser.
 
 ## Install
 
-Current version: **[Jangada 0.5.1](https://github.com/zednaked/jangada/releases/tag/v0.5.1)** (alpha).
+Current version: **[Jangada 0.6](https://github.com/zednaked/jangada/releases/tag/v0.6)** (alpha).
 Plug the FM-1 straight into the computer with a USB **data** cable.
 
 **Mac / Windows / Linux, in the browser**: open the
@@ -123,7 +123,7 @@ Plug the FM-1 straight into the computer with a USB **data** cable.
 
 ```
 ./instalar-linux.sh                    # downloads and installs the latest release
-./instalar-linux.sh jangada-0.5.1.fwsc # installs a file downloaded from the releases
+./instalar-linux.sh jangada-0.6.fwsc   # installs a file downloaded from the releases
 ./instalar-linux.sh --original         # back to M-VAVE's official firmware (V15)
 ./instalar-linux.sh --info             # what the FM-1 is running
 ./instalar-linux.sh --console          # serial console access (a udev rule, asks for sudo)
@@ -208,7 +208,8 @@ and it keeps breathing on its own, even while you play the other tracks.
 - **Turbo ANALOG** (EDIT 3 / 4): **SUPR** superwave (up to 6 detuned copies), **SDTN**, **SUB**,
   **DRFT** (slow per-voice detune), **FTYP** LP12 / LP24 / BP / HP / **LADR**: a transistor
   ladder, 4 poles (24 dB/octave) with saturated feedback: RES makes it sing and thins the lows as the
-  hardware does, DRV pushes it into a growl. Presets **PICHE BASS**, **MOTOR LEAD** and **LODO** (a drone).
+  hardware does, DRV pushes it into a growl. To find it: tap **EDIT** (don't
+  hold it) up to the EDIT 4 page and turn knob 1 to the end; CUT, RES and DRV are on EDIT 2. Presets **PICHE BASS**, **MOTOR LEAD** and **LODO** (a drone).
 - **FM6**: 6-operator FM (Dexed's msfa core), 32 algorithms, 8 factory patches (PTCH F1–F8) and
   **two banks of 32** in flash (B1–B32 and B33–B64: two whole cartridges), with macros on the knobs (ALG
   FB MLVL MRAT MEG VMOD DTUN). Each track's patch goes along in the project, the autosave and the backup.
