@@ -14,7 +14,7 @@
 
 Drones que respiram e evoluem sozinhos, ferrugem, fita gasta, máquinas e manguebeat, num synth de bolso
 baratinho. Dez motores de síntese (FM de 6 operadores que conversa com o Dexed, um analógico com
-superwave), quatro trilhas, matriz de modulação, kits de bateria próprios, efeitos para tocar ao vivo.
+superwave e filtro ladder no estilo Moog), quatro trilhas, matriz de modulação, kits de bateria próprios, efeitos para tocar ao vivo.
 
 Um fork do [Felucca](https://github.com/hugelton/Felucca) de Leo Kuroshita (Hügelton Instruments).
 A felucca é o barco à vela do Nilo; a jangada é a nossa.
@@ -98,7 +98,7 @@ FM-1, e nada sai do seu navegador.
 
 | | |
 |---|---|
-| **Motores** | 10: ANALOG (superwave, filtro ladder), FM6 (6 operadores, Dexed), DIGITAL (FM 4 op), PHASE, LOFI, SAMPLE, VOICE, TRIO, WHEEL, GRAIN |
+| **Motores** | 10: ANALOG (superwave, filtro ladder estilo Moog), FM6 (6 operadores, Dexed), DIGITAL (FM 4 op), PHASE, LOFI, SAMPLE, VOICE, TRIO, WHEEL, GRAIN |
 | **Vozes e trilhas** | 8 vozes por 4 trilhas (3 synths + bateria, ou 4 synths) |
 | **Parâmetros** | 16 por motor, matriz de modulação de 4 slots com 9 origens |
 | **Presets** | 93 de fábrica (31 escuros, drones e nordestinos da Jangada), 32 de usuário, 72 patches FM6 (8 + dois bancos de 32) |
@@ -206,8 +206,8 @@ solte, e ele continua respirando sozinho, inclusive enquanto você toca outras t
 
 ### Motores
 - **ANALOG turbinado** (EDIT 3 / 4): **SUPR** superwave (até 6 cópias desafinadas), **SDTN**, **SUB**,
-  **DRFT** (desafinação lenta por voz), **FTYP** LP12 / LP24 / BP / HP / **LADR**: um ladder de
-  transistores, 4 polos (24 dB/oitava) com realimentação saturada: o RES faz ele cantar e afina os
+  **DRFT** (desafinação lenta por voz), **FTYP** LP12 / LP24 / BP / HP / **LADR**: um filtro estilo Moog,
+  um ladder de transistores de 4 polos (24 dB/oitava) com realimentação saturada: o RES faz ele cantar e afina os
   graves como no hardware, o DRV empurra para o rosnado. Para achar: toque **EDIT** (sem
   segurar) até a página EDIT 4 e gire o knob 1 até o fim; CUT, RES e DRV ficam no EDIT 2. Presets **PICHE BASS**, **MOTOR LEAD** e
   **LODO** (um drone).

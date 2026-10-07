@@ -13,7 +13,8 @@
 **Alternative firmware for the M-VAVE FM-1, with a dark, industrial and Brazilian accent.**
 
 Drones that breathe and evolve on their own, rust, worn tape, machines and manguebeat, on a €70
-pocket synth. Ten synth engines (a 6-operator FM that talks to Dexed, a superwave analog), four
+pocket synth. Ten synth engines (a 6-operator FM that talks to Dexed, a superwave analog with a
+Moog-style ladder filter), four
 tracks, a modulation matrix, our own drum kits, effects made to be played live.
 
 A fork of [Felucca](https://github.com/hugelton/Felucca) by Leo Kuroshita (Hügelton Instruments).
@@ -98,7 +99,7 @@ and nothing leaves your browser.
 
 | | |
 |---|---|
-| **Engines** | 10: ANALOG (superwave, ladder filter), FM6 (6-operator, Dexed), DIGITAL (4-op FM), PHASE, LOFI, SAMPLE, VOICE, TRIO, WHEEL, GRAIN |
+| **Engines** | 10: ANALOG (superwave, Moog-style ladder filter), FM6 (6-operator, Dexed), DIGITAL (4-op FM), PHASE, LOFI, SAMPLE, VOICE, TRIO, WHEEL, GRAIN |
 | **Voices and tracks** | 8 voices over 4 tracks (3 synths + drums, or 4 synths) |
 | **Parameters** | 16 per engine, a 4-slot modulation matrix with 9 sources |
 | **Presets** | 93 factory (31 dark, drone and northeastern ones by Jangada), 32 user, 72 FM6 patches (8 + two banks of 32) |
@@ -206,8 +207,8 @@ and it keeps breathing on its own, even while you play the other tracks.
 
 ### Engines
 - **Turbo ANALOG** (EDIT 3 / 4): **SUPR** superwave (up to 6 detuned copies), **SDTN**, **SUB**,
-  **DRFT** (slow per-voice detune), **FTYP** LP12 / LP24 / BP / HP / **LADR**: a transistor
-  ladder, 4 poles (24 dB/octave) with saturated feedback: RES makes it sing and thins the lows as the
+  **DRFT** (slow per-voice detune), **FTYP** LP12 / LP24 / BP / HP / **LADR**: a Moog-style filter, a
+  four-pole transistor ladder (24 dB/octave) with saturated feedback: RES makes it sing and thins the lows as the
   hardware does, DRV pushes it into a growl. To find it: tap **EDIT** (don't
   hold it) up to the EDIT 4 page and turn knob 1 to the end; CUT, RES and DRV are on EDIT 2. Presets **PICHE BASS**, **MOTOR LEAD** and **LODO** (a drone).
 - **FM6**: 6-operator FM (Dexed's msfa core), 32 algorithms, 8 factory patches (PTCH F1–F8) and
