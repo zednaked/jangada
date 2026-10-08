@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
 /* Jangada: the three reverb models (fx.c: ROOM, SPRING, PLATE) on the host: each answers a burst, stays
  * bounded, dies away to silence (no offset left in a loop), PLATE is stereo, the levels are near ROOM's,
- * a model change does not click. ROOM itself is covered bit for bit by the golden renders.
+ * a model change does not click, rev_clear leaves nothing. ROOM itself is covered bit for bit by the golden renders.
  * Build with the same generated headers and flags as hostsim.c. */
 #include <assert.h>
 #define main hostsim_main
@@ -87,6 +87,20 @@ int main(void)
         song.g[G_RTYPE] = 2;
         run(4, 0, &el, &er, &df, &pk, &st);
         ok(st <= burst_step, "model change while ringing: no click");
+    }
+    {   /* rev_clear: every sample silent (rev_u's int16 view has an odd count, 556 + 441: clearing it through its
+         * int32 view left the last one, which ROOM played back as a click after a model change; Felucca 1.0.5.2) */
+        uint32_t i, left = 0;
+        for (i = 0; i < sizeof rev_u.ap / 2u; i++)
+            rev_u.ap[i] = 1000;
+        for (i = 0; i < sizeof rev_comb / 2u; i++)
+            rev_comb[i] = 1000;
+        rev_clear();
+        for (i = 0; i < sizeof rev_u.ap / 2u; i++)
+            left += rev_u.ap[i] != 0;
+        for (i = 0; i < sizeof rev_comb / 2u; i++)
+            left += rev_comb[i] != 0;
+        ok(!left, "rev_clear: combs and allpasses all silent");
     }
     if (fails)
         printf("REVERB: %u FAILED\n", fails);
