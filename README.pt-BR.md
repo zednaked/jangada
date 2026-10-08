@@ -286,7 +286,7 @@ gravar abre a tela **TRACKS**: BPM, compasso.beat, uma linha por trilha com pass
   `arecord -D hw:Jangada -f S16_LE -r 44100 -c 2 take.wav`.
 
 ### Tela, luzes e menu
-- Fonte suavizada (Inter Tight), ícones, cards; paleta **CHOQUE** (rosa-choque) como padrão.
+- Fonte suavizada (Inter Tight), ícones, cards; paleta **CHOQUE** (rosa-choque) como padrão, e **NIGHT** (preto puro, verde).
 - Menu (segure **HOME**): COLOR, SPEAKER (corta graves para o alto-falante), **LIGHTS** (os botões
   brilham fraco, para tocar no escuro), **KEYS** (acende as teclas C ou as brancas), **NOTES** (as
   notas que soam acendem as teclas), USB AUDIO, MIDI OUT, MIDI IN, NEW PROJECT, ABOUT.

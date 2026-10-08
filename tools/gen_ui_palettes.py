@@ -16,7 +16,7 @@ derives the rest at palette_set() time (firmware/src/gfx.c, the same integer mat
   RAISE = mix(SURF, TEXT, 16 %)   a raised area on a card: the gauge track, chips
 The old five steps of one colour (C_LINE C_DIM C_GRAY C_AMB C_HI) are LINE DIM MID THEME TEXT, so the
 graphs keep their colours. MONO is pure grayscale (R = G = B) in every colour and every derived tint.
-The order is the stored settings.palette index (CHOQUE, the default, is the last).
+The order is the stored settings.palette index (CHOQUE, index 5, is the default; new ones are appended).
 --report prints the WCAG contrast of every pairing. The tool fails (exit 1) on any miss.
 """
 import argparse
@@ -31,6 +31,8 @@ PALETTES = [
     ("RED",    (18, 4, 4),    (60, 18, 16),   (255, 170, 152), (232, 72, 54),  (255, 255, 255)),
     ("MONO",   (10, 10, 10),  (38, 38, 38),   (232, 232, 232), (176, 176, 176), (255, 255, 255)),
     ("CHOQUE", (10, 2, 7),    (50, 18, 40),   (255, 150, 230), (255, 20, 170), (255, 255, 255)),   # rosa-choque
+    # Jangada 0.7, after Felucca 1.0.2: true black, green-tinted text and lines (the 0.9 look); appended
+    ("NIGHT",  (0, 0, 0),     (2, 34, 15),    (150, 230, 170), (56, 220, 100), (255, 255, 255)),
 ]
 MONO = "MONO"
 PCT = {"LINE": 30, "DIM": 52, "MID": 72, "SEL": 42}
