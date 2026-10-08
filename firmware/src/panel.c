@@ -83,6 +83,7 @@ struct { uint32_t magic, palette, lowcut; } settings __attribute__((section(".no
 
 static void settings_save(void);              /* project.c: flash copy (FELUCCA_FLASH) */
 static uint8_t settings_later;                 /* changed while playing: saved once stopped (project.c) */
+static uint8_t vis_style;                      /* Jangada 0.7: the visualiser's style (ui_vis.c), kept here */
 
 /* Jangada (after SLOOP 2.3): the lights for playing in the dark (menu LIGHTS / KEYS / NOTES) and the USB
  * audio level (menu USB AUDIO: fx.c usb_full), settings of the FM-1: kept in flash with the others (project.c
@@ -96,7 +97,8 @@ static const uint16_t LIGHTS_NS[LIGHTS_N] = {0u, 500u, 1000u, 2000u};   /* the b
 static uint32_t lights_word(void)
 {
     return (uint32_t)lights_lvl | (uint32_t)lights_keys << 4 | (uint32_t)(lights_notes != 0u) << 8 |
-           (uint32_t)(usb_full != 0u) << 11 | (uint32_t)(midi_seq_out != 0u) << 12 | (uint32_t)(midi_clk_only != 0u) << 13;
+           (uint32_t)(usb_full != 0u) << 11 | (uint32_t)(midi_seq_out != 0u) << 12 | (uint32_t)(midi_clk_only != 0u) << 13 |
+           (uint32_t)(vis_style & 7u) << 14;
 }
 static void lights_from_word(uint32_t w)        /* (each field checked: a damaged word lights nothing) */
 {
@@ -106,6 +108,7 @@ static void lights_from_word(uint32_t w)        /* (each field checked: a damage
     usb_full = (uint8_t)((w >> 11) & 1u);
     midi_seq_out = (uint8_t)((w >> 12) & 1u);       /* Jangada 0.7: MIDI OUT = SEQ, MIDI IN = CLOCK (seq.c) */
     midi_clk_only = (uint8_t)((w >> 13) & 1u);
+    vis_style = (uint8_t)((w >> 14) & 7u);          /* (ui_vis.c takes it modulo its styles) */
 }
 
 static void settings_init(void)

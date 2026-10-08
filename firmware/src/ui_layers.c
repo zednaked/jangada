@@ -52,6 +52,7 @@ static struct {
 } ly;
 
 static uint32_t layer_now(void) { return ly.lock ? ly.lock : ly.btn; }
+#include "ui_vis.c"           /* Jangada 0.7: the full-screen visualiser on the TRACKS screen (layers_draw) */
 static int layer_visible(void) { return layer_now() && (ly.lock || fm1_ms - ly.t0 >= SHOW_MS); }
 static uint32_t key_of_white(uint32_t w)                /* white key 0..15 (from the lowest F) -> key index */
 {
@@ -1229,8 +1230,8 @@ static void tracks_screen_draw(void)
 /* ui_draw: the layer's screen when one shows, else TRACKS (1); else back to the page once */
 static int layers_draw(void)
 {
-    static uint8_t which;                               /* the full screen shown: 1 a layer, 2 TRACKS */
-    uint32_t want = layer_visible() ? 1u : (!ui.home && !ui.confirm && cur_page()->scope == SC_TRK) ? 2u : 0u;
+    static uint8_t which;                               /* the full screen shown: 1 a layer, 2 TRACKS, 3 the visualiser */
+    uint32_t want = layer_visible() ? 1u : vis_shown() ? 3u : (!ui.home && !ui.confirm && cur_page()->scope == SC_TRK) ? 2u : 0u;
     if (want != which && ly.shown) {
         ly.shown = 0;                                   /* another screen: from black, everything */
         lcd_fill(0, 0, 240, 240, C_BG);
@@ -1239,6 +1240,10 @@ static int layers_draw(void)
     which = (uint8_t)want;
     if (want == 1u) {
         layer_screen_draw();
+        return 1;
+    }
+    if (want == 3u) {                                   /* (0.7: over the TRACKS screen, ui_vis.c) */
+        vis_draw();
         return 1;
     }
     if (want == 2u) {

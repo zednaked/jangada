@@ -148,6 +148,21 @@ int main(void){
    t->p[P_SLEN]=8; ly.held=0;
    printf("%-46s ok\n", "layers: SEQ nudge, locks, conditions; GLO fill");
  }
+ { /* 0.7: the visualiser: HOME on the TRACKS screen opens it, SELECT its style, every style draws in every
+    * palette, HOME then goes HOME; another page closes it */
+   uint32_t st, p, f;
+   ly.btn = ly.lock = 0; ui.menu = 0; ui.confirm = 0;
+   open_family(FAM_TRK); ui.home = 0; assert(cur_page()->scope == SC_TRK && !vis_shown());
+   vis_open(); assert(vis_shown());
+   for (p = 0; p < NPALETTES; p++) for (st = 0; st < VIS_N; st++) {
+     palette_set(p); vis_style = (uint8_t)st;
+     for (f = 0; f < 4u; f++) { ui.force = (f == 0); ui_draw(); }
+   }
+   st = vis_style; vis_select(1); assert(vis_style == (st + 1u) % VIS_N);
+   vis_on = 0; go_home(); ui_draw(); assert(!vis_shown());
+   palette_set(5);
+   printf("%-46s ok\n", "visualiser: opens, styles, palettes, closes");
+ }
  /* engine layer */
  layer_key(LY_ENGINE,key_of_white(6),1,0); assert(t->eng_req==6);
  printf("%-46s ok\n", "layers: SEQ tools, undo / redo, step keys");

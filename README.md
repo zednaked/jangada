@@ -290,6 +290,10 @@ record opens the **TRACKS** view: BPM, bar.beat, one row per track with its step
   notes light their keys), USB AUDIO, MIDI OUT, MIDI IN, NEW PROJECT, ABOUT.
 - Pages without a graph (EDIT, DIST, CHORD, GLOBAL, SYSTEM…) show their four values **large**, in four
   cards placed as the knobs; the one you turn in white.
+- **Visualiser**: on the TRACKS screen, tap **HOME**: the whole screen shows what plays. **SELECT** changes
+  the style: **OSC** (the wave with a phosphor trail), **SONAR** (the wave round a circle, a sweep a bar),
+  **VU** (a meter per track and the mix), **ESTEIRA** (each track's level scrolling by) and **MAR** (the
+  raft riding the tracks' swells). HOME again goes HOME; the keys and the layers keep working.
 - Nothing blinks hard: what can be pressed **breathes** (a slow fade), such as a locked layer's button or
   OCT+ in a dialog.
 

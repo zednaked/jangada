@@ -292,6 +292,11 @@ gravar abre a tela **TRACKS**: BPM, compasso.beat, uma linha por trilha com pass
   notas que soam acendem as teclas), USB AUDIO, MIDI OUT, MIDI IN, NEW PROJECT, ABOUT.
 - Páginas sem gráfico (EDIT, DIST, CHORD, GLOBAL, SYSTEM…) mostram os quatro valores **grandes**, em
   quatro cards na posição dos knobs; o que você gira em branco.
+- **Visualizador**: na tela TRACKS, toque **HOME**: a tela inteira mostra o que toca. **SELECT** troca o
+  estilo: **OSC** (a onda com rastro de fósforo), **SONAR** (a onda em volta de um círculo, uma varredura
+  por compasso), **VU** (um medidor por trilha e o mix), **ESTEIRA** (o nível de cada trilha passando) e
+  **MAR** (a jangada nas ondas das trilhas). HOME de novo vai para a HOME; as teclas e as camadas
+  continuam valendo.
 - Nada pisca seco: o que pode ser apertado **respira** (acende e apaga devagar), como o botão de uma
   camada travada ou o OCT+ num diálogo.
 

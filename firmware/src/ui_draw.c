@@ -995,6 +995,7 @@ static void draw_columns(void)
 
 
 static int layers_draw(void);                       /* ui_layers.c */
+static uint8_t vis_on;          /* Jangada 0.7: the visualiser is open (ui_vis.c, through ui_layers.c) */
 static void ui_draw(void)
 {
     ui.frame++;
@@ -1020,6 +1021,10 @@ static void ui_draw(void)
             ui.force = 0;
         }
         return;
+    }
+    if (vis_on) {                                       /* left for another page (or HOME): it closes */
+        vis_on = 0;
+        ui.force = 1;
     }
     cursor_fix();
     if (ui.force)

@@ -514,8 +514,16 @@ static void ui_input(void)
         enc_drop();
         return;
     }
-    if (home == BT_TAP)                                 /* HOME acts on release: a hold opens the menu */
-        go_home();
+    if (home == BT_TAP) {                               /* HOME acts on release: a hold opens the menu */
+        if (vis_shown()) {                              /* 0.7: the visualiser shown: HOME, as from any page */
+            vis_on = 0;
+            go_home();
+        } else if (!ui.home && cur_page()->scope == SC_TRK) {
+            vis_open();                                 /* on the TRACKS screen: the visualiser (ui_vis.c) */
+        } else {
+            go_home();
+        }
+    }
     cursor_fix();                                       /* LEN may have changed (knob, editor, load) */
     for (id = 0; id < 14u; id++) {
         if (!((pressed >> id) & 1u))
@@ -584,6 +592,8 @@ static void ui_input(void)
     }
     if ((s = panel_enc(EN_ALGO)) != 0)             /* ALGORITHM: the selected track, on every page */
         track_select((uint32_t)clamp((int32_t)song.sel + (s > 0 ? 1 : -1), 0, NTRK - 1));
+    if (vis_shown() && (s = panel_enc(EN_SELECT)) != 0)
+        vis_select(s);                              /* the visualiser: SELECT its style */
     if ((s = panel_enc(EN_SELECT)) != 0) {          /* SELECT knob = global tempo */
         song.g[G_BPM] = (int16_t)clamp(song.g[G_BPM] + accel(EN_SELECT, s, 200), GP[G_BPM].min, GP[G_BPM].max);
         ui.bpm_t = 40;                              /* the header's BPM lights up; no message over the header */
