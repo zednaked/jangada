@@ -70,6 +70,9 @@ static struct {
     uint32_t enc_t[NE];
     /* drawn-state cache */
     char col[4][32];
+    /* Jangada 0.7 (after SLOOP 2.4): the columns' texts for the big values of a page without a graph */
+    char big_l[4][8], big_v[4][12], big_u[4][8];
+    uint16_t big_c[4];
     uint32_t graph_sig, head_sig, foot_sig, frame;
     uint8_t graph_top;           /* the graph strip's top G_OY rows hold something */
 } ui;

@@ -140,6 +140,12 @@ static void draw_column(uint32_t c, const char *label, const char *val, const ch
     fit(v, val, &FONT_S, COL_IN);                       /* (engine names whole) */
     vf = text_w(&FONT_M, v) + (unit[0] ? 2 + text_w(&FONT_S, unit) : 0) <= COL_IN ? &FONT_M : &FONT_S;
     fit(u, unit, &FONT_S, COL_IN - text_w(vf, v) - 2);
+    if (c < 4u) {                                       /* (the big values, graph_big: whole, their own font) */
+        str_cpy(ui.big_l[c], l, 8);
+        str_cpy(ui.big_v[c], val, 12);
+        str_cpy(ui.big_u[c], unit, 8);
+        ui.big_c[c] = vc;
+    }
     str_cpy(key, l, 8);                                 /* cache key: texts + colour + gauge */
     str_cpy(key + str_len(key), "|", 2);
     str_cpy(key + str_len(key), v, 8);
@@ -380,6 +386,8 @@ static uint32_t str_hash(uint32_t h, const char *s)
     return h;
 }
 
+/* Jangada 0.7 (after SLOOP 2.4): a page without a graph shows its values large (graph_big) */
+static int big_page(const page_t *pg) { return pg->graph == GR_NONE && pg->scope != SC_STEP && pg->scope != SC_TRK; }
 static uint32_t graph_signature(void)
 {
     const page_t *pg = cur_page();
@@ -387,6 +395,9 @@ static uint32_t graph_signature(void)
     uint32_t h = 2166136261u, i;
     if (ui.home)
         return h ^ (ui.frame / 2u);                  /* scope: redraw every other frame */
+    if (big_page(pg))                                /* the big values: as the columns show them */
+        for (i = 0; i < 4u; i++)
+            h = str_hash(str_hash(str_hash(h ^ ui.big_c[i] * 31u, ui.big_v[i]), ui.big_l[i]), ui.big_u[i]);
     h ^= (uint32_t)pg->graph * 131u + TSEL->eng_req + song.sel * 7777u;
     for (i = 0; i < P_COUNT; i++)
         h = (h ^ (uint32_t)t->p[i]) * 16777619u;
@@ -668,6 +679,30 @@ static void graph_scope(uint16_t c)
     }
 }
 
+/* the big values: the four columns in 2 x 2 cards (KNOB 1 2 over KNOB 3 4), each in the largest font its value
+ * fits whole; the one turned white, an inactive one dim */
+static void graph_big(void)
+{
+    uint32_t c;
+    for (c = 0; c < 4u; c++) {
+        int32_t x0 = c & 1u ? 121 : 2, y0 = c & 2u ? 62 : 0, uw, x;
+        const felucca_font_t *f = &FONT_L;
+        uint16_t vc = ui.big_c[c] == C_WHITE ? C_WHITE : ui.big_c[c] == C_DIM ? C_DIM : C_HI;
+        if (!ui.big_l[c][0])
+            continue;
+        uw = ui.big_u[c][0] ? text_w(&FONT_S, ui.big_u[c]) + 4 : 0;
+        if (text_w(f, ui.big_v[c]) + uw > 101)
+            f = &FONT_M;
+        if (text_w(f, ui.big_v[c]) + uw > 101)
+            f = &FONT_S;
+        cv_card(x0, y0, 117, 60);
+        cv_text(x0 + 8, y0 + 4, &FONT_S, ui.big_l[c], C_GRAY);
+        x = cv_text(x0 + 8, y0 + (f == &FONT_L ? 18 : 26), f, ui.big_v[c], vc);
+        if (uw)
+            cv_text(x + 4, y0 + 36, &FONT_S, ui.big_u[c], C_DIM);
+    }
+}
+
 static void draw_graph(void)
 {
     const page_t *pg = cur_page();
@@ -734,10 +769,15 @@ static void draw_graph(void)
             graph_user();
             break;
         default:
+            if (big_page(pg)) {
+                cv_oy = 0;
+                graph_big();
+            }
             break;
         }
     }
-    top = !ui.home && !drum_note && (pg->graph == GR_BROWSE || pg->graph == GR_SLOTS || pg->graph == GR_USER);   /* these draw from the top */
+    top = !ui.home && !drum_note && (pg->graph == GR_BROWSE || pg->graph == GR_SLOTS || pg->graph == GR_USER ||
+                                     big_page(pg));   /* these draw from the top */
     cv_oy = 0;
     cv_noclip();
     /* graphs keep out of the top G_OY rows: skip them unless something is (or was) there */

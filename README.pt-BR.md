@@ -290,6 +290,8 @@ gravar abre a tela **TRACKS**: BPM, compasso.beat, uma linha por trilha com pass
 - Menu (segure **HOME**): COLOR, SPEAKER (corta graves para o alto-falante), **LIGHTS** (os botões
   brilham fraco, para tocar no escuro), **KEYS** (acende as teclas C ou as brancas), **NOTES** (as
   notas que soam acendem as teclas), USB AUDIO, MIDI OUT, MIDI IN, NEW PROJECT, ABOUT.
+- Páginas sem gráfico (EDIT, DIST, CHORD, GLOBAL, SYSTEM…) mostram os quatro valores **grandes**, em
+  quatro cards na posição dos knobs; o que você gira em branco.
 - Nada pisca seco: o que pode ser apertado **respira** (acende e apaga devagar), como o botão de uma
   camada travada ou o OCT+ num diálogo.
 
