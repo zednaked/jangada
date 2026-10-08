@@ -111,6 +111,8 @@ static const param_desc_t TP[P_COUNT] = {
     [P_TENS] = PD("TENS", F_PCT, 0, 127, 0),
     [P_TRAMP] = PE("RAMP", N_TRAMP, 0),
     [P_TFLT] = PD("FILT", F_FILT, -64, 63, 0),     /* Jangada 0.7: the track's filter (fx.c) */
+    [P_STRUM] = {"STRM", F_INT, -60, 60, 0, 0, "ms"},   /* Jangada 0.7: CHORD+ (seq.c) */
+    [P_VLEAD] = PE("VLEAD", N_ONOFF, 0),
 };
 
 static const param_desc_t GP[G_COUNT] = {
@@ -315,7 +317,8 @@ static const page_t PAGES[] = {
     {"REV/CHO", FAM_FX, SC_GLOBAL, GR_NONE, {G_RSIZE, G_RDAMP, G_CRATE, G_CDEPTH}},
     {"REVERB", FAM_FX, SC_GLOBAL, GR_NONE, {G_RTYPE, G_RSIZE, G_RDAMP, 0xFF}},   /* Jangada: ROOM SPRING PLATE */
     {"SCL", FAM_SCL, SC_TRACK, GR_SCALE, {P_ROOT, P_SCALE, P_QUANT, P_TRANS}},
-    {"CHORD", FAM_SCL, SC_TRACK, GR_NONE, {P_CHORD, 0xFF, 0xFF, 0xFF}},   /* Jangada: one key, a chord */
+    {"CHORD", FAM_SCL, SC_TRACK, GR_NONE, {P_CHORD, P_STRUM, P_VLEAD, 0xFF}},   /* Jangada: one key, a chord; its
+                                                                              * strum and voice leading (0.7) */
     {"EDIT 1", FAM_EDIT, SC_ENGINE, GR_NONE, {P_E0, P_E1, P_E2, P_E3}},
     {"EDIT 2", FAM_EDIT, SC_ENGINE, GR_NONE, {P_E4, P_E5, P_E6, P_E7}},
     {"EDIT 3", FAM_EDIT, SC_ENGINE, GR_NONE, {P_E8, P_E9, P_E10, P_E11}},     /* Jangada: shown when the */

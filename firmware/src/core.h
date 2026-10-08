@@ -65,6 +65,10 @@ enum {                          /* per-track parameters */
     P_EVOL, P_TENS, P_TRAMP,
     P_TFLT,                                    /* Jangada 0.7 (after SLOOP 2.4): the track's filter, < 0 a low-pass
                                                 * closing, > 0 a high-pass opening, 0 off (fx.c djf_block) */
+    P_STRUM,                                   /* Jangada 0.7 (after SLOOP 2.4): a chord's notes one after the
+                                                * other, ms each (> 0 low to high, < 0 high to low; seq.c) */
+    P_VLEAD,                                   /* Jangada 0.7 (after SLOOP 2.4): CHORD, each chord voiced nearest
+                                                * the last (seq.c chord_vlead) */
     P_COUNT
 };
 #define NEDIT 16                 /* engine parameters P_E0.. */

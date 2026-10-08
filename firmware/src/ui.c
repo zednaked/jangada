@@ -295,7 +295,8 @@ static void track_defaults_steps(track_t *t)
  * of the sound: a factory preset turns it OFF (its defaults), a user preset brings its own */
 static int param_kept(uint32_t i)
 {
-    return i == P_LEVEL || i == P_PAN || i == P_MUTE || (i >= P_SLEN && i <= P_SGATE) || i == P_TFLT;   /* (FILT: the mix) */
+    return i == P_LEVEL || i == P_PAN || i == P_MUTE || (i >= P_SLEN && i <= P_SGATE) || i == P_TFLT ||   /* (FILT: */
+           i == P_STRUM || i == P_VLEAD;                                       /* the mix; STRUM, VLEAD: the playing) */
 }
 
 /* preset pi of the engine the track asked for: the whole sound (not the pattern parameters) */

@@ -122,28 +122,166 @@ static const int8_t CHORD_DEG[6][4] = {
     {0, 3, 4, -1},                       /* SUS4: 1 4 5 */
     {0, -1, -1, -1},                     /* POWER: 1 5 8 (semitones, below) */
 };
-static uint32_t chord_notes(const track_t *t, uint32_t n, uint8_t *c)
+/* CHORD+ (Jangada 0.7, after SLOOP 2.4, from HiChord / minichord): with CHORD on, the black keys change the
+ * chord (they play nothing there): held while a white key is played, or pressed while the chord is held (it
+ * changes under the finger). F# major <-> minor (the third), G# + the 7th, A# sus4, C# + the 9th (the 7th and
+ * the 9th from the scale; with both, no 5th), D# the first inversion. Several combine */
+enum { CM_MIN = 1, CM_7 = 2, CM_SUS = 4, CM_9 = 8, CM_INV = 16 };
+static uint32_t cm_of_key(uint32_t k)                /* the modifier of key k (0: a white key) */
+{
+    switch ((53u + k) % 12u) {
+    case 6: return CM_MIN;                           /* F# */
+    case 8: return CM_7;                             /* G# */
+    case 10: return CM_SUS;                          /* A# */
+    case 1: return CM_9;                             /* C# */
+    case 3: return CM_INV;                           /* D# */
+    default: return 0;
+    }
+}
+static uint32_t chord_notes(const track_t *t, uint32_t n, uint32_t mods, uint8_t *c)
 {
     uint32_t type = (uint32_t)clamp(t->p[P_CHORD], 0, 5), mask = t->p[P_SCALE] ? scale_mask(t) : SCALE_MINOR;
-    uint32_t k = 0, j;
+    uint32_t k = 0, j, nd = 0, third = 4u;
+    int8_t deg[6];
     if (type == 5u) {
         static const uint8_t PW[3] = {0, 7, 12};
         for (j = 0; j < 3u; j++)
             if (n + PW[j] < 128u)
                 c[k++] = (uint8_t)(n + PW[j]);
+        if ((mods & CM_INV) && k > 1u && c[0] + 12u < 128u)
+            c[0] = (uint8_t)(c[0] + 12u);            /* (POWER: the root up an octave) */
         return k;
     }
-    for (j = 0; j < 4u && CHORD_DEG[type][j] >= 0; j++) {
-        int32_t m = (int32_t)n, d = CHORD_DEG[type][j], guard = 48;
-        while (d > 0 && guard--) {                       /* d scale degrees up */
+    for (j = 0; j < 4u && CHORD_DEG[type][j] >= 0; j++)
+        deg[nd++] = CHORD_DEG[type][j];
+    for (j = 0; j < nd; j++)
+        if (deg[j] == 2 && (mods & CM_SUS))
+            deg[j] = 3;                              /* sus4: the 4th for the 3rd */
+    for (j = 0; j < 2u; j++) {                       /* + 7th, + 9th, when not in it yet */
+        int8_t want = j ? 8 : 6;
+        uint32_t i, has = 0;
+        if (!(mods & (j ? CM_9 : CM_7)))
+            continue;
+        for (i = 0; i < nd; i++)
+            has |= deg[i] == want;
+        if (!has && nd < 6u)
+            deg[nd++] = want;
+    }
+    while (nd > 4u) {                                /* (a step keeps 4: the 5th goes first) */
+        uint32_t i, r = nd - 1u;
+        for (i = 1; i < nd; i++)
+            if (deg[i] == 4)
+                r = i;
+        for (i = r; i + 1u < nd; i++)
+            deg[i] = deg[i + 1u];
+        nd--;
+    }
+    for (j = 0; j < nd; j++) {
+        int32_t m = (int32_t)n, d = deg[j], guard = 64;
+        while (d > 0 && guard--) {                   /* d scale degrees up */
             m++;
             if ((mask >> (uint32_t)((m - t->p[P_ROOT] + 120) % 12)) & 1u)
                 d--;
         }
-        if (m < 128)
+        if (m < 128) {
+            if (deg[j] == 2)
+                third = k;
             c[k++] = (uint8_t)m;
+        }
     }
+    if ((mods & CM_MIN) && third < k) {              /* major <-> minor: the third a semitone */
+        uint32_t iv = (uint32_t)(c[third] - c[0]);
+        if (iv == 4u)
+            c[third]--;
+        else if (iv == 3u)
+            c[third]++;
+    }
+    if ((mods & CM_INV) && k > 1u && c[0] + 12u < 128u)
+        c[0] = (uint8_t)(c[0] + 12u);                /* the first inversion: the root on top */
     return k;
+}
+/* VLEAD (Jangada 0.7, after SLOOP 2.4): each note of a chord played on the keys an octave up or down, the
+ * nearest to the middle of the last one, so a progression moves smoothly instead of jumping */
+static int16_t vl_mid[NTRK];                         /* the last chord's middle note x 4 (0: none yet) */
+static void chord_vlead(const track_t *t, uint8_t *c, uint32_t k)
+{
+    uint32_t i, ti = trk_index(t) % NTRK;
+    int32_t sum = 0;
+    if (!t->p[P_VLEAD] || !k)
+        return;
+    if (vl_mid[ti])
+        for (i = 0; i < k; i++) {
+            int32_t m = c[i], best = m, o;
+            for (o = -24; o <= 24; o += 12) {
+                int32_t a = 4 * (m + o) - vl_mid[ti], b = 4 * best - vl_mid[ti];
+                if (m + o >= 0 && m + o < 128 && (a < 0 ? -a : a) < (b < 0 ? -b : b))
+                    best = m + o;
+            }
+            c[i] = (uint8_t)best;
+        }
+    for (i = 0; i < k; i++)
+        sum += c[i];
+    vl_mid[ti] = (int16_t)(4 * sum / (int32_t)k);
+}
+/* STRUM (Jangada 0.7, after SLOOP 2.4): a chord's notes one after the other, P_STRUM ms apart (> 0 low to high,
+ * < 0 high to low), on the keys and on the chord steps; MIDI OUT sends them together. The later notes wait
+ * here (strum_tick, once a block); a note let go before its turn never starts */
+#define STQ 6u
+static struct { uint8_t n, note[STQ], vel[STQ]; uint32_t due[STQ]; } stq[NTRK];
+static void strum_cancel(const track_t *t, uint32_t note)
+{
+    uint32_t ti = trk_index(t) % NTRK, i, w = 0;
+    for (i = 0; i < stq[ti].n; i++)
+        if (stq[ti].note[i] != note) {
+            stq[ti].note[w] = stq[ti].note[i];
+            stq[ti].vel[w] = stq[ti].vel[i];
+            stq[ti].due[w] = stq[ti].due[i];
+            w++;
+        }
+    stq[ti].n = (uint8_t)w;
+}
+static void strum_tick(uint32_t n)
+{
+    uint32_t ti, i;
+    for (ti = 0; ti < NTRK; ti++)
+        for (i = 0; i < stq[ti].n;) {
+            if (stq[ti].due[i] <= n) {
+                uint32_t note = stq[ti].note[i], vel = stq[ti].vel[i];
+                strum_cancel(&trk[ti], note);
+                trk_note_on(&trk[ti], note, vel);
+                continue;                            /* (the list moved down) */
+            }
+            stq[ti].due[i] -= n;
+            i++;
+        }
+}
+/* the order a chord's notes sound in (STRUM's way) into o[], and the samples between two of them (0: at once) */
+static uint32_t strum_order(const track_t *t, const uint8_t *c, uint32_t k, uint8_t *o)
+{
+    int32_t st = t->p[P_STRUM];
+    uint32_t i, j;
+    for (i = 0; i < k; i++)
+        o[i] = c[i];
+    for (i = 1; i < k; i++)
+        for (j = i; j > 0 && (st < 0 ? o[j - 1] < o[j] : o[j - 1] > o[j]); j--) {
+            uint8_t x = o[j];
+            o[j] = o[j - 1];
+            o[j - 1] = x;
+        }
+    return (uint32_t)(st < 0 ? -st : st) * (FS / 1000u);
+}
+static void strum_later(track_t *t, uint32_t note, uint32_t vel, uint32_t due)
+{
+    uint32_t ti = trk_index(t) % NTRK;
+    strum_cancel(t, note);
+    if (stq[ti].n < STQ) {
+        stq[ti].note[stq[ti].n] = (uint8_t)note;
+        stq[ti].vel[stq[ti].n] = (uint8_t)vel;
+        stq[ti].due[stq[ti].n] = due;
+        stq[ti].n++;
+    } else {
+        trk_note_on(t, note, vel);
+    }
 }
 
 /* ------------------------------------------------------------- arp --- */
@@ -227,6 +365,7 @@ static void sq_on(track_t *t, uint32_t note, uint32_t vel)
 }
 static void sq_off(track_t *t, uint32_t note)
 {
+    strum_cancel(t, note);
     trk_note_off(t, note);
     seq_out_off(t, note);
 }
@@ -451,8 +590,23 @@ static void input_on(track_t *t, uint32_t note, uint32_t vel)
         trk_note_on(t, note, vel);
 }
 
+/* input_on, the note itself due samples later (STRUM): recorded now, sounding then (the arp: at once) */
+static void input_on_at(track_t *t, uint32_t note, uint32_t vel, uint32_t due)
+{
+    if (!due || (t->p[P_AMODE] && !is_drum(t))) {
+        input_on(t, note, vel);
+        return;
+    }
+    t->sus_held[(note >> 5) & 3u] &= ~(1u << (note & 31u));
+    last_note = (uint8_t)note;
+    if (((song.rec >> trk_index(t)) & 1u) && song.playing)
+        rec_note(t, note, vel);
+    strum_later(t, note, vel, due);
+}
+
 static void input_off(track_t *t, uint32_t note)
 {
+    strum_cancel(t, note);                          /* (strummed, not started yet: never) */
     if (t->sus && !is_drum(t)) {                    /* Jangada: the sustain pedal holds it (midi_cc) */
         t->sus_held[(note >> 5) & 3u] |= 1u << (note & 31u);
         return;
@@ -482,6 +636,50 @@ static void lk_put(uint32_t v)
     }
 }
 
+static uint32_t kb_modk;                             /* CHORD+: the black keys down as chord modifiers */
+static uint32_t kb_mods(void)
+{
+    uint32_t k, m = 0;
+    for (k = 0; k < 27u; k++)
+        if ((kb_modk >> k) & 1u)
+            m |= cm_of_key(k);
+    return m;
+}
+/* the modifiers changed: every chord held on the keys becomes its new self (what it no longer holds is let
+ * go, what it gains starts; MIDI OUT too) */
+static void chord_retune(void)
+{
+    uint32_t k, i, j, mods = kb_mods();
+    for (k = 0; k < 27u; k++) {
+        track_t *t = &trk[kb_trk[k] % NTRK];
+        uint8_t nn[4];
+        uint32_t m, mc = trk_midi_ch(kb_trk[k] % NTRK);
+        if (!kb_n[k] || !t->p[P_CHORD])
+            continue;
+        m = chord_notes(t, kb_note[k], mods, nn);
+        chord_vlead(t, nn, m);
+        for (i = 0; i < kb_n[k]; i++) {
+            for (j = 0; j < m && nn[j] != kb_nt[k][i]; j++)
+                ;
+            if (j == m) {
+                input_off(t, kb_nt[k][i]);
+                midi_out_event(0x08u | (0x80u | mc) << 8 | (uint32_t)kb_nt[k][i] << 16);
+            }
+        }
+        for (j = 0; j < m; j++) {
+            for (i = 0; i < kb_n[k] && kb_nt[k][i] != nn[j]; i++)
+                ;
+            if (i == kb_n[k]) {
+                input_on(t, nn[j], 100);
+                midi_out_event(0x09u | (0x90u | mc) << 8 | (uint32_t)nn[j] << 16 | 100u << 24);
+            }
+        }
+        for (j = 0; j < m; j++)
+            kb_nt[k][j] = nn[j];
+        kb_n[k] = (uint8_t)m;
+    }
+}
+
 static void keyboard_block(void)
 {
     uint32_t cur = fm1_in.notes, ch, k;
@@ -508,17 +706,27 @@ static void keyboard_block(void)
                 continue;
             }
             kb_trk[k] = song.sel;
-            kb_note[k] = (uint8_t)kb_map(&trk[kb_trk[k]], k);
             kb_n[k] = 0;
+            if (trk[kb_trk[k]].p[P_CHORD] && !is_drum(&trk[kb_trk[k]]) && cm_of_key(k)) {
+                kb_note[k] = KB_SILENT;           /* CHORD+: a black key changes the chord */
+                kb_modk |= 1u << k;
+                chord_retune();
+                continue;
+            }
+            kb_note[k] = (uint8_t)kb_map(&trk[kb_trk[k]], k);
             if (kb_note[k] == KB_SILENT)
                 continue;
             mc = trk_midi_ch(kb_trk[k]);
             if (trk[kb_trk[k]].p[P_CHORD] && !is_drum(&trk[kb_trk[k]])) {   /* Jangada: CHORD, the whole chord */
-                uint32_t i;
-                kb_n[k] = (uint8_t)chord_notes(&trk[kb_trk[k]], kb_note[k], kb_nt[k]);
+                uint32_t i, per;
+                uint8_t o[4];
+                track_t *t = &trk[kb_trk[k]];
+                kb_n[k] = (uint8_t)chord_notes(t, kb_note[k], kb_mods(), kb_nt[k]);
+                chord_vlead(t, kb_nt[k], kb_n[k]);
+                per = strum_order(t, kb_nt[k], kb_n[k], o);
                 for (i = 0; i < kb_n[k]; i++) {
-                    input_on(&trk[kb_trk[k]], kb_nt[k][i], 100);
-                    midi_out_event(0x09u | (0x90u | mc) << 8 | (uint32_t)kb_nt[k][i] << 16 | 100u << 24);
+                    input_on_at(t, o[i], 100, i * per);
+                    midi_out_event(0x09u | (0x90u | mc) << 8 | (uint32_t)o[i] << 16 | 100u << 24);
                 }
                 continue;
             }
@@ -532,6 +740,11 @@ static void keyboard_block(void)
             if (kb_lkeys & 1u << k) {             /* a UI layer's key is up (its layer may be gone) */
                 kb_lkeys &= ~(1u << k);
                 lk_put(k | LK_UP);
+            }
+            if (kb_modk & 1u << k) {              /* CHORD+: a modifier let go: the held chords change back */
+                kb_modk &= ~(1u << k);
+                chord_retune();
+                continue;
             }
             if (kb_note[k] == KB_SILENT)
                 continue;
@@ -598,7 +811,7 @@ static int p_lockable(const track_t *t, uint32_t id)
             return 0;
     } else if (!(id <= P_LD_AMP || id == P_SGATE || (id >= P_DIST && id <= P_REV) || id == P_GLIDE ||
                  id == P_PAN || id == P_DETUNE || id == P_SLDEPTH || id == P_M1AMT || id == P_M2AMT ||
-                 id == P_M3AMT || id == P_M4AMT || id == P_DRING || id == P_TENS || id == P_TFLT) || id == P_LWAVE) {
+                 id == P_M3AMT || id == P_M4AMT || id == P_DRING || id == P_TENS || id == P_TFLT || id == P_STRUM) || id == P_LWAVE) {
         return 0;
     }
     d = lock_desc(t, id);
@@ -783,6 +996,8 @@ static void seq_stop(void)
         locks_restore(&trk[i]);                    /* the parameters back to their base */
     }
     seq_out_all_off();                             /* MIDI OUT: what the sequencer sent, ended */
+    for (i = 0; i < NTRK; i++)
+        stq[i].n = 0;                              /* (strummed notes not started: never) */
     fill_held = fill_arm = fill_bar_on = 0;        /* STOP ends a fill, held or armed */
 }
 
@@ -835,14 +1050,27 @@ static void seq_step(track_t *t, uint32_t idx, uint32_t period, uint32_t skip)
     t->slide_glide = (uint8_t)slide_in;
     if (!slide_in)
         seq_release(t);
-    for (i = 0; i < s->n; i++)
-        if (!((skip >> i) & 1u)) {
-            uint32_t on = s->note[i] < 128u && (mo_set[trk_index(t) % NTRK][s->note[i] >> 5] >> (s->note[i] & 31u)) & 1u;
+    {
+        uint8_t o[4];
+        uint32_t per = s->n > 1u && !slide_in ? strum_order(t, s->note, s->n, o) : 0u, d = 0;   /* STRUM */
+        for (i = 0; i < s->n; i++) {
+            uint32_t nt = per ? o[i] : s->note[i], on, sk = 0;
+            for (j = 0; j < s->n; j++)
+                if (s->note[j] == nt && ((skip >> j) & 1u))
+                    sk = 1;
+            if (sk)
+                continue;
+            on = nt < 128u && (mo_set[trk_index(t) % NTRK][nt >> 5] >> (nt & 31u)) & 1u;
             if (slide_in && on)
-                trk_note_on(t, s->note[i], vel);    /* (a slide into the same note: one MIDI note) */
-            else
-                sq_on(t, s->note[i], vel);
+                trk_note_on(t, nt, vel);            /* (a slide into the same note: one MIDI note) */
+            else if (d) {
+                seq_out_on(t, nt, vel);             /* (MIDI OUT: the chord together) */
+                strum_later(t, nt, vel, d);
+            } else
+                sq_on(t, nt, vel);
+            d += per;
         }
+    }
     if (slide_in)                                   /* release what is not held over */
         for (i = 0; i < t->seq_n; i++) {
             for (j = 0; j < s->n && s->note[j] != t->seq_notes[i]; j++)
@@ -1185,6 +1413,7 @@ static void events_block(uint32_t n)
     for (i = 0; i < NTRK; i++) {
         track_t *t = &trk[i];
         if ((pr >> i) & 1u) {
+            stq[i].n = 0;
             trk_all_off(t);
             t->nheld = 0;
             t->arp_phys = 0;
@@ -1204,6 +1433,7 @@ static void events_block(uint32_t n)
         t->aholdp = t->p[P_AHOLD];
     }
     keyboard_block();
+    strum_tick(n);                                    /* STRUM: the chord notes due */
     if (mo_any && !midi_seq_out) {                    /* MIDI OUT = KEYS again: end what the sequencer had sent */
         seq_out_all_off();
         mo_any = 0;

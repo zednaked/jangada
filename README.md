@@ -258,6 +258,11 @@ record opens the **TRACKS** view: BPM, bar.beat, one row per track with its step
 ### Sequencer and arpeggiator
 - 64 steps per track, chords, ties, accent, slide; live recording.
 - **RTCH** ratchet x1–x4 and **CHNC** chance 100/75/50/25 % per step (STEP 2).
+- **CHORD+**: with a chord mode on (SCL → CHORD), the black keys change the chord, held before the white
+  key or pressed while the chord sounds: **F#** major ↔ minor, **G#** + 7th, **A#** sus4, **C#** + 9th,
+  **D#** inversion (they combine; the 7th and 9th come from the scale). On the same page **STRM** spreads
+  a chord's notes like a strummed guitar (1–60 ms a note; right low to high, left high to low; on the
+  keys and the chord steps) and **VLEAD** voices each chord nearest the last one.
 - Delay TIME up to the dotted **1/8D** and **1/16D**.
 - **FILT** on every track (FX → DIST, knob 4): left a low-pass, right a high-pass, centre off; it stays
   when the sound changes and can be locked on a step.

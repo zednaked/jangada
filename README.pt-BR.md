@@ -259,6 +259,12 @@ gravar abre a tela **TRACKS**: BPM, compasso.beat, uma linha por trilha com pass
 ### Sequencer e arpejador
 - 64 passos por trilha, acordes, ties, acento, slide; gravação ao vivo.
 - **RTCH** ratchet x1–x4 e **CHNC** chance 100/75/50/25 % por passo (STEP 2).
+- **CHORD+**: com um modo de acorde ligado (SCL → CHORD), as teclas pretas mudam o acorde, seguradas
+  antes da branca ou apertadas com o acorde soando: **F#** maior ↔ menor, **G#** + sétima, **A#** sus4,
+  **C#** + nona, **D#** inversão (combinam; sétima e nona vêm da escala). Na mesma página, **STRM**
+  espalha as notas do acorde como num violão (1–60 ms por nota; para a direita do grave ao agudo, para
+  a esquerda ao contrário; nas teclas e nos passos de acorde) e **VLEAD** põe cada acorde perto do
+  anterior.
 - TIME do delay também pontuado: **1/8D** e **1/16D**.
 - **FILT** em cada trilha (FX → DIST, knob 4): para a esquerda passa-baixa, para a direita passa-alta,
   no centro desligado; fica quando o som muda e aceita lock por passo.

@@ -106,7 +106,7 @@ static void host_preset_req(track_t *t, uint32_t e, uint32_t pi)
         t->p[P_AMODE + i] = (int16_t)(p->arp[i] ? p->arp[i] - 1 : TP[P_AMODE + i].def);
     }
     for (i = P_E0 + NEDIT; i < P_COUNT; i++)        /* Jangada DRONES: EVOL TENS RAMP, as apply_preset_to */
-        if (i != P_TFLT)                            /* (FILT: the mix, kept) */
+        if (i != P_TFLT && i != P_STRUM && i != P_VLEAD)   /* (FILT, STRUM, VLEAD: kept) */
             t->p[i] = TP[i].def;
     if (p->set) {                                   /* as ui.c apply_preset_to */
         const int16_t (*sp)[2];

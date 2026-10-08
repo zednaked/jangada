@@ -1448,6 +1448,7 @@ function makeMockDevice(opt = {}) {
     NONE, NONE, NONE, NONE,
     NONE, NONE, NONE, NONE,
     D("EVOL", F.PCT, 0, 127, 0), D("TENS", F.PCT, 0, 127, 0), D("RAMP", F.ENUM, 0, 6, 0, ["OFF", "1BAR", "2BAR", "4BAR", "8BAR", "16BAR", "32BAR"]), D("FILT", F.FILT, -64, 63, 0),
+    D("STRM", F.INT, -60, 60, 0, null, "ms"), D("VLEAD", F.ENUM, 0, 1, 0, ["OFF", "ON"]),
   ];
   const GP = [
     D("BPM", F.BPM, 40, 240, 120), D("SWG", F.PCT, 0, 100, 0), D("CLK", F.ENUM, 0, 2, 0, ["INT", "USB", "TRS"]), D("TUNE", F.INT, -50, 50, 0),
@@ -1616,7 +1617,7 @@ function makeMockDevice(opt = {}) {
         P("PLUCK", [0, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 127, 0], 0, 13),
         P("CARVAO", [0, 1, -20, 0, 24, 0, 40, 4, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 127, 0], 0, 0)] },
   ];
-  const P_COUNT = 84, G_COUNT = 35, NSTEP = 64, P_E0 = 64, NEDIT = 16, G_ENGSEL = 20, P_SLCR = 45;
+  const P_COUNT = 86, G_COUNT = 35, NSTEP = 64, P_E0 = 64, NEDIT = 16, G_ENGSEL = 20, P_SLCR = 45;
   /* </generated> */
   /* factory PATTERNS[] (ui.c): absolute notes, 0 rest; flags 1 accent, 2 slide, 4 tie (holds the previous note) */
   const T_ = 4;
@@ -2534,7 +2535,7 @@ function selfLoad() {
 const stepEdit = new Map(); /* index -> time of the last edit */
 
 /* parameter ids (firmware/src/core.h); used only when P_COUNT / G_COUNT match */
-const EXPECT = { pcount: 84, gcount: 35, pe0: 64 };   /* tools/gen_editor_tables.py --check: == the firmware */
+const EXPECT = { pcount: 86, gcount: 35, pe0: 64 };   /* tools/gen_editor_tables.py --check: == the firmware */
 const P = { LEVEL: 0, SLEN: 29 };
 const LAYOUT = (pe0) => [
   { t: "ENV", pages: [["ENV", 0, [1, 2, 3, 4]], ["ENV DEST", 0, [5, 6, 7, 8]]] },

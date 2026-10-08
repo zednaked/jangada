@@ -1047,7 +1047,7 @@ static void layer_screen_draw(void)
             if (!is_drum(t) && t->p[P_CHORD]) {         /* CHORD: the chord this key plays */
                 uint8_t c[4];
                 uint32_t n = kb_map(t, k), m;
-                if (n != KB_SILENT && (m = chord_notes(t, n, c)) != 0u) {
+                if (n != KB_SILENT && (m = chord_notes(t, n, 0u, c)) != 0u) {
                     uint32_t third = m > 1u ? (uint32_t)(c[1] - c[0]) : 4u;
                     str_cpy(tl[i].lab, N_NOTE[c[0] % 12u], 8);
                     if (t->p[P_CHORD] == 5)
