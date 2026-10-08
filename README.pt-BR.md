@@ -149,7 +149,8 @@ e confere o SHA-256 do que baixou.
    junto. Aperte PLAY. Em **GLO → KIT**, o knob BEAT troca para baião ou coco.
 3. **Sujeira.** Segure **FX**: as teclas brancas viram 16 efeitos (loops, reverse, tape stop…) e os
    knobs viram FILT, DUST, DUCK e TAPE.
-4. **Mix ao vivo.** Segure **GLO**: teclas 1–4 mute, 5–8 solo, a última é tap tempo.
+4. **Mix ao vivo.** Segure **GLO**: teclas 1–4 mute, 5–8 solo, 9 segurada uma virada, 10 o próximo
+   compasso uma virada, a última é tap tempo.
 5. **Gravar.** O **REC** numa página sem nada para gravar abre a tela de trilhas; o FM-1 também é uma
    placa de som: grave o master no computador pela entrada **Jangada**.
 
@@ -240,17 +241,26 @@ segurada a **trava** aberta. PLAY, REC e OCT continuam valendo dentro dela.
 | Segure | Teclas | Knobs 1 · 2 · 3 · 4 |
 |---|---|---|
 | **FX** | os 16 efeitos punch-in | FILT · DUST · DUCK · TAPE |
-| **GLO** | 1–4 mute, 5–8 solo, a última tap tempo | nível das trilhas 1–4 |
+| **GLO** | 1–4 mute, 5–8 solo, 9 segurada = virada (fill), 10 = o próximo compasso é virada, a última tap tempo | nível das trilhas 1–4 |
 | **SEQ** | os 16 passos da página (vazio = cria, cheio = apertar e soltar apaga); pretas: página, deslocar, metade / dobro, transpor, **F#5 segurada apaga** o que o playhead passa | NOTE · DIV · SWG · LEN; com passos segurados: NOTE · RTCH · CHNC · FLAG |
 | **SCL** | qualquer tecla = o tom da música | CHRD · SCL · QNT · TRN |
 | **EDIT** | o motor da trilha; a última = trilha 4 DRUM / SYNTH | PRST · VOICE · GLIDE · LVL |
 
-Com **SEQ** segurado, **OCT− / OCT+** = undo / redo do padrão. O **REC** numa página sem nada para
+Com **SEQ** segurado, **OCT− / OCT+** = undo / redo do padrão. Com passos segurados, os outros knobs
+também agem neles: **SELECT** desloca do grid (1/64 de passo, até meio passo adiantado ou atrasado),
+**ALGORITHM** escolhe um parâmetro de som e **PRESETS** dá a ele outro valor só nesses passos (um
+parameter lock; volta no próximo passo sem lock), **OCT+** escolhe a condição (ALWAYS, **FILL** só na
+virada, **NO FILL** nunca nela) e **OCT−** tira os locks e o deslocamento. O título mostra o parâmetro
+escolhido, o valor dele no passo, o deslocamento e a condição; um quadradinho no canto de cima à
+direita do tile marca lock ou deslocamento, um à esquerda a condição (cheio: FILL, vazado: NO FILL).
+O **REC** numa página sem nada para
 gravar abre a tela **TRACKS**: BPM, compasso.beat, uma linha por trilha com passos e playhead.
 
 ### Sequencer e arpejador
 - 64 passos por trilha, acordes, ties, acento, slide; gravação ao vivo.
 - **RTCH** ratchet x1–x4 e **CHNC** chance 100/75/50/25 % por passo (STEP 2).
+- **Micro timing**, **parameter locks** (12 por trilha) e **viradas (fills)** por passo, na camada SEQ;
+  ficam salvos no projeto.
 - Arpejador com os modos **UDI** e **RPT**; divisões até **4BAR** (também no sequencer).
 
 ### MIDI e USB
@@ -336,7 +346,8 @@ Hügelton Instruments**. Partes vêm de outros forks, com nossos agradecimentos:
 - [Felucca 1.0](https://github.com/hugelton/Felucca): o FM6, o áudio USB, a reverb SPRING, o visual
   (Inter Tight, ícones Fukiai), o banco FM6.
 - [SLOOP](https://github.com/isod89/sloop-fm1) (isod89): as camadas, o punch FX, o master, os kits
-  sintetizados, os acordes, a PLATE, o autosave, a atualização segura e o resgate, as luzes, o MIDI TRS.
+  sintetizados, os acordes, a PLATE, o autosave, a atualização segura e o resgate, as luzes, o MIDI TRS,
+  o micro timing, os parameter locks e as viradas.
 - [Felucca [Salt]](https://github.com/ChanceTheMaker/Felucca) (Chance Roth): o Studio no navegador.
 - [Melodee](https://github.com/keremimo/melodee) (Kerem Kilic / Ellic Studio): o SysEx do DX7.
 - msfa / Dexed (Google, Pascal Gauthier): o núcleo do FM6 (Apache-2.0).

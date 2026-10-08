@@ -4,11 +4,15 @@
  * screen shows the keys as 16 tiles (4 x 4) and the knobs as dials. Tapped (let go within TAP_MS,
  * nothing touched) the button opens its pages as before.
  *   FX    the 16 punch-in effects (punch.c, run by seq.c keyboard_block)   knobs: FILTER DUST DUCK TAPE
- *   GLO   keys 1..4 mute, 5..8 solo, the last white key: tap tempo         knobs: the levels of tracks 1..4
+ *   GLO   keys 1..4 mute, 5..8 solo, 9 held: a fill, 10: the next bar a fill (after SLOOP 2.4), the last
+ *         white key: tap tempo                                             knobs: the levels of tracks 1..4
  *   SEQ   the 16 steps of the page (Elektron style): an empty step is set at once with the note played
  *         last, a set one is cleared when its key is let go, unless a knob edited it meanwhile; the
  *         first four black keys pick the page (steps 1-16 .. 49-64)
  *         knobs, no step held: NOTE (the pen)  DIV  SWING  LEN;  steps held: NOTE  RTCH  CHNC  FLAG
+ *         and (after SLOOP 2.4) SELECT nudges them (1/64 of a step early / late), ALGORITHM picks a sound
+ *         parameter and PRESETS locks it on them (its value on those steps only), OCT+ their condition
+ *         (ALWAYS, FILL: only in a fill, NO FILL: never in one), OCT- takes their locks and nudge away
  *         black keys from D#4: SHIFT < >, LEN 1/2 x2, TRN - +, F#5 held = ERASE (playing: the steps the
  *         playhead passes; stopped: the whole pattern). OCT- / OCT+ while SEQ is held: undo / redo
  *   EDIT  keys 1..10: the engine of the track (and its first preset); the last key: track 4 DRUM / SYNTH
@@ -38,10 +42,12 @@ static struct {
     uint16_t pend_off;           /* SEQ: steps that clear when their key is let go */
     uint8_t erase;               /* SEQ: the ERASE key is down */
     uint8_t snap;                /* SEQ: this hold of SEQ took its undo snapshot */
+    uint8_t lkp;                 /* SEQ: the parameter ALGORITHM picked for the locks (P_*) */
     struct {                     /* SEQ: one level of undo of a track's pattern */
         uint8_t valid, undone, trk;
         int16_t len;
         step_t step[NSTEP];
+        seqx_t x;                /* (its nudges, conditions and locks) */
     } undo;
 } ly;
 
@@ -90,12 +96,14 @@ static void undo_mark(void)
     ly.undo.trk = song.sel;
     ly.undo.len = TSEL->p[P_SLEN];
     memcpy(ly.undo.step, TSEL->step, sizeof ly.undo.step);
+    ly.undo.x = TSEL->x;
 }
 
 static void undo_swap(int redo)
 {
     track_t *t = &trk[ly.undo.trk % NTRK];
     static step_t tmp[NSTEP];
+    seqx_t tx;
     int16_t len;
     if (!ly.undo.valid || ly.undo.undone != (uint8_t)redo) {
         ui_message(redo ? "NOTHING TO REDO" : "NOTHING TO UNDO");
@@ -105,6 +113,9 @@ static void undo_swap(int redo)
     memcpy(tmp, t->step, sizeof tmp);
     memcpy(t->step, ly.undo.step, sizeof tmp);
     memcpy(ly.undo.step, tmp, sizeof tmp);
+    tx = t->x;
+    t->x = ly.undo.x;
+    ly.undo.x = tx;
     len = t->p[P_SLEN];
     t->p[P_SLEN] = ly.undo.len;
     ly.undo.len = len;
@@ -125,17 +136,27 @@ static void pattern_tool(uint32_t tool)
     fm1_irq_off();
     switch (tool) {
     case 0:                                             /* SHIFT <: every step one earlier */
-        keep = t->step[0];
-        for (i = 0; i + 1u < len; i++)
-            t->step[i] = t->step[i + 1u];
-        t->step[len - 1u] = keep;
+    case 1: {                                           /* SHIFT >: every step one later */
+        uint8_t kx;
+        if (tool == 0u) {
+            keep = t->step[0], kx = t->x.sx[0];
+            for (i = 0; i + 1u < len; i++)
+                t->step[i] = t->step[i + 1u], t->x.sx[i] = t->x.sx[i + 1u];
+            t->step[len - 1u] = keep, t->x.sx[len - 1u] = kx;
+        } else {
+            keep = t->step[len - 1u], kx = t->x.sx[len - 1u];
+            for (i = len - 1u; i > 0; i--)
+                t->step[i] = t->step[i - 1u], t->x.sx[i] = t->x.sx[i - 1u];
+            t->step[0] = keep, t->x.sx[0] = kx;
+        }
+        for (i = 0; i < NLOCK; i++) {                   /* the locks move with their steps (step + 1 stored) */
+            plock_t *l = &t->x.lock[i];
+            if (l->step == LOCK_FREE || l->step > len)
+                continue;
+            l->step = (uint8_t)((l->step - 1u + (tool == 0u ? len - 1u : 1u)) % len + 1u);
+        }
         break;
-    case 1:                                             /* SHIFT >: every step one later */
-        keep = t->step[len - 1u];
-        for (i = len - 1u; i > 0; i--)
-            t->step[i] = t->step[i - 1u];
-        t->step[0] = keep;
-        break;
+    }
     case 2:                                             /* LEN 1/2 */
         if (len >= 2u)
             t->p[P_SLEN] = (int16_t)(len / 2u);
@@ -143,7 +164,12 @@ static void pattern_tool(uint32_t tool)
     case 3:                                             /* LEN x2: the pattern again after itself */
         if (len * 2u <= NSTEP) {
             for (i = 0; i < len; i++)
-                t->step[len + i] = t->step[i];
+                t->step[len + i] = t->step[i], t->x.sx[len + i] = t->x.sx[i];
+            for (i = 0; i < NLOCK; i++) {               /* the locks again, while there are free slots */
+                plock_t l = t->x.lock[i];
+                if (l.step != LOCK_FREE && l.step <= len)
+                    lock_set(t, l.step - 1u + len, l.param, l.val);
+            }
             t->p[P_SLEN] = (int16_t)(len * 2u);
         }
         break;
@@ -176,6 +202,7 @@ static void erase_tick(void)
         undo_mark();
         fm1_irq_off();
         step_clear(&t->step[t->seq_idx]);
+        stepx_clear(t, t->seq_idx);
         fm1_irq_on();
     }
 }
@@ -212,6 +239,7 @@ static void step_up(uint32_t w)
         undo_mark();
         fm1_irq_off();
         step_clear(&t->step[idx]);
+        stepx_clear(t, idx);
         fm1_irq_on();
     }
 }
@@ -242,6 +270,115 @@ static void steps_held_edit(uint32_t k, int32_t s)
     fm1_irq_on();
 }
 
+
+/* ---- nudges, conditions, locks of the held steps (after SLOOP 2.4) ---- */
+/* the order ALGORITHM walks the parameters in: the engine's first, then the sound's (P_* order), the rest */
+static uint32_t lock_order(uint32_t i) { return i < NEDIT ? P_E0 + i : i < NEDIT + P_E0 ? i - NEDIT : i; }
+static uint32_t lock_pos(uint32_t id) { return id >= P_E0 && id < P_E0 + NEDIT ? id - P_E0 : id < P_E0 ? id + NEDIT : id; }
+static uint32_t lock_pick(const track_t *t, uint32_t id, int32_t d)   /* the next lockable one that way */
+{
+    uint32_t i, pos = lock_pos(id % P_COUNT);
+    for (i = 0; i < P_COUNT; i++) {
+        pos = (pos + (d > 0 ? 1u : P_COUNT - 1u)) % P_COUNT;
+        if (p_lockable(t, lock_order(pos)))
+            return lock_order(pos);
+    }
+    return P_COUNT;
+}
+static uint32_t lock_cur(const track_t *t)             /* the picked parameter (a lockable one), P_COUNT none */
+{
+    if (!p_lockable(t, ly.lkp))
+        ly.lkp = (uint8_t)lock_pick(t, P_COUNT - 1u, 1);
+    return ly.lkp;
+}
+static int32_t held_first(void)                         /* the first held step on the page, -1 none */
+{
+    uint32_t w;
+    for (w = 0; w < 16u; w++)
+        if (((ly.held >> w) & 1u) && ly.page * 16u + w < trk_len(TSEL))
+            return (int32_t)(ly.page * 16u + w);
+    return -1;
+}
+static void held_touch(void)                            /* edited: the held steps stay when let go */
+{
+    ly.used = 1;
+    ly.pend_off &= (uint16_t)~ly.held;
+    undo_mark();
+}
+/* SELECT, ALGORITHM and PRESETS with steps held (ui_input, before they do their own jobs) */
+static void steps_held_encs(void)
+{
+    track_t *t = TSEL;
+    uint32_t w, id;
+    int32_t s;
+    if ((s = panel_enc(EN_ALGO)) != 0 && (id = lock_cur(t)) < P_COUNT) {
+        ly.used = 1;
+        ly.lkp = (uint8_t)lock_pick(t, id, s);
+    }
+    if ((s = panel_enc(EN_PRESET)) != 0 && (id = lock_cur(t)) < P_COUNT) {
+        const param_desc_t *d = lock_desc(t, id);
+        int32_t st = accel(EN_PRESET, s, d->max - d->min);
+        int full = 0;
+        held_touch();
+        fm1_irq_off();
+        for (w = 0; w < 16u; w++) {
+            uint32_t idx = ly.page * 16u + w;
+            int k;
+            if (!((ly.held >> w) & 1u) || idx >= trk_len(t))
+                continue;
+            k = lock_find(t, idx, id, 0);
+            if (!lock_set(t, idx, id, (k >= 0 ? t->x.lock[k].val : p_unlocked(t, id)) + st))
+                full = 1;
+        }
+        fm1_irq_on();
+        if (full)
+            ui_message("NO LOCK LEFT");
+    }
+    if ((s = panel_enc(EN_SELECT)) != 0) {              /* the nudge, 1/64 of a step a detent */
+        held_touch();
+        fm1_irq_off();
+        for (w = 0; w < 16u; w++) {
+            uint32_t idx = ly.page * 16u + w;
+            if (((ly.held >> w) & 1u) && idx < trk_len(t))
+                step_micro_set(t, idx, step_micro(t, idx) + s);
+        }
+        fm1_irq_on();
+    }
+}
+/* OCT+ / OCT- with steps held: the next condition; their locks and nudge away */
+static void steps_held_oct(int up)
+{
+    static const char *const FCN[3] = {"ALWAYS", "FILL ONLY", "NO FILL"};
+    track_t *t = TSEL;
+    int32_t f = held_first();
+    uint32_t w, c = f >= 0 ? (step_cond(t, (uint32_t)f) + 1u) % 3u : 0u;
+    held_touch();
+    fm1_irq_off();
+    for (w = 0; w < 16u; w++) {
+        uint32_t idx = ly.page * 16u + w;
+        if (!((ly.held >> w) & 1u) || idx >= trk_len(t))
+            continue;
+        if (up) {
+            step_cond_set(t, idx, c);
+        } else {
+            lock_del(t, idx, P_COUNT);
+            step_micro_set(t, idx, 0);
+        }
+    }
+    fm1_irq_on();
+    ui_message(up ? FCN[c] : "LOCKS CLEARED");
+}
+/* the label of a lockable parameter, with its group where the short one is ambiguous */
+static void lock_label(const track_t *t, uint32_t id, char *b)
+{
+    const char *pre = id >= P_ATK && id <= P_REL ? "ENV " : id >= P_ED_FLT && id <= P_ED_SHP ? "ENV>" :
+                      id >= P_LRATE && id <= P_LFADE ? "LFO " : id >= P_LD_PIT && id <= P_LD_AMP ? "LFO>" :
+                      id == P_M1AMT ? "MOD1 " : id == P_M2AMT ? "MOD2 " : id == P_M3AMT ? "MOD3 " : id == P_M4AMT ? "MOD4 " :
+                      id == P_DRING ? "RING " : "";
+    str_cpy(b, pre, 12);
+    str_cpy(b + str_len(b), lock_desc(t, id)->label, 12 - str_len(b));
+}
+
 /* a key of the layer (seq.c lk_q): k the key index, down / up, now its time */
 static void layer_key(uint32_t layer, uint32_t k, uint32_t down, uint32_t now)
 {
@@ -257,6 +394,7 @@ static void layer_key(uint32_t layer, uint32_t k, uint32_t down, uint32_t now)
                     fm1_irq_off();
                     for (i = 0; i < NSTEP; i++)
                         step_clear(&TSEL->step[i]);
+                    seqx_clear(TSEL);
                     fm1_irq_on();
                     ui_message("PATTERN ERASED");
                 }
@@ -277,6 +415,13 @@ static void layer_key(uint32_t layer, uint32_t k, uint32_t down, uint32_t now)
             return;
         }
         if (down) {
+            uint32_t k, idx = ly.page * 16u + (uint32_t)w;
+            if (!ly.held)                               /* (the first step held: ALGORITHM starts at its lock) */
+                for (k = 0; k < NLOCK; k++)
+                    if (TSEL->x.lock[k].step == idx + 1u) {
+                        ly.lkp = TSEL->x.lock[k].param;
+                        break;
+                    }
             ly.held |= (uint16_t)(1u << w);
             step_down((uint32_t)w);
         } else {
@@ -308,8 +453,18 @@ static void layer_key(uint32_t layer, uint32_t k, uint32_t down, uint32_t now)
         ui_say("KEY ", N_NOTE[root]);
         return;
     }
+    if (layer == LY_MIX && w == 8) {                    /* key 9: a fill while held (seq.c step_plays) */
+        fill_held = (uint8_t)down;
+        return;
+    }
     if (layer != LY_MIX || w < 0 || !down)
         return;
+    if (w == 9) {                                       /* key 10: the next bar is a fill (again: not) */
+        fill_arm = (uint8_t)(!fill_arm && song.playing);
+        if (!song.playing)
+            ui_message("PLAY FIRST");
+        return;
+    }
     if (w < 4) {
         trk[w].p[P_MUTE] = (int16_t)!trk[w].p[P_MUTE];
     } else if (w < 8) {
@@ -365,6 +520,7 @@ static void layers_input(uint32_t *pressed, uint32_t now)
         if (!ly.used && !ly.lock && now - ly.t0 < TAP_MS) {   /* a tap: its pages */
             if (ly.btn == LY_ENGINE && song.seq_mode && cur_page()->scope == SC_STEP) {
                 step_clear(&TSEL->step[ui.cursor]);     /* (EDIT on a STEP page: clears the step) */
+                stepx_clear(TSEL, ui.cursor);
                 cursor_set(ui.cursor + 1);
                 ui_message("STEP CLEARED");
             } else {
@@ -391,7 +547,10 @@ static void layers_input(uint32_t *pressed, uint32_t now)
     if (layer_now() == LY_STEP) {                       /* SEQ: OCT- undo, OCT+ redo (not the octave) */
         uint32_t dn = 1u << panel.btn[B_OCTDN], upb = 1u << panel.btn[B_OCTUP];
         if (*pressed & (dn | upb)) {
-            undo_swap((*pressed & upb) != 0u);
+            if (ly.held)                                /* steps held: their condition / no locks */
+                steps_held_oct((*pressed & upb) != 0u);
+            else
+                undo_swap((*pressed & upb) != 0u);
             *pressed &= ~(dn | upb);
             ly.used = 1;
         }
@@ -495,7 +654,8 @@ static uint32_t layers_key_leds(void)
         if (layer == LY_FX)
             on = punch.req == (int8_t)w;
         else if (layer == LY_MIX)
-            on = w < 4u ? !trk[w].p[P_MUTE] : w < 8u ? (int)((song.solo >> (w - 4u)) & 1u) : w == 15u;
+            on = w < 4u ? !trk[w].p[P_MUTE] : w < 8u ? (int)((song.solo >> (w - 4u)) & 1u) :
+                 w == 8u ? fill_now : w == 9u ? fill_arm || fill_bar_on : w == 15u;
         else if (layer == LY_ENGINE)                    /* the track's engine; T4 SYNTH */
             on = w == 15u ? song.g[G_T4] != 0 : !is_drum(TSEL) && w == TSEL->eng_req;
         else if (layer == LY_SCALE)                     /* the root's keys */
@@ -530,7 +690,11 @@ typedef struct {
     char lab[8];
     uint16_t bg, fg, top;        /* fill, text, the 3-pixel top band (0 = none) */
     uint8_t marks;               /* small squares under the label (a ratchet), 0 = none */
+    uint8_t dots;                /* corner marks: TD_LOCK (a lock or a nudge), TD_FILL / TD_NOFILL (its condition) */
 } tile_t;
+#define TD_LOCK 1u
+#define TD_FILL 2u
+#define TD_NOFILL 4u
 
 static uint32_t ly_hash(uint32_t h, const char *p) { while (*p) h = h * 31u + (uint8_t)*p++; return h; }
 
@@ -538,7 +702,7 @@ static void tiles_draw(const tile_t *tl)
 {
     uint32_t r, c, sig = 7u;
     for (r = 0; r < 16u; r++)
-        sig = ly_hash(sig * 31u + tl[r].bg * 3u + tl[r].fg * 5u + tl[r].top * 7u + tl[r].marks, tl[r].lab);
+        sig = ly_hash(sig * 31u + tl[r].bg * 3u + tl[r].fg * 5u + tl[r].top * 7u + tl[r].marks + tl[r].dots * 64u, tl[r].lab);
     if (!ui.force && sig == ly.tiles)
         return;
     ly.tiles = sig;
@@ -554,6 +718,16 @@ static void tiles_draw(const tile_t *tl)
             cv_text(x + 28 - text_w(&FONT_S, t->lab) / 2, t->marks ? 7 : 10, &FONT_S, t->lab, t->fg);
             for (m = 0; m < t->marks; m++)
                 cv_rrect(x + 22 + (int32_t)m * 5, 26, 3, 3, 1, t->fg, t->bg);
+            if (t->dots & TD_LOCK)                         /* top right: a lock or a nudge */
+                cv_rect(x + 46, 7, 4, 4, t->fg);
+            if (t->dots & TD_FILL)                         /* top left: plays only in a fill (full) */
+                cv_rect(x + 6, 7, 4, 4, t->fg);
+            else if (t->dots & TD_NOFILL) {                /* never in one (hollow) */
+                cv_rect(x + 6, 7, 4, 1, t->fg);
+                cv_rect(x + 6, 10, 4, 1, t->fg);
+                cv_rect(x + 6, 7, 1, 4, t->fg);
+                cv_rect(x + 9, 7, 1, 4, t->fg);
+            }
         }
         cv_blit(0, 40 + r * 36);
     }
@@ -676,7 +850,7 @@ static void layer_screen_draw(void)
         ratio[3] = song.g[G_TAPE] * 1000 / 127;
     } else if (layer == LY_MIX) {                       /* mute 1..4, solo 1..4, tap */
         static const char *const L[4] = {"T1", "T2", "T3", "T4"};
-        sub = "MUTE  SOLO  TAP";
+        sub = "MUTE SOLO FILL TAP";
         for (i = 0; i < 16u; i++) {
             tl[i].bg = C_BG;
             tl[i].fg = C_DIM;
@@ -693,6 +867,13 @@ static void layer_screen_draw(void)
             tl[4 + i].fg = so ? C_BLACK : C_GRAY;
             tl[4 + i].top = C_DIM;
         }
+        str_cpy(tl[8].lab, "FILL", 8);                  /* held: a fill (after SLOOP 2.4) */
+        tl[8].bg = fill_now ? C_WHITE : C_SURF;
+        tl[8].fg = fill_now ? C_BLACK : C_AMB;
+        str_cpy(tl[9].lab, "FILL>", 8);                 /* the next bar a fill */
+        tl[9].bg = fill_bar_on ? C_WHITE : C_SURF;
+        tl[9].fg = fill_bar_on ? C_BLACK : C_AMB;
+        tl[9].top = fill_arm ? C_WHITE : C_DIM;         /* armed: lit until its bar comes */
         str_cpy(tl[14].lab, "TAP>", 8);
         fmt_int(tl[15].lab, song.g[G_BPM]);
         tl[15].bg = song.playing && clk_pos < BEAT_U / 4u ? C_WHITE : C_DIM;   /* the beat */
@@ -727,6 +908,8 @@ static void layer_screen_draw(void)
             tl[i].marks = (uint8_t)(on ? (st->flags & SF_RATCH) >> SF_RATCH_SH : 0u);
             if (on && (st->flags & SF_CHANCE))
                 tl[i].top = C_DIM;                      /* not every time */
+            tl[i].dots = (uint8_t)((step_marked(t, idx) ? TD_LOCK : 0u) |
+                                   (step_cond(t, idx) == FC_FILL ? TD_FILL : step_cond(t, idx) == FC_NOFILL ? TD_NOFILL : 0u));
             if (song.playing && idx == t->seq_idx)
                 tl[i].top = C_WHITE;                    /* the playhead */
             if ((ly.held >> i) & 1u) {
@@ -750,6 +933,34 @@ static void layer_screen_draw(void)
                     break;
                 }
             lab[0] = "NOTE", lab[1] = "RTCH", lab[2] = "CHNC", lab[3] = "FLAG";
+            {   /* the title: the picked parameter's lock on the first held step, its nudge, its condition */
+                static char hs[48];
+                int32_t f = held_first();
+                uint32_t id = lock_cur(t);
+                hs[0] = 0;
+                if (f >= 0 && id < P_COUNT) {
+                    int k = lock_find(t, (uint32_t)f, id, 0);
+                    const char *u;
+                    char vb[12];
+                    lock_label(t, id, hs);
+                    str_cpy(hs + str_len(hs), " ", 2);
+                    if (k >= 0) {
+                        param_format(lock_desc(t, id), t->x.lock[k].val, vb, &u);
+                        str_cpy(hs + str_len(hs), vb, 10);
+                    } else {
+                        str_cpy(hs + str_len(hs), "--", 3);
+                    }
+                }
+                if (f >= 0 && step_micro(t, (uint32_t)f)) {
+                    int32_t m = step_micro(t, (uint32_t)f);
+                    str_cpy(hs + str_len(hs), m > 0 ? " >+" : " <", 4);
+                    fmt_int(hs + str_len(hs), m);
+                }
+                if (f >= 0 && step_cond(t, (uint32_t)f))
+                    str_cpy(hs + str_len(hs), step_cond(t, (uint32_t)f) == FC_FILL ? " FILL" : " NOFILL", 8);
+                if (hs[0])
+                    sub = hs;
+            }
             if (st) {
                 static const char *const FL[4] = {"-", "ACC", "SLD", "A+S"};
                 uint32_t r = (st->flags & SF_RATCH) >> SF_RATCH_SH, c = (st->flags & SF_CHANCE) >> SF_CHANCE_SH;

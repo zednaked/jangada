@@ -217,12 +217,14 @@ static int seq_is_empty(const track_t *t)
 /* A sequence that came from a preset and was not touched since is replaced by the next
  * preset's pattern; one the user recorded, edited or loaded from a project is kept. */
 static uint32_t pat_sig[NTRK];               /* seq_sig() right after a preset pattern was loaded */
-static uint32_t seq_sig(const track_t *t)    /* FNV-1a over the steps and LEN */
+static uint32_t seq_sig(const track_t *t)    /* FNV-1a over the steps and LEN (and the nudges, conditions, locks) */
 {
-    const uint8_t *b = (const uint8_t *)t->step;
+    const uint8_t *b = (const uint8_t *)t->step, *x = (const uint8_t *)&t->x;
     uint32_t i, h = 2166136261u ^ (uint32_t)(uint16_t)t->p[P_SLEN];
     for (i = 0; i < sizeof t->step; i++)
         h = (h ^ b[i]) * 16777619u;
+    for (i = 0; i < sizeof t->x; i++)
+        h = (h ^ x[i]) * 16777619u;
     return h;
 }
 static int seq_replaceable(const track_t *t) { return seq_is_empty(t) || seq_sig(t) == pat_sig[trk_index(t)]; }
@@ -239,7 +241,8 @@ static void load_pat16(track_t *t, const uint8_t *note, const uint8_t *flags)   
         s->flags = n ? (fl & SF_STEP) : 0;              /* Jangada: RTCH / CHNC too */
         s->vel = n ? 96 : 0;
     }
-    t->p[P_SLEN] = 16;
+    memset(&t->x, 0, sizeof t->x);                  /* no nudge, condition, lock (zeroed: the ISR may read it; */
+    t->p[P_SLEN] = 16;                              /* the locks in force let go at the next step) */
     pat_sig[trk_index(t)] = seq_sig(t);
 }
 
@@ -264,6 +267,7 @@ static void load_beat(uint32_t b)
         s->flags = n ? (uint8_t)(bt->flags[i] & SF_STEP) : 0;
         s->vel = n ? bt->vel[i] : 0;
     }
+    memset(&t->x, 0, sizeof t->x);                  /* (as load_pat16) */
     t->p[P_SLEN] = 16;
     pat_sig[TRK_DRUM] = seq_sig(t);
     drums.beat = (int16_t)(b % DS_NBEATS + 1u);
@@ -283,6 +287,7 @@ static void track_defaults_steps(track_t *t)
     uint32_t i;
     for (i = 0; i < NSTEP; i++)
         step_clear(&t->step[i]);
+    seqx_clear(t);                                   /* no nudge, no condition, no lock (after SLOOP 2.4) */
 }
 
 /* what loading a sound (factory or user preset) leaves alone: the mix (LEVEL, PAN, MUTE:

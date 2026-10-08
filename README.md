@@ -150,7 +150,8 @@ checks the SHA-256 of what it downloaded.
    it. Press PLAY. In **GLO → KIT**, the BEAT knob switches to baião or coco.
 3. **Grit.** Hold **FX**: the white keys become 16 effects (loops, reverse, tape stop…) and the knobs
    become FILT, DUST, DUCK and TAPE.
-4. **Live mix.** Hold **GLO**: keys 1–4 mute, 5–8 solo, the last one is tap tempo.
+4. **Live mix.** Hold **GLO**: keys 1–4 mute, 5–8 solo, 9 held a fill, 10 the next bar a fill, the last
+   one is tap tempo.
 5. **Record.** **REC** on a page with nothing to record opens the tracks view; the FM-1 is also a sound
    card: record the master on the computer from the **Jangada** input.
 
@@ -239,17 +240,26 @@ the 4 knobs change job, and the screen shows 16 tiles and 4 dials. **HOME** tapp
 | Hold | Keys | Knobs 1 · 2 · 3 · 4 |
 |---|---|---|
 | **FX** | the 16 punch-in effects | FILT · DUST · DUCK · TAPE |
-| **GLO** | 1–4 mute, 5–8 solo, the last one tap tempo | levels of tracks 1–4 |
+| **GLO** | 1–4 mute, 5–8 solo, 9 held = a fill, 10 = the next bar a fill, the last one tap tempo | levels of tracks 1–4 |
 | **SEQ** | the 16 steps of the page (empty = set, set = press and release clears); black keys: page, shift, half / double, transpose, **F#5 held erases** what the playhead passes | NOTE · DIV · SWG · LEN; steps held: NOTE · RTCH · CHNC · FLAG |
 | **SCL** | any key = the key of the song | CHRD · SCL · QNT · TRN |
 | **EDIT** | the track's engine; the last one = track 4 DRUM / SYNTH | PRST · VOICE · GLIDE · LVL |
 
-With **SEQ** held, **OCT− / OCT+** = undo / redo of the pattern. **REC** on a page with nothing to
+With **SEQ** held, **OCT− / OCT+** = undo / redo of the pattern. With steps held, the other knobs work on
+them too: **SELECT** nudges them off the grid (1/64 of a step, up to half a step early or late),
+**ALGORITHM** picks a sound parameter and **PRESETS** gives it another value on those steps only (a
+parameter lock; it goes back at the next step without one), **OCT+** sets their condition (ALWAYS,
+**FILL** only in a fill, **NO FILL** never in one) and **OCT−** takes their locks and nudge away. The
+title shows the picked parameter, its value on the step, the nudge and the condition; a small square at
+the top right of a tile marks a lock or a nudge, one at the top left a condition (full: FILL, hollow:
+NO FILL). **REC** on a page with nothing to
 record opens the **TRACKS** view: BPM, bar.beat, one row per track with its steps and playhead.
 
 ### Sequencer and arpeggiator
 - 64 steps per track, chords, ties, accent, slide; live recording.
 - **RTCH** ratchet x1–x4 and **CHNC** chance 100/75/50/25 % per step (STEP 2).
+- **Micro timing**, **parameter locks** (12 a track) and **fills** per step, in the SEQ layer; they are
+  saved with the project.
 - Arpeggiator with the **UDI** and **RPT** modes; divisions up to **4BAR** (in the sequencer too).
 
 ### MIDI and USB
@@ -336,7 +346,8 @@ Hügelton Instruments**. Parts come from other forks, with our thanks:
 - [Felucca 1.0](https://github.com/hugelton/Felucca): FM6, USB audio, the SPRING reverb, the look
   (Inter Tight, Fukiai icons), the FM6 bank.
 - [SLOOP](https://github.com/isod89/sloop-fm1) (isod89): the layers, punch FX, the master, the
-  synthesised kits, the chords, PLATE, autosave, safe updates and rescue, the lights, TRS MIDI.
+  synthesised kits, the chords, PLATE, autosave, safe updates and rescue, the lights, TRS MIDI, micro
+  timing, parameter locks and fills.
 - [Felucca [Salt]](https://github.com/ChanceTheMaker/Felucca) (Chance Roth): the Studio in the browser.
 - [Melodee](https://github.com/keremimo/melodee) (Kerem Kilic / Ellic Studio): DX7 SysEx.
 - msfa / Dexed (Google, Pascal Gauthier): the FM6 core (Apache-2.0).

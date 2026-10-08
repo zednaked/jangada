@@ -323,7 +323,9 @@ static void edit_param(uint32_t slot, int32_t steps)
         break;
     case G_CLRSEQ:
         *vp = 0;
+        fm1_irq_off();
         track_defaults_steps(TSEL);
+        fm1_irq_on();
         ui_message("PATTERN CLEARED");
         break;
     case G_INITSND:
@@ -485,7 +487,9 @@ static void ui_input(void)
     if (ui.confirm) {                                   /* OCT- cancels, OCT+ clears; nothing else reacts */
         if ((pressed >> panel.btn[B_OCTUP]) & 1u) {
             track_t *t = &trk[ui.confirm_trk % NTRK];
+            fm1_irq_off();
             track_defaults_steps(t);
+            fm1_irq_on();
             t->nheld = 0;                               /* and the latched arp chord */
             t->arp_phys = 0;
             ui.force = 1;
@@ -530,6 +534,7 @@ static void ui_input(void)
         case B_EDIT:
             if (song.seq_mode && cur_page()->scope == SC_STEP) {   /* STEP page: EDIT clears the step */
                 step_clear(&TSEL->step[ui.cursor]);
+                stepx_clear(TSEL, ui.cursor);
                 cursor_set(ui.cursor + 1);
                 ui_message("STEP CLEARED");
                 break;
@@ -547,6 +552,8 @@ static void ui_input(void)
     if (song.seq_mode && cur_page()->scope == SC_STEP && !layer_now())
         seq_entry(notes);
 
+    if (layer_now() == LY_STEP && ly.held)
+        steps_held_encs();                              /* SEQ with steps held: SELECT, ALGORITHM, PRESETS (ui_layers.c) */
     if ((s = panel_enc(EN_PRESET)) != 0 && (ui.home || cur_page()->graph == GR_BROWSE || cur_fam() == FAM_TRK)) {
         /* PRESETS browses the selected part's presets (all engines, the FM6 bank voices, then user presets) on
          * HOME, the PRESETS page and TRACKS only (the drum track: nothing):

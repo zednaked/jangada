@@ -66,6 +66,8 @@ $CC -O2 -w -Ibuild/gen -Ifirmware/src -o "$OUT/arp_test" tests/arp_test.c -lm
 run "arp: UPDN / UDI / RPT, long divisions (Jangada)" "$OUT/arp_test"
 $CC -O2 -w -Ibuild/gen -Ifirmware/src -o "$OUT/step_test" tests/step_test.c -lm
 run "steps: RTCH ratchet and CHNC chance (Jangada)" "$OUT/step_test"
+$CC -O2 -w -Ibuild/gen -Ifirmware/src -o "$OUT/seqx_test" tests/seqx_test.c -lm
+run "steps: nudges, parameter locks, fills (Jangada, after SLOOP 2.4)" "$OUT/seqx_test"
 $CC -O2 -w -Ibuild/gen -Ifirmware/src -o "$OUT/punch_test" tests/punch_test.c -lm
 run "master: punch-in FX, DUST, DUCK, FILT (Jangada, after SLOOP)" "$OUT/punch_test"
 $CC -O2 -w -Ibuild/gen -Ifirmware/src -o "$OUT/chord_test" tests/chord_test.c -lm

@@ -196,6 +196,43 @@ int main(void)
         q.has_fm6 = 0;
         q.sum = proj_sum(&q);
     }
+    {   /* JNG1 section 2 (Jangada 0.7, after SLOOP 2.4): nudges, conditions, locks; at its largest (every step
+         * nudged, every lock slot used, the FM6 section too) it still fits one flash object */
+        uint32_t n, k;
+        for (t = 0; t < NTRK; t++) {
+            for (k = 0; k < NSTEP; k++)
+                q.t[t].x.sx[k] = (uint8_t)(((k * 5u + t) & SX_MICRO) | ((k + t) % 3u) << SX_COND_SH);
+            for (k = 0; k < NLOCK; k++) {
+                q.t[t].x.lock[k].step = (uint8_t)(1u + (k * 7u + t) % NSTEP);
+                q.t[t].x.lock[k].param = (uint8_t)(k & 1u ? P_E0 + k % 8u : P_ATK + k % 4u);
+                q.t[t].x.lock[k].val = (int8_t)(k * 9 - 40);
+            }
+        }
+        for (t = 0; t < NTRK; t++)
+            for (k = 0; k < FM6_PACKED; k++)
+                q.fm6[t][k] = (uint8_t)((t * 13u + k) & 127u);
+        q.has_fm6 = 1;
+        q.sum = proj_sum(&q);
+        n = proj_to_jng(&q, buf.jng);
+        bad += check("JNG1 section 2 at its largest: fits one flash object",
+                     n == JNG_SIZE(P_COUNT, G_COUNT) + JNG_FM6_SIZE + JNG_SEQX_MAX && n <= 4096u - 256u && buf.jng[11] == 2);
+        bad += check("JNG1 section 2: nudges, conditions, locks read back as they were",
+                     proj_import(&q2, buf.jng, (int)n) && !memcmp(&q, &q2, sizeof q));
+        memset(&q.t[1].x, 0, sizeof q.t[1].x);         /* a track with none, one with only locks */
+        memset(q.t[2].x.sx, 0, sizeof q.t[2].x.sx);
+        memset(q.fm6, 0, sizeof q.fm6);
+        q.has_fm6 = 0;
+        q.sum = proj_sum(&q);
+        n = proj_to_jng(&q, buf.jng);
+        bad += check("JNG1 section 2: tracks with none / only locks, without the FM6 section",
+                     n == JNG_SIZE(P_COUNT, G_COUNT) + 3u + (1u + NSTEP + 3u * NLOCK) * 2u + 1u + 3u * NLOCK + 1u &&
+                         proj_import(&q2, buf.jng, (int)n) && !memcmp(&q, &q2, sizeof q) && !q2.has_fm6);
+        for (t = 0; t < NTRK; t++)
+            memset(&q.t[t].x, 0, sizeof q.t[t].x);
+        q.sum = proj_sum(&q);
+        n = proj_to_jng(&q, buf.jng);
+        bad += check("JNG1: no nudge, condition or lock: no section 2", n == JNG_SIZE(P_COUNT, G_COUNT) && buf.jng[11] == 0);
+    }
 
     /* damaged / wrong size */
     v2.t[1].p[3]++;

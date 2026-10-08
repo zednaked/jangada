@@ -32,7 +32,8 @@ static void fm1_wdt_feed(void){}
 static void fm1_irq_off(void){} static void fm1_irq_on(void){}
 static uint8_t ledstate[64];
 static void fm1_led_key(uint32_t k,int on){if(k<64)ledstate[k]=on;}
-static int32_t fm1_enc_take(uint32_t i){(void)i;return 0;}
+static int32_t enc_q[32];                          /* detents injected per encoder (enc_turn) */
+static int32_t fm1_enc_take(uint32_t i){int32_t v=enc_q[i&31];enc_q[i&31]=0;return v;}
 static uint32_t fm1_input_edges(int x){(void)x;return 0;}
 static uint32_t fm1_input_note_edges(void){return 0;}
 #include "gfx.c"
@@ -110,6 +111,43 @@ int main(void){
  /* held + knob: edited, kept */
  layer_key(LY_STEP,key_of_white(1),1,0); steps_held_edit(1,1); layer_key(LY_STEP,key_of_white(1),0,0);
  assert(t->step[1].n && ((t->step[1].flags&SF_RATCH)>>SF_RATCH_SH)==1);
+ { /* after SLOOP 2.4, steps held: SELECT nudges, ALGORITHM picks, PRESETS locks, OCT+ the condition, OCT- clears;
+    * SHIFT moves the locks with their steps, undo brings them back; GLO keys 9 / 10: the fill */
+   #define enc_turn(role, v) (enc_q[panel.enc[role] & 31] = (v) * panel.dir[role])
+   uint32_t k2; int kk, base;
+   panel = PANEL_DEFAULT; ly.snap=0; ly.page=0; ly.held=0; t->p[P_SLEN]=8;
+   layer_key(LY_STEP,key_of_white(2),1,0); assert(ly.held==1u<<2 && step_on(&t->step[2]));
+   ly.lkp=P_LEVEL; base=p_unlocked(t,P_LEVEL);
+   enc_turn(EN_PRESET,3); steps_held_encs(); kk=lock_find(t,2,P_LEVEL,0);
+   assert(kk>=0 && t->x.lock[kk].val>base && t->x.lock[kk].val<=base+30 && t->p[P_LEVEL]==base);   /* a lock, not the base */
+   enc_turn(EN_SELECT,-5); steps_held_encs(); assert(step_micro(t,2)==-5);
+   enc_turn(EN_ALGO,1); steps_held_encs(); assert(ly.lkp!=P_LEVEL && p_lockable(t,ly.lkp));
+   enc_turn(EN_ALGO,-1); steps_held_encs(); assert(ly.lkp==P_LEVEL);
+   ly.lkp=P_SDIV; assert(lock_cur(t)!=P_SDIV);                                     /* not lockable: another one */
+   ly.lkp=P_LEVEL;
+   steps_held_oct(1); assert(step_cond(t,2)==FC_FILL); steps_held_oct(1); assert(step_cond(t,2)==FC_NOFILL);
+   ly.btn=LY_STEP; ly.t0=0; fm1_ms=1000; ly.shown=0; ui.force=1; ui_draw(); assert(ly.shown); ly.btn=0;   /* the title, the marks */
+   layer_key(LY_STEP,key_of_white(2),0,0); assert(step_on(&t->step[2]) && step_marked(t,2));   /* edited: kept */
+   layer_key(LY_STEP,key_of_white(2),1,0); steps_held_oct(0);
+   assert(lock_find(t,2,P_LEVEL,0)<0 && !step_micro(t,2) && step_cond(t,2)==FC_NOFILL);
+   layer_key(LY_STEP,key_of_white(2),0,0);
+   ly.snap=0; lock_set(t,1,P_REV,77); step_micro_set(t,1,9); pattern_tool(1);    /* SHIFT > */
+   assert(lock_find(t,2,P_REV,0)>=0 && lock_find(t,1,P_REV,0)<0 && step_micro(t,2)==9);
+   undo_swap(0); assert(lock_find(t,1,P_REV,0)>=0 && step_micro(t,1)==9);
+   ly.snap=0; pattern_tool(3); assert(t->p[P_SLEN]==16 && lock_find(t,9,P_REV,0)>=0 && step_micro(t,9)==9);   /* LEN x2 */
+   ly.snap=0; t->step[1].n=1; t->step[1].time=ST_NOTE;
+   layer_key(LY_STEP,key_of_white(1),1,0); layer_key(LY_STEP,key_of_white(1),0,0);   /* a set step cleared: */
+   assert(!t->step[1].n && lock_find(t,1,P_REV,0)<0 && !step_micro(t,1));           /* its lock and nudge too */
+   layer_key(LY_MIX,key_of_white(8),1,0); assert(fill_held);
+   layer_key(LY_MIX,key_of_white(8),0,0); assert(!fill_held);
+   song.playing=1; layer_key(LY_MIX,key_of_white(9),1,0); assert(fill_arm);
+   layer_key(LY_MIX,key_of_white(9),0,0); layer_key(LY_MIX,key_of_white(9),1,0); assert(!fill_arm);
+   song.playing=0; fill_arm=0;
+   for (k2 = 0; k2 < 4u; k2++) { ly.btn=(uint8_t)LY_MIX; ly.shown=0; ui.force=1; ui_draw(); } ly.btn=0; ui_draw();
+   ly.snap=0; fm1_irq_off(); track_defaults_steps(t); fm1_irq_on(); assert(lock_find(t,9,P_REV,0)<0);
+   t->p[P_SLEN]=8; ly.held=0;
+   printf("%-46s ok\n", "layers: SEQ nudge, locks, conditions; GLO fill");
+ }
  /* engine layer */
  layer_key(LY_ENGINE,key_of_white(6),1,0); assert(t->eng_req==6);
  printf("%-46s ok\n", "layers: SEQ tools, undo / redo, step keys");

@@ -179,6 +179,20 @@ typedef struct {                 /* acid-style step: up to 4 notes (POLY), time,
     uint8_t vel;
 } step_t;
 
+/* Jangada (after SLOOP 2.4, isod89): micro timing, step conditions (fills) and parameter locks. sx[] holds
+ * one byte a step: bits 0..5 the nudge (6-bit two's complement, MICRO_MIN..MICRO_MAX in 1/64 of the step:
+ * - early, + late), bits 6..7 the condition (FC_*: plays always, only during a fill, never during one).
+ * A lock: on step `step` the track's p[param] is `val` (every lockable parameter fits an int8: p_lockable) */
+#define MICRO_MIN (-32)
+#define MICRO_MAX 31
+#define SX_MICRO 0x3Fu
+#define SX_COND_SH 6u
+enum { FC_NORM, FC_FILL, FC_NOFILL };
+#define NLOCK 12                 /* locks a track (several may share a step: other parameters) */
+#define LOCK_FREE 0u              /* plock_t.step of a free slot: it holds the step + 1 (zeroed = no lock) */
+typedef struct { uint8_t step, param; int8_t val; } plock_t;
+typedef struct { uint8_t sx[NSTEP]; plock_t lock[NLOCK]; } seqx_t;
+
 typedef struct track {
     int16_t p[P_COUNT];
     uint8_t engine, preset;      /* engine: what the audio ISR renders */
@@ -214,6 +228,13 @@ typedef struct track {
     /* Jangada: ratchet of the playing step */
     uint8_t rat_left, rat_idx;   /* hits still to come, the step they repeat */
     uint32_t rat_pos, rat_sub, rat_gate;   /* samples into the sub-step, its length, its gate */
+    /* Jangada (after SLOOP 2.4): the steps' nudges, conditions and locks; the locks in force (seq.c lock_step:
+     * the parameters overridden now, what they were, what the lock set); the nudge's state (seq_tick) */
+    seqx_t x;
+    uint8_t lk_n, lk_param[NLOCK];
+    int16_t lk_base[NLOCK], lk_set[NLOCK];
+    uint8_t mx_due;              /* the grid step seq_idx has not fired yet (nudged late) */
+    uint8_t mx_early;            /* the next step fired already (nudged early) */
     uint8_t seq_active;          /* any step programmed */
     uint8_t rskip_idx;           /* live recording put notes into the step about to play: */
     uint8_t rskip_n, rskip[4];   /* do not trigger them again there (they sound already) */

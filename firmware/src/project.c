@@ -19,7 +19,10 @@
  * After the tracks, "JNG1" carries tagged sections (byte 11 = their count; tag, length, data), skipped
  * when unknown: section 1 = each track's FM6 patch (eng_fm6.c, NTRK x the 128-byte packed record, as
  * Felucca 1.0's FUN8 keeps it). A project without it (Jangada 0.4 and before, Felucca's) loads with
- * the patch of each track's PTCH, as it did. */
+ * the patch of each track's PTCH, as it did. Section 2 (Jangada 0.7, after SLOOP 2.4) = the nudges, the step
+ * conditions and the parameter locks, only when a track has any: per track a byte (bit 7: its 64 step bytes
+ * follow, core.h seqx_t sx; bits 0..4: its locks), then the step bytes, then each lock as step, key, value.
+ * A project without it has none, as before. */
 #define PROJ_MAGIC 0x52474E4Au                 /* "JNGR": a RAM slot, today's layout */
 #define PROJ_MAGIC_JNG 0x31474E4Au             /* "JNG1": stored, keyed (proj_to_jng / proj_from_jng) */
 #define PROJ_MAGIC_V3 0x46554E33u              /* "FUN3": Felucca 0.9, 57 values a track = keys 0..56 */
@@ -33,6 +36,7 @@ typedef struct {                               /* one track; the drum track igno
     int16_t p[P_COUNT];
     uint8_t engine, preset;
     step_t step[NSTEP];
+    seqx_t x;                                  /* Jangada: nudges, conditions, locks (param: P_* in RAM) */
 } proj_trk_t;
 typedef struct {
     uint32_t magic, size;
@@ -92,7 +96,7 @@ static uint32_t proj_sum(const project_t *p) { return proj_hash(p, sizeof *p - 4
  * moved); then the keyed copy in flash is used */
 static uint32_t proj_layout(void)
 {
-    uint32_t v[4] = {G_COUNT, NENGINES, sizeof(step_t), NSTEP};
+    uint32_t v[5] = {G_COUNT, NENGINES, sizeof(step_t), NSTEP, sizeof(seqx_t)};
     return proj_hash(P_KEY, sizeof P_KEY) ^ proj_hash(v, sizeof v);
 }
 static int proj_ok(const project_t *q)
@@ -210,11 +214,39 @@ static int proj_from_v3(project_t *q, const project_v3_t *v3, int n)
 #define JNG_SIZE(np, ng) (JNG_HDR + (((np) + 1u) & ~1u) + 2u * (ng) + NTRK * (2u * (np) + 2u + sizeof(step_t) * NSTEP) + 4u)
 #define JNG_SEC_FM6 1u                         /* section 1: NTRK x FM6_PACKED, the tracks' FM6 patches */
 #define JNG_FM6_SIZE (3u + NTRK * FM6_PACKED)
+#define JNG_SEC_SEQX 2u                        /* section 2: nudges, conditions, locks (see the top) */
+#define JNG_SEQX_MAX (3u + NTRK * (1u + NSTEP + 3u * NLOCK))
+static int seqx_sx_any(const seqx_t *x)
+{
+    uint32_t k;
+    for (k = 0; k < NSTEP; k++)
+        if (x->sx[k])
+            return 1;
+    return 0;
+}
+static uint32_t seqx_nlock(const seqx_t *x)
+{
+    uint32_t k, n = 0;
+    for (k = 0; k < NLOCK; k++)
+        n += x->lock[k].step != LOCK_FREE;
+    return n;
+}
+static uint32_t jng_seqx_len(const project_t *q)   /* section 2's data length, 0 = no section */
+{
+    uint32_t i, n = 0, any = 0;
+    for (i = 0; i < NTRK; i++) {
+        uint32_t sx = (uint32_t)seqx_sx_any(&q->t[i].x), nl = seqx_nlock(&q->t[i].x);
+        any |= sx | nl;
+        n += 1u + (sx ? NSTEP : 0u) + 3u * nl;
+    }
+    return any ? n : 0u;
+}
 static uint32_t jng_size(uint32_t np, uint32_t ng) { return JNG_SIZE(np, ng); }
 
 static uint32_t proj_to_jng(const project_t *q, uint8_t *b)   /* -> bytes written */
 {
-    uint32_t n = jng_size(P_COUNT, G_COUNT) + (q->has_fm6 ? JNG_FM6_SIZE : 0u), o = JNG_HDR, i, k, sum;
+    uint32_t xl = jng_seqx_len(q);
+    uint32_t n = jng_size(P_COUNT, G_COUNT) + (q->has_fm6 ? JNG_FM6_SIZE : 0u) + (xl ? 3u + xl : 0u), o = JNG_HDR, i, k, sum;
     uint32_t m = PROJ_MAGIC_JNG;
     memset(b, 0, n);
     memcpy(b, &m, 4);
@@ -222,7 +254,7 @@ static uint32_t proj_to_jng(const project_t *q, uint8_t *b)   /* -> bytes writte
     b[8] = P_COUNT;
     b[9] = G_COUNT;
     b[10] = q->sel;
-    b[11] = q->has_fm6 ? 1u : 0u;                 /* sections */
+    b[11] = (uint8_t)((q->has_fm6 ? 1u : 0u) + (xl ? 1u : 0u));   /* sections */
     for (k = 0; k < P_COUNT; k++)
         b[o + k] = P_KEY[k];
     o += (P_COUNT + 1u) & ~1u;
@@ -242,6 +274,26 @@ static uint32_t proj_to_jng(const project_t *q, uint8_t *b)   /* -> bytes writte
         b[o++] = (uint8_t)((NTRK * FM6_PACKED) >> 8);
         memcpy(b + o, q->fm6, sizeof q->fm6);
         o += sizeof q->fm6;
+    }
+    if (xl) {                                      /* section 2: nudges, conditions, locks */
+        b[o++] = JNG_SEC_SEQX;
+        b[o++] = (uint8_t)xl;
+        b[o++] = (uint8_t)(xl >> 8);
+        for (i = 0; i < NTRK; i++) {
+            const seqx_t *x = &q->t[i].x;
+            uint32_t sx = (uint32_t)seqx_sx_any(x);
+            b[o++] = (uint8_t)((sx ? 0x80u : 0u) | seqx_nlock(x));
+            if (sx) {
+                memcpy(b + o, x->sx, NSTEP);
+                o += NSTEP;
+            }
+            for (k = 0; k < NLOCK; k++)
+                if (x->lock[k].step != LOCK_FREE) {
+                    b[o++] = (uint8_t)(x->lock[k].step - 1u);
+                    b[o++] = P_KEY[x->lock[k].param % P_COUNT];
+                    b[o++] = (uint8_t)x->lock[k].val;
+                }
+        }
     }
     sum = proj_hash(b, o);
     memcpy(b + o, &sum, 4);
@@ -305,6 +357,25 @@ static int proj_from_jng(project_t *q, const uint8_t *b, int n)
             for (k = 0; k < sizeof q->fm6; k++)
                 q->fm6[k / FM6_PACKED][k % FM6_PACKED] = b[o + k] & 0x7Fu;
             q->has_fm6 = 1;
+        } else if (tag == JNG_SEC_SEQX) {
+            uint32_t at = o, i2;
+            for (i2 = 0; i2 < NTRK && at < o + len; i2++) {
+                seqx_t *x = &q->t[i2].x;
+                uint32_t f = b[at++], nl = f & 0x1Fu, j, w = 0;
+                if ((f & 0x80u) && at + NSTEP <= o + len) {
+                    memcpy(x->sx, b + at, NSTEP);
+                    at += NSTEP;
+                }
+                for (j = 0; j < nl && at + 3u <= o + len; j++, at += 3u) {
+                    uint32_t pid = key_param(b[at + 1]);
+                    if (b[at] < NSTEP && pid < P_COUNT && w < NLOCK) {   /* (an unknown parameter: dropped) */
+                        x->lock[w].step = (uint8_t)(b[at] + 1u);
+                        x->lock[w].param = (uint8_t)pid;
+                        x->lock[w].val = (int8_t)b[at + 2];
+                        w++;
+                    }
+                }
+            }
         }
         o += len;
     }
@@ -327,7 +398,7 @@ static int proj_import(project_t *q, const void *b, int n)
 #if FELUCCA_FLASH
 /* the stored form of a project, both ways (any format in, "JNG1" out) */
 static uint8_t proj_io[ST_PAYLOAD_MAX] __attribute__((aligned(4)));
-_Static_assert(JNG_SIZE(P_COUNT, G_COUNT) + JNG_FM6_SIZE <= ST_PAYLOAD_MAX && sizeof(project_v3_t) <= ST_PAYLOAD_MAX,
+_Static_assert(JNG_SIZE(P_COUNT, G_COUNT) + JNG_FM6_SIZE + JNG_SEQX_MAX <= ST_PAYLOAD_MAX && sizeof(project_v3_t) <= ST_PAYLOAD_MAX,
                "a stored project fits one flash object");
 
 /* slot from flash into RAM (format 3, or format 2 / 1 converted) */
@@ -354,10 +425,13 @@ static void proj_capture(project_t *p)
         p->g[i] = song.g[i];
     p->sel = song.sel;
     for (i = 0; i < NTRK; i++) {
-        memcpy(p->t[i].p, trk[i].p, sizeof trk[i].p);
+        uint32_t k;
+        for (k = 0; k < P_COUNT; k++)                  /* (a lock in force: the value under it) */
+            p->t[i].p[k] = p_unlocked(&trk[i], k);
         p->t[i].engine = trk[i].eng_req;
         p->t[i].preset = trk[i].preset;
         memcpy(p->t[i].step, trk[i].step, sizeof trk[i].step);
+        p->t[i].x = trk[i].x;
     }
     fm1_irq_on();
     for (i = 0; i < NTRK; i++) {                       /* the tracks' FM6 patches (main loop owns fm6_patch) */
@@ -421,6 +495,7 @@ static void proj_apply(const project_t *p)
         uint32_t e = trk_synth(k) ? s->engine % NENGINES : 0u;   /* (globals, G_T4 too, are loaded above) */
         t->eng_req = (uint8_t)e;
         t->user = 0;                                    /* (no user preset slot is saved) */
+        t->lk_n = 0;                                    /* (the locks in force: the values come from the project) */
         for (i = 0; i < P_COUNT; i++) {                 /* every value back inside its range */
             const param_desc_t *d = i >= P_E0 && i < P_E0 + NEDIT ? &ENGINES[e]->edit[i - P_E0] : &TP[i];
             t->p[i] = (int16_t)clamp(s->p[i], d->min, d->max);
@@ -438,6 +513,21 @@ static void proj_apply(const project_t *p)
                 st->note[j] &= 127u;
             st->vel &= 127u;                            /* Jangada: > 127 overflowed the voice amplitude */
             st->flags &= SF_STEP;
+        }
+        t->x = s->x;
+        for (i = 0; i < NSTEP; i++)                     /* (condition 3: as normal) */
+            if ((t->x.sx[i] >> SX_COND_SH) > FC_NOFILL)
+                t->x.sx[i] &= SX_MICRO;
+        for (i = 0; i < NLOCK; i++) {                   /* a lock on no step, of no lockable parameter: free */
+            plock_t *l = &t->x.lock[i];
+            if (l->step > NSTEP || (l->step && (l->param >= P_COUNT || !p_lockable(t, l->param))))
+                l->step = LOCK_FREE;
+            if (l->step == LOCK_FREE)
+                l->param = 0, l->val = 0;
+            else {
+                const param_desc_t *d = lock_desc(t, l->param);
+                l->val = (int8_t)clamp(l->val, d->min, d->max);
+            }
         }
     }
     song.sel = (uint8_t)(p->sel < NTRK ? p->sel : 0u);
