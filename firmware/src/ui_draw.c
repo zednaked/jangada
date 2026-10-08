@@ -920,9 +920,10 @@ static void draw_columns(void)
         str_cpy(u, "/", 8);
         fmt_int(u + 1, (int32_t)shown);
         draw_column(0, "No.", val, u, VAL(0u), -1, ICON_NONE);
-        draw_column(1, "ENG", ENGINES[TSEL->eng_req]->name, "", VAL(1u), -1, engine_icon(ENGINES[TSEL->eng_req]->name));
-        draw_column(2, "KIND", is_drum(TSEL) || !total ? "" : preset_kind(cur), "", VAL(2u), -1, ICON_AUTO);   /* (Jangada 0.6) */
-        draw_column(3, "CAT", is_drum(TSEL) ? "" : PC_NAMES[ui.pcat], "", VAL(3u), -1, ICON_AUTO);   /* (0.8.1) */
+        draw_column(1, "CAT", is_drum(TSEL) ? "" : PC_NAMES[ui.pcat], "", VAL(1u), -1, ICON_AUTO);   /* (0.8.1; 0.8.2: KNOB 2) */
+        draw_column(2, "KIND", is_drum(TSEL) || !total ? "" : preset_kind(cur), "", VAL(2u), -1,   /* (Jangada 0.6) */
+                    !is_drum(TSEL) && total && preset_group(cur) < NENGINES ? engine_icon(ENGINES[preset_group(cur)]->name) : ICON_AUTO);
+        draw_column(3, "", "", "", C_HI, -1, ICON_AUTO);
         return;
     }
     if (cur_page()->graph == GR_USER) {                  /* SLOT, then three GO buttons */

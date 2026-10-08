@@ -240,21 +240,21 @@ static void edit_param(uint32_t slot, int32_t steps)
         tracks_edit(slot, steps);
         return;
     }
-    if (pg->graph == GR_BROWSE) {                         /* KNOB 1: one preset, KNOB 2: the next / previous engine,
+    if (pg->graph == GR_BROWSE) {                         /* KNOB 1: one preset, KNOB 2 (Jangada 0.8.2): the category
+                                                           * (ENG was here: KIND does what it did, and reaches the FM6
+                                                           * banks and the user presets, and keeps to the category),
                                                            * KNOB 3 (Jangada 0.6, after SLOOP): the next / previous
                                                            * group (an engine's presets, an FM6 bank, the user presets) */
         if (slot == 0u && !is_drum(TSEL)) {
             uint32_t total, cur = preset_pos(&total);
             if (total)
-                preset_go(preset_step(cur, steps));      /* (the category filter, KNOB 4) */
+                preset_go(preset_step(cur, steps));      /* (the category filter, KNOB 2) */
         } else if (slot == 1u && !is_drum(TSEL)) {
-            select_engine((TSEL->eng_req + (steps > 0 ? 1u : NENGINES - 1u)) % NENGINES);
+            preset_cat_turn(steps);
         } else if (slot == 2u && !is_drum(TSEL)) {
             uint32_t total, cur = preset_pos(&total);
             if (total)
                 preset_go(preset_group_jump(cur, steps));
-        } else if (slot == 3u && !is_drum(TSEL)) {       /* KNOB 4 (Jangada 0.8.1): the category */
-            preset_cat_turn(steps);
         }
         return;
     }
@@ -590,7 +590,7 @@ static void ui_input(void)
             preset_go(n);
             ui_message(preset_kind_long(n));
         } else if (total)
-            preset_go(preset_step(cur, s));             /* past the factory ones: user presets (the filter: KNOB 4) */
+            preset_go(preset_step(cur, s));             /* past the factory ones: user presets (the filter: KNOB 2) */
     }
     if ((s = panel_enc(EN_ALGO)) != 0)             /* ALGORITHM: the selected track, on every page */
         track_select((uint32_t)clamp((int32_t)song.sel + (s > 0 ? 1 : -1), 0, NTRK - 1));

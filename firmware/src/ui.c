@@ -533,10 +533,10 @@ static const char *preset_kind_long(uint32_t n)      /* ... and in the top bar *
     uint32_t g = preset_group(n);
     return g < PG_FM6 ? ENGINES[g]->name : g < PG_USER ? BK[g - PG_FM6] : "USER PRESETS";
 }
-/* Jangada 0.8.1 (issue #2): the categories. Each factory preset has one (preset_t.cat: BASS, LEAD, ..); KNOB 4 on the
+/* Jangada 0.8.1 (issue #2): the categories. Each factory preset has one (preset_t.cat: BASS, LEAD, ..); KNOB 2 on the
  * PRESETS page picks one and then every way of browsing (the PRESETS knob, KNOB 1, the group jump) walks only
  * its presets, across the engines. ALL: the whole list as before. The FM6 bank voices and the user presets
- * have none: ALL only */
+ * have none: ALL only. (KNOB 4 in 0.8.1; 0.8.2 put it where ENG was) */
 static const char *const PC_NAMES[PC_COUNT] = {"ALL", "BASS", "LEAD", "PAD", "KEYS", "PLUCK", "PERC", "DRONE", "FX"};
 static uint32_t preset_cat(uint32_t n)               /* the category of list index n, PC_NONE = none */
 {
@@ -585,7 +585,7 @@ static uint32_t preset_group_jump(uint32_t cur, int32_t dir)
     return cur;
 }
 
-/* the filter: KNOB 4 on the PRESETS page. A sound outside the new category: the first one in it is loaded */
+/* the filter: KNOB 2 on the PRESETS page. A sound outside the new category: the first one in it is loaded */
 static void preset_go(uint32_t n);
 static void preset_cat_turn(int32_t dir)
 {
