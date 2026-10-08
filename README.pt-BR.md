@@ -112,7 +112,7 @@ FM-1, e nada sai do seu navegador.
 
 ## Instalar
 
-Versão atual: **[Jangada 0.8.1](https://github.com/zednaked/jangada/releases/tag/v0.8.1)** (alfa).
+Versão atual: **[Jangada 0.8.2](https://github.com/zednaked/jangada/releases/tag/v0.8.2)** (alfa).
 Conecte o FM-1 direto no computador por um cabo USB **de dados**.
 
 **Mac / Windows / Linux, pelo navegador**: abra o
@@ -123,7 +123,7 @@ Conecte o FM-1 direto no computador por um cabo USB **de dados**.
 
 ```
 ./instalar-linux.sh                    # baixa e instala a última versão publicada
-./instalar-linux.sh jangada-0.8.1.fwsc   # instala um arquivo baixado das releases
+./instalar-linux.sh jangada-0.8.2.fwsc   # instala um arquivo baixado das releases
 ./instalar-linux.sh --original         # volta ao firmware oficial da M-VAVE (V15)
 ./instalar-linux.sh --info             # o que o FM-1 está rodando
 ./instalar-linux.sh --console          # acesso ao console serial (regra udev, pede sudo)
@@ -231,6 +231,9 @@ solte, e ele continua respirando sozinho, inclusive enquanto você toca outras t
   **DRONE** ou **FX**. O **KNOB 2 (CAT)** da página PRESETS escolhe uma, e a partir daí o knob PRESETS, o
   KNOB 1 e o pulo de grupo só andam por esses presets, atravessando todos os motores (o No. conta dentro da
   categoria). **ALL** é a lista inteira. As vozes dos bancos FM6 e os presets de usuário aparecem no ALL.
+- **A página PRESETS**: toque **SAVE** (de novo: USER, PROJECT, TOOLS) com uma trilha de synth
+  selecionada. KNOB 1 **No.** um preset de cada vez, KNOB 2 **CAT** a categoria, KNOB 3 **KIND** um grupo
+  de cada vez (com o ícone do motor). Para trocar só o motor, use a camada EDIT (teclas 1–10).
 - **O Dexed edita a Jangada ao vivo**: com o MIDI do Dexed (ou outro editor DX7) apontado para o FM-1,
   girar um knob lá muda a trilha FM6 na hora; mande uma voz para a trilha ou um cartucho de 32 para um
   banco, e peça de volta. O cartucho vai para o banco em que está o PTCH da trilha FM6 (B33–B64: banco

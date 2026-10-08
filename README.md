@@ -113,7 +113,7 @@ and nothing leaves your browser.
 
 ## Install
 
-Current version: **[Jangada 0.8.1](https://github.com/zednaked/jangada/releases/tag/v0.8.1)** (alpha).
+Current version: **[Jangada 0.8.2](https://github.com/zednaked/jangada/releases/tag/v0.8.2)** (alpha).
 Plug the FM-1 straight into the computer with a USB **data** cable.
 
 **Mac / Windows / Linux, in the browser**: open the
@@ -124,7 +124,7 @@ Plug the FM-1 straight into the computer with a USB **data** cable.
 
 ```
 ./instalar-linux.sh                    # downloads and installs the latest release
-./instalar-linux.sh jangada-0.8.1.fwsc   # installs a file downloaded from the releases
+./instalar-linux.sh jangada-0.8.2.fwsc   # installs a file downloaded from the releases
 ./instalar-linux.sh --original         # back to M-VAVE's official firmware (V15)
 ./instalar-linux.sh --info             # what the FM-1 is running
 ./instalar-linux.sh --console          # serial console access (a udev rule, asks for sudo)
@@ -230,6 +230,9 @@ and it keeps breathing on its own, even while you play the other tracks.
   **DRONE** or **FX**. **KNOB 2 (CAT)** on the PRESETS page picks one, and from then on the PRESETS knob,
   KNOB 1 and the group jump walk only those presets, across all the engines (No. counts within the
   category). **ALL** is the whole list. FM6 bank voices and user presets show under ALL.
+- **The PRESETS page**: tap **SAVE** (again: USER, PROJECT, TOOLS) with a synth track selected. KNOB 1
+  **No.** one preset at a time, KNOB 2 **CAT** the category, KNOB 3 **KIND** a group at a time (with the
+  engine's icon). To change only the engine, use the EDIT layer (keys 1–10).
 - **Dexed edits Jangada live**: point Dexed's (or another DX7 editor's) MIDI at the FM-1 and turning a
   knob there changes the FM6 track at once; send a voice to the track or a 32-voice cartridge to a
   bank, and ask for them back. The cartridge goes to the bank the FM6 track's PTCH is in (B33–B64:
