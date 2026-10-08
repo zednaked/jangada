@@ -270,6 +270,9 @@ record opens the **TRACKS** view: BPM, bar.beat, one row per track with its step
 - Pitch bend, sustain, all notes off, mod wheel, aftertouch and expression (as matrix sources).
 - **Clock** (GLO → GLOBAL CLK): INT, **USB** or **TRS**, pulse by pulse, no drift; **SYNC OUT** sends
   clock over USB.
+- **HOME → MIDI OUT = SEQ**: the sequencer and the arp go out over USB too (each track on its channel,
+  the drums on theirs), every note ended; KEYS (default): only the keys. **MIDI IN = CLOCK** follows the
+  clock and START / STOP and ignores incoming notes. Both are settings of the FM-1, not of the project.
 - **USB audio**: the FM-1 shows up as a stereo audio input named **Jangada** (44.1 kHz, no driver).
   HOME → USB AUDIO: the level follows MASTER, or FULL. On Linux:
   `arecord -D hw:Jangada -f S16_LE -r 44100 -c 2 take.wav`.
@@ -278,7 +281,7 @@ record opens the **TRACKS** view: BPM, bar.beat, one row per track with its step
 - Antialiased font (Inter Tight), icons, cards; the **CHOQUE** palette (hot pink) by default.
 - Menu (hold **HOME**): COLOR, SPEAKER (a low cut for the speaker), **LIGHTS** (the buttons glow
   dimly, for playing in the dark), **KEYS** (lights the C keys or the white ones), **NOTES** (sounding
-  notes light their keys), USB AUDIO, NEW PROJECT, ABOUT.
+  notes light their keys), USB AUDIO, MIDI OUT, MIDI IN, NEW PROJECT, ABOUT.
 
 ### On the site
 - **[Studio](https://zednaked.github.io/jangada/webapp/studio/)**: Jangada in the browser.

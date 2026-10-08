@@ -96,7 +96,7 @@ static const uint16_t LIGHTS_NS[LIGHTS_N] = {0u, 500u, 1000u, 2000u};   /* the b
 static uint32_t lights_word(void)
 {
     return (uint32_t)lights_lvl | (uint32_t)lights_keys << 4 | (uint32_t)(lights_notes != 0u) << 8 |
-           (uint32_t)(usb_full != 0u) << 11;
+           (uint32_t)(usb_full != 0u) << 11 | (uint32_t)(midi_seq_out != 0u) << 12 | (uint32_t)(midi_clk_only != 0u) << 13;
 }
 static void lights_from_word(uint32_t w)        /* (each field checked: a damaged word lights nothing) */
 {
@@ -104,6 +104,8 @@ static void lights_from_word(uint32_t w)        /* (each field checked: a damage
     lights_keys = (uint8_t)(((w >> 4) & 15u) < KEYS_N ? ((w >> 4) & 15u) : KEYS_OFF);
     lights_notes = (uint8_t)((w >> 8) & 1u);
     usb_full = (uint8_t)((w >> 11) & 1u);
+    midi_seq_out = (uint8_t)((w >> 12) & 1u);       /* Jangada 0.7: MIDI OUT = SEQ, MIDI IN = CLOCK (seq.c) */
+    midi_clk_only = (uint8_t)((w >> 13) & 1u);
 }
 
 static void settings_init(void)

@@ -260,6 +260,57 @@ int main(void)
         run(2);
         ok(!song.playing, "clock TRS: STOP");
     }
+    {   /* Jangada 0.7 (after SLOOP 2.4): MIDI OUT = SEQ sends what the sequencer plays, on the track's channel,
+         * every note ended; KEYS again or STOP end what is on; MIDI IN = CLOCK takes no notes */
+        uint32_t on = 0, offs = 0, b, ch_ok = 1, open_n = 0, k;
+        int open[128] = {0};
+        setup();
+        song.g[G_CLOCK] = 0;
+        song.g[G_SYNC] = 0;
+        usb.config = 1;
+        mo_r = mo_w = 0;
+        t = &trk[1];
+        t->p[P_SLEN] = 4; t->p[P_SDIV] = 2; t->p[P_SGATE] = 64;
+        for (k = 0; k < 4u; k++)
+            t->step[k] = (step_t){{(uint8_t)(60 + k), 0, 0, 0}, 1, ST_NOTE, 0, 100};
+        midi_seq_out = 1;
+        transport_req = 1;
+        for (b = 0; b < 2u * 60u * FS / 120u / CTL; b++) {   /* two beats: 8 steps */
+            run(1);
+            while (mo_r != mo_w) {
+                uint32_t p = midi_out_q[mo_r++ % MQ], st = (p >> 8) & 0xF0u, nt = (p >> 16) & 0x7Fu;
+                if (st == 0x90u) { on++; open[nt]++; ch_ok &= ((p >> 8) & 15u) == 1u; }
+                if (st == 0x80u) { offs++; open[nt]--; }
+            }
+        }
+        ok(on == 8u && ch_ok, "MIDI OUT SEQ: 8 steps, 8 notes on channel 2");
+        transport_req = 2;
+        run(2);
+        while (mo_r != mo_w) {
+            uint32_t p = midi_out_q[mo_r++ % MQ];
+            if (((p >> 8) & 0xF0u) == 0x80u) { offs++; open[(p >> 16) & 0x7Fu]--; }
+        }
+        for (k = 0; k < 128u; k++)
+            open_n += open[k] != 0;
+        ok(offs == on && !open_n, "MIDI OUT SEQ: every note ended (STOP too)");
+        midi_seq_out = 0;
+        mo_r = mo_w = 0;
+        transport_req = 1;
+        run(200);
+        transport_req = 2;
+        run(2);
+        ok(mo_r == mo_w, "MIDI OUT KEYS: the sequencer sends nothing");
+        midi_clk_only = 1;
+        midi(0x90, 64, 100);
+        run(1);
+        ok(!trk[0].v[0].active && !trk[0].v[1].active, "MIDI IN CLOCK: a note in plays nothing");
+        midi_clk_only = 0;
+        midi(0x90, 64, 100);
+        run(1);
+        ok(trk[0].v[0].active || trk[0].v[1].active, "MIDI IN NOTES: it plays");
+        midi(0x80, 64, 0);
+        run(1);
+    }
     if (fails)
         printf("MIDI: %u FAILED\n", fails);
     return fails != 0;

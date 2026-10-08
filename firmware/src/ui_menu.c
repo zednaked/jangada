@@ -3,14 +3,16 @@
 /* Menu (HOME held): COLOR, SPEAKER (the low cut for the small speaker), LIGHTS, KEYS, NOTES (the panel
  * in the dark), USB AUDIO (the level the computer records), NEW PROJECT, ABOUT.
  * Jangada: ZOOM and HARDWARE CALIBRATION left the menu (calibration: OCT- + OCT+ held at power-on).
- * LIGHTS, KEYS, NOTES and USB AUDIO: Jangada, after SLOOP 2.3 (settings of the FM-1, panel.c). */
+ * LIGHTS, KEYS, NOTES and USB AUDIO: Jangada, after SLOOP 2.3 (settings of the FM-1, panel.c). MIDI OUT
+ * (KEYS / SEQ: the sequencer and the arp too) and MIDI IN (NOTES / CLOCK: the clock only): Jangada 0.7, after
+ * SLOOP 2.4 (seq.c). OCT- goes back (the BACK row is gone). */
 /* ------------------------------------------------------------ menu --- */
-enum { MI_COLOR, MI_SPEAKER, MI_LIGHTS, MI_KEYS, MI_NOTES, MI_USB, MI_NEW, MI_ABOUT, MI_BACK, MI_COUNT };
+enum { MI_COLOR, MI_SPEAKER, MI_LIGHTS, MI_KEYS, MI_NOTES, MI_USB, MI_MOUT, MI_MIN, MI_NEW, MI_ABOUT, MI_COUNT };
 static const char *const MI_NAME[MI_COUNT] = {"COLOR", "SPEAKER", "LIGHTS", "KEYS", "NOTES", "USB AUDIO",
-                                              "NEW PROJECT", "ABOUT", "BACK"};
+                                              "MIDI OUT", "MIDI IN", "NEW PROJECT", "ABOUT"};
 static const char *const LIGHTS_NAME[LIGHTS_N] = {"OFF", "LOW", "MID", "HIGH"};
 static const char *const KEYS_NAME[KEYS_N] = {"OFF", "C KEYS", "WHITE KEYS"};
-#define MI_DY 19                                    /* rows between two menu lines */
+#define MI_DY 17                                    /* rows between two menu lines */
 static uint8_t menu_new_armed;                      /* NEW PROJECT: OCT+ once arms, again clears */
 static void felucca_init(void);                     /* main.c */
 
@@ -76,7 +78,7 @@ static void draw_menu(void)
         } else {
             static const char *const HINT[MI_COUNT] = {
                 "", "ON: LESS BASS (SPEAKER)", "BUTTONS GLOW IN THE DARK", "KEYS GLOW TOO (WITH LIGHTS)",
-                "SOUNDING NOTES LIGHT THEIR KEYS", "", "EVERY TRACK BACK TO START", "", ""};
+                "SOUNDING NOTES LIGHT THEIR KEYS", "", "", "", "EVERY TRACK BACK TO START", ""};
             const char *hint = HINT[ui.menu_sel % MI_COUNT];
             for (i = 0; i < MI_COUNT; i++) {          /* a row card each, the selected one lit */
                 int32_t y = 3 + (int32_t)i * MI_DY;
@@ -85,8 +87,10 @@ static void draw_menu(void)
                                 i == MI_LIGHTS ? LIGHTS_NAME[lights_lvl % LIGHTS_N] :
                                 i == MI_KEYS ? KEYS_NAME[lights_keys % KEYS_N] :
                                 i == MI_NOTES ? (lights_notes ? "ON" : "OFF") :
-                                i == MI_USB ? (usb_full ? "FULL" : "MASTER") : 0;
-                cv_rrect(4, y - 2, 232, 17, 5, sel ? C_SEL : C_SURF, C_BG);
+                                i == MI_USB ? (usb_full ? "FULL" : "MASTER") :
+                                i == MI_MOUT ? (midi_seq_out ? "SEQ" : "KEYS") :
+                                i == MI_MIN ? (midi_clk_only ? "CLOCK" : "NOTES") : 0;
+                cv_rrect(4, y - 1, 232, 15, 5, sel ? C_SEL : C_SURF, C_BG);
                 cv_text(14, y - 1, &FONT_S, MI_NAME[i], sel ? C_WHITE : C_GRAY);
                 if (v)                                  /* (KEYS needs LIGHTS: gray while it is off) */
                     cv_text(110, y - 1, &FONT_S, v, i == MI_KEYS && !lights_lvl ? C_GRAY : C_HI);
@@ -99,6 +103,10 @@ static void draw_menu(void)
             }
             if (ui.menu_sel == MI_USB)
                 hint = usb_full ? "FIXED LEVEL, NOT THE KNOB" : "FOLLOWS THE MASTER KNOB";
+            if (ui.menu_sel == MI_MOUT)
+                hint = midi_seq_out ? "KEYS + SEQUENCER + ARP" : "ONLY THE KEYS";
+            if (ui.menu_sel == MI_MIN)
+                hint = midi_clk_only ? "CLOCK ONLY, NO NOTES" : "NOTES AND CLOCK";
             if (ui.menu_sel == MI_NEW && menu_new_armed)
                 hint = "OCT+ AGAIN: CLEAR ALL";
             cv_text(4, 3 + MI_COUNT * MI_DY, &FONT_S, hint[0] ? hint : "PRESETS MOVE   KNOB 1 SET",
@@ -149,9 +157,11 @@ static void menu_input(uint32_t pressed)
         settings.palette = (settings.palette + (s > 0 ? 1u : NPALETTES - 1u)) % NPALETTES;
         palette_set(settings.palette);              /* (the menu signature redraws) */
     }
-    if ((s != 0 || ok) && ui.menu == 1 && (ui.menu_sel == MI_NOTES || ui.menu_sel == MI_USB)) {
-        /* KNOB 1: right = ON / FULL, left = OFF / MASTER; OCT+ toggles */
-        uint8_t *v = ui.menu_sel == MI_NOTES ? &lights_notes : &usb_full;
+    if ((s != 0 || ok) && ui.menu == 1 && (ui.menu_sel == MI_NOTES || ui.menu_sel == MI_USB ||
+                                           ui.menu_sel == MI_MOUT || ui.menu_sel == MI_MIN)) {
+        /* KNOB 1: right = ON / FULL / SEQ / CLOCK, left = OFF / MASTER / KEYS / NOTES; OCT+ toggles */
+        uint8_t *v = ui.menu_sel == MI_NOTES ? &lights_notes : ui.menu_sel == MI_USB ? &usb_full :
+                     ui.menu_sel == MI_MOUT ? &midi_seq_out : &midi_clk_only;
         *v = (uint8_t)(s > 0 ? 1u : s < 0 ? 0u : !*v);
         ok = 0;
     }

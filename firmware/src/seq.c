@@ -178,14 +178,67 @@ static void arp_remove(track_t *t, uint32_t note)
 }
 
 /* the sounding arp note or RPT chord off */
+/* Jangada 0.7 (after SLOOP 2.4): MIDI OUT of what the sequencer and the arp play (HOME menu > MIDI OUT = SEQ;
+ * the keys always go out, keyboard_block). Notes from a computer or the jack are never echoed (no MIDI loop).
+ * A set per track of the notes sent on, so a note is ended once; STOP and MIDI OUT = KEYS end them all.
+ * MIDI IN = CLOCK: the clock and START / STOP only, no notes (events_block). Settings of the FM-1 (panel.c) */
+static uint8_t midi_seq_out, midi_clk_only;
+static uint32_t mo_set[NTRK][4];
+static uint8_t mo_any;                               /* something was sent on since the last check (events_block) */
+static void seq_out_off(const track_t *t, uint32_t note)
+{
+    uint32_t i = trk_index(t) % NTRK;
+    if (note > 127u || !(mo_set[i][note >> 5] & (1u << (note & 31u))))
+        return;
+    mo_set[i][note >> 5] &= ~(1u << (note & 31u));
+    midi_out_event(0x08u | (0x80u | trk_midi_ch(i)) << 8 | note << 16);
+}
+static void seq_out_on(const track_t *t, uint32_t note, uint32_t vel)
+{
+    uint32_t i = trk_index(t) % NTRK;
+    if (!midi_seq_out || note > 127u)
+        return;
+    seq_out_off(t, note);                            /* played again while on: off first */
+    mo_set[i][note >> 5] |= 1u << (note & 31u);
+    mo_any = 1;
+    midi_out_event(0x09u | (0x90u | trk_midi_ch(i)) << 8 | note << 16 | (vel ? vel & 127u : 1u) << 24);
+}
+static void seq_out_track_off(const track_t *t)     /* every note of the track still on */
+{
+    uint32_t i = trk_index(t) % NTRK, w, b;
+    for (w = 0; w < 4u; w++)
+        for (b = 0; mo_set[i][w]; b++)
+            if (mo_set[i][w] & (1u << b)) {
+                mo_set[i][w] &= ~(1u << b);
+                midi_out_event(0x08u | (0x80u | trk_midi_ch(i)) << 8 | (w * 32u + b) << 16);
+            }
+}
+static void seq_out_all_off(void)
+{
+    uint32_t i;
+    for (i = 0; i < NTRK; i++)
+        seq_out_track_off(&trk[i]);
+}
+/* a note the sequencer or the arp plays / lets go: the track, and MIDI OUT with SEQ */
+static void sq_on(track_t *t, uint32_t note, uint32_t vel)
+{
+    trk_note_on(t, note, vel);
+    seq_out_on(t, note, vel);
+}
+static void sq_off(track_t *t, uint32_t note)
+{
+    trk_note_off(t, note);
+    seq_out_off(t, note);
+}
+
 static void arp_silence(track_t *t)
 {
     uint32_t i;
     if (t->arp_note)
-        trk_note_off(t, t->arp_note);
+        sq_off(t, t->arp_note);
     t->arp_note = 0;
     for (i = 0; i < t->arp_nch; i++)
-        trk_note_off(t, t->arp_chord[i]);
+        sq_off(t, t->arp_chord[i]);
     t->arp_nch = 0;
 }
 
@@ -260,11 +313,11 @@ static void arp_tick(track_t *t, uint32_t n, uint32_t adv)
         if (t->p[P_AMODE] == 7) {
             for (i = 0; i < len && t->arp_nch < NVOICE; i++) {
                 t->arp_chord[t->arp_nch++] = (uint8_t)list[i];
-                trk_note_on(t, list[i], 100);
+                sq_on(t, list[i], 100);
             }
         } else {
             t->arp_note = (uint8_t)list[j];
-            trk_note_on(t, t->arp_note, 100);
+            sq_on(t, t->arp_note, 100);
         }
     }
 }
@@ -711,7 +764,7 @@ static void seq_release(track_t *t)
 {
     uint32_t i;
     for (i = 0; i < t->seq_n; i++)
-        trk_note_off(t, t->seq_notes[i]);
+        sq_off(t, t->seq_notes[i]);
     t->seq_n = 0;
     t->seq_hold = 0;
     t->slide_glide = 0;                             /* live MONO / LEG keys must not glide after it */
@@ -729,6 +782,7 @@ static void seq_stop(void)
         trk[i].rh_n = 0;                           /* a recorded note held over the stop: as far as it got */
         locks_restore(&trk[i]);                    /* the parameters back to their base */
     }
+    seq_out_all_off();                             /* MIDI OUT: what the sequencer sent, ended */
     fill_held = fill_arm = fill_bar_on = 0;        /* STOP ends a fill, held or armed */
 }
 
@@ -767,10 +821,11 @@ static void seq_step(track_t *t, uint32_t idx, uint32_t period, uint32_t skip)
         return;
     }
     if (is_drum(t)) {
+        seq_out_track_off(t);                       /* (MIDI OUT: the last step's hits end here) */
         if (s->time == ST_NOTE)
             for (i = 0; i < s->n; i++)
                 if (!((skip >> i) & 1u))
-                    trk_note_on(t, s->note[i], vel);
+                    sq_on(t, s->note[i], vel);
         return;
     }
     if (s->time == ST_REST || !s->n) {
@@ -781,14 +836,19 @@ static void seq_step(track_t *t, uint32_t idx, uint32_t period, uint32_t skip)
     if (!slide_in)
         seq_release(t);
     for (i = 0; i < s->n; i++)
-        if (!((skip >> i) & 1u))
-            trk_note_on(t, s->note[i], vel);
+        if (!((skip >> i) & 1u)) {
+            uint32_t on = s->note[i] < 128u && (mo_set[trk_index(t) % NTRK][s->note[i] >> 5] >> (s->note[i] & 31u)) & 1u;
+            if (slide_in && on)
+                trk_note_on(t, s->note[i], vel);    /* (a slide into the same note: one MIDI note) */
+            else
+                sq_on(t, s->note[i], vel);
+        }
     if (slide_in)                                   /* release what is not held over */
         for (i = 0; i < t->seq_n; i++) {
             for (j = 0; j < s->n && s->note[j] != t->seq_notes[i]; j++)
                 ;
             if (j == s->n)
-                trk_note_off(t, t->seq_notes[i]);
+                sq_off(t, t->seq_notes[i]);
         }
     t->seq_n = 0;
     for (i = 0; i < s->n; i++)
@@ -815,7 +875,7 @@ static void seq_ratchet(track_t *t, uint32_t n)
         t->seq_off = t->rat_gate;
     }
     for (i = 0; i < s->n; i++)
-        trk_note_on(t, s->note[i], vel);
+        sq_on(t, s->note[i], vel);
 }
 
 /* step idx fires (its nudged time): its condition, its locks, then the step itself */
@@ -1144,6 +1204,10 @@ static void events_block(uint32_t n)
         t->aholdp = t->p[P_AHOLD];
     }
     keyboard_block();
+    if (mo_any && !midi_seq_out) {                    /* MIDI OUT = KEYS again: end what the sequencer had sent */
+        seq_out_all_off();
+        mo_any = 0;
+    }
     while (mi_r != mi_w) {                            /* USB-MIDI (and TRS) in */
         uint32_t pkt, st, ch, d1, d2;
         RING_PUBLISH();                               /* Jangada: the slot after the index, as ep1_tx */
@@ -1157,6 +1221,8 @@ static void events_block(uint32_t n)
             midi_clock_in((pkt >> 8) & 0xFFu, (pkt & 0xF0u) ? 2u : 1u);   /* cable 0 USB, 1 the TRS jack) */
             continue;
         }
+        if (midi_clk_only && st == 0x90u && d2)
+            continue;                                 /* MIDI IN = CLOCK: no notes (the note-offs still end any) */
         if (st == 0x90u && d2)
             input_on(midi_route(ch, d1, 1), d1, d2);
         else if (st == 0x80u || st == 0x90u)

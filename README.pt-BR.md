@@ -271,6 +271,9 @@ gravar abre a tela **TRACKS**: BPM, compasso.beat, uma linha por trilha com pass
 - Pitch bend, sustain, all notes off, mod wheel, aftertouch e expressão (como origens da matriz).
 - **Clock** (GLO → GLOBAL CLK): INT, **USB** ou **TRS**, pulso a pulso, sem deriva; **SYNC OUT** manda
   clock pelo USB.
+- **HOME → MIDI OUT = SEQ**: o sequencer e o arpejador também saem pelo USB (cada trilha no seu canal,
+  a bateria no dela), toda nota encerrada; KEYS (padrão): só as teclas. **MIDI IN = CLOCK** segue o
+  clock e START / STOP e ignora as notas que chegam. Os dois são ajustes do FM-1, não do projeto.
 - **Áudio por USB**: o FM-1 aparece como entrada de áudio estéreo **Jangada** (44,1 kHz, sem driver).
   HOME → USB AUDIO: o nível segue o MASTER, ou FULL. No Linux:
   `arecord -D hw:Jangada -f S16_LE -r 44100 -c 2 take.wav`.
@@ -279,7 +282,7 @@ gravar abre a tela **TRACKS**: BPM, compasso.beat, uma linha por trilha com pass
 - Fonte suavizada (Inter Tight), ícones, cards; paleta **CHOQUE** (rosa-choque) como padrão.
 - Menu (segure **HOME**): COLOR, SPEAKER (corta graves para o alto-falante), **LIGHTS** (os botões
   brilham fraco, para tocar no escuro), **KEYS** (acende as teclas C ou as brancas), **NOTES** (as
-  notas que soam acendem as teclas), USB AUDIO, NEW PROJECT, ABOUT.
+  notas que soam acendem as teclas), USB AUDIO, MIDI OUT, MIDI IN, NEW PROJECT, ABOUT.
 
 ### No site
 - **[Studio](https://zednaked.github.io/jangada/webapp/studio/)**: a Jangada no navegador.
