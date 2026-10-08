@@ -225,6 +225,10 @@
         <button id="fm6load" data-t="load" data-ic="symbol_folder_open"></button>
         <button id="fm6store" data-t="fm6StoreBtn" data-ic="port_disk"></button>
         <button id="fm6erase" data-t="erase" data-ic="symbol_trash"></button></p>
+      <p class="bar"><label><span data-t="fm6To"></span> <select id="fm6dest"></select></label>
+        <button id="fm6copy" data-t="fm6Copy"></button>
+        <button id="fm6move" data-t="fm6Move"></button>
+        <button id="fm6swap" data-t="fm6Swap"></button></p>
       <p class="bar"><button id="fm6import" data-t="fm6Import" data-ic="symbol_upload"></button>
         <input type="file" id="fm6file" accept=".syx,.SYX,.bin,application/octet-stream" hidden>
         <button id="fm6export" data-t="fm6Export" data-ic="symbol_download"></button>
@@ -2335,6 +2339,8 @@ const TEXT = {
     fm6Pick: "読み込んだファイルの音色（押すと編集へ）:", fm6Picked: "編集中:", fm6Sent: "トラックへ送りました", fm6Read: "トラックから読みました",
     fm6Loaded: "読み込みました", fm6Factory: "F1〜F8 はファクトリー音色です。B のスロットを選んでください。", fm6BadSum: "チェックサム不一致あり",
     fm6Exported: "バンクを書き出しました", fm6BankPut: "32 音色を {range} に保存", fm6BankConfirm: "バンク {range} をこのファイルの 32 音色で置き換えますか？",
+    fm6To: "コピー先", fm6Copy: "コピー", fm6Move: "移動", fm6Swap: "入れ替え",
+    fm6Copied: "コピーしました:", fm6Moved: "移動しました:", fm6Swapped: "入れ替えました:",
     fm6Storing: "保存中 ", fm6BankDone: "バンクを保存しました: ", fm6Stop: "FM-1 の再生を止めてからバンクに書き込んでください。",
     fm6Busy: "FM-1 でバックアップが進行中です（最後の要求から 15 秒）。少し待ってからもう一度。", fm6Lost: "FM-1 が保存前にバッファを使いました。もう一度保存してください。",
   },
@@ -2425,6 +2431,8 @@ const TEXT = {
     fm6Pick: "Voices of the imported file (click to edit):", fm6Picked: "Editing:", fm6Sent: "Sent to track", fm6Read: "Read from track",
     fm6Loaded: "Loaded", fm6Factory: "F1..F8 are the factory patches: pick a B slot.", fm6BadSum: "a checksum did not match",
     fm6Exported: "Bank exported", fm6BankPut: "Store all 32 in {range}", fm6BankConfirm: "Replace the whole bank {range} with the 32 voices of this file?",
+    fm6To: "To", fm6Copy: "Copy", fm6Move: "Move", fm6Swap: "Swap",
+    fm6Copied: "Copied", fm6Moved: "Moved", fm6Swapped: "Swapped",
     fm6Storing: "Storing ", fm6BankDone: "Bank stored: ", fm6Stop: "Stop the FM-1 (PLAY), then write to the bank.",
     fm6Busy: "A backup is running on the FM-1 (15 s after its last request): wait a moment, then try again.", fm6Lost: "The FM-1 used its buffer before the write: store again.",
   },
@@ -4594,6 +4602,16 @@ function renderFm6() {
     return el("option", { value: i, text: `${fm6SlotName(i)} ${s && s.used ? s.name : t("empty")}` });
   }));
   if (keepS) ss.value = keepS;
+  const ds = $("fm6dest"), keepD = ds.value, nf = dev.info.fm6.factory;   /* copy / move / swap: a B slot */
+  ds.replaceChildren(...Array.from({ length: dev.info.fm6.bank }, (_, k) => {
+    const s = fm6List && fm6List.slots[nf + k];
+    return el("option", { value: nf + k, text: `${fm6SlotName(nf + k)} ${s && s.used ? s.name : t("empty")}` });
+  }));
+  if (keepD) ds.value = keepD;
+  else {                                                            /* first time: the first empty slot */
+    const e = fm6List ? fm6List.slots.findIndex((s, i) => i >= nf && !s.used) : -1;
+    if (e >= 0) ds.value = String(e);
+  }
   const bs = $("fm6banksel"), keepB = bs.value;                     /* the bank the bank buttons act on */
   bs.replaceChildren(...Array.from({ length: fm6Banks() }, (_, b) => el("option", { value: b, text: `${b + 1} (${fm6Range(32 * b)})` })));
   bs.value = keepB && +keepB < fm6Banks() ? keepB : "0";
@@ -4685,6 +4703,38 @@ $("fm6erase").addEventListener("click", () => {
     sayK("erasedSlot", fm6SlotName(i));
   });
 });
+/* Jangada (issue #2): a patch from one slot to another, across the banks too. COPY (a factory F slot as well),
+ * MOVE (written first, then the source erased: a failure in between leaves two copies, never none), SWAP (into an
+ * empty slot it is a move). The device's own FM6_GET / PUT / ERASE: no new protocol */
+async function fm6Xfer(mode) {
+  if (!fm6Ok()) return;
+  const i = +$("fm6slot").value, j = +$("fm6dest").value, nf = dev.info.fm6.factory;
+  if (i === j) return;
+  if (i < nf && mode !== "copy") { sayK("fm6Factory"); return; }
+  const si = fm6List && fm6List.slots[i], sj = fm6List && fm6List.slots[j];
+  if (i >= nf && !(si && si.used)) { sayK("emptySlot", fm6SlotName(i)); return; }
+  if (mode !== "swap" && sj && sj.used && !confirm(t("confirmOverwrite").replace("{n}", fm6SlotName(j)).replace("{name}", sj.name))) return;
+  await op(async () => {
+    const get = async (k) => {
+      const r = parse[CMD.FM6_GET](await rq(k < nf ? req.fm6Get(FM6.TARGET.FACTORY, k) : req.fm6Get(FM6.TARGET.BANK, k - nf)));
+      if (r.rc === 2) return null;                                  /* empty */
+      fm6Rc(r.rc);
+      return r.packed;
+    };
+    const put = async (k, pk) => fm6Rc(parse[CMD.FM6_PUT](await rq(req.fm6Put(FM6.TARGET.BANK, k - nf, pk), { timeout: 3000, retries: 0 })).rc);
+    const erase = async (k) => fm6Rc(parse[CMD.FM6_ERASE](await rq(req.fm6Erase(k - nf), { timeout: 3000, retries: 0 })).rc);
+    const a = await get(i), b = mode === "swap" ? await get(j) : null;
+    if (!a) { sayK("emptySlot", fm6SlotName(i)); return; }
+    await put(j, a);
+    if (b) await put(i, b);
+    else if (mode !== "copy") await erase(i);
+    await fm6Refresh();
+    sayK(mode === "copy" ? "fm6Copied" : mode === "move" ? "fm6Moved" : "fm6Swapped", ` ${fm6SlotName(i)} → ${fm6SlotName(j)}`);
+  });
+}
+$("fm6copy").addEventListener("click", () => fm6Xfer("copy"));
+$("fm6move").addEventListener("click", () => fm6Xfer("move"));
+$("fm6swap").addEventListener("click", () => fm6Xfer("swap"));
 $("fm6init").addEventListener("click", () => { fm6v = FM6.init(); renderFm6(); });
 $("fm6banksel").addEventListener("change", () => renderFm6Imported());   /* (the "store all 32" button names the bank) */
 $("fm6import").addEventListener("click", () => $("fm6file").click());
