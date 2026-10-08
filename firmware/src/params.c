@@ -108,6 +108,7 @@ static const param_desc_t TP[P_COUNT] = {
     [P_EVOL] = PD("EVOL", F_PCT, 0, 127, 0),
     [P_TENS] = PD("TENS", F_PCT, 0, 127, 0),
     [P_TRAMP] = PE("RAMP", N_TRAMP, 0),
+    [P_TFLT] = PD("FILT", F_FILT, -64, 63, 0),     /* Jangada 0.7: the track's filter (fx.c) */
 };
 
 static const param_desc_t GP[G_COUNT] = {
@@ -258,6 +259,14 @@ static void param_format(const param_desc_t *d, int32_t v, char *val, const char
         fmt_int(val, v);
         *unit = "STEP";
         break;
+    case F_FILT:                                      /* LP 0..100 closing, HP 0..100 opening */
+        if (!v) {
+            str_cpy(val, "OFF", 6);
+        } else {
+            str_cpy(val, v < 0 ? "LP" : "HP", 6);
+            fmt_int(val + 2, v < 0 ? (-v * 100 + 32) / 64 : (v * 100 + 31) / 63);
+        }
+        break;
     default:
         if (d->names) {                               /* F_INT with a 0-terminated name list: the range */
             uint32_t k = 0;                           /* split evenly over the names (engine desc hooks) */
@@ -297,7 +306,8 @@ static const page_t PAGES[] = {
     {"MOD 3", FAM_LFO, SC_TRACK, GR_NONE, {P_M3SRC, P_M3DST, P_M3AMT, 0xFF}},
     {"MOD 4", FAM_LFO, SC_TRACK, GR_NONE, {P_M4SRC, P_M4DST, P_M4AMT, 0xFF}},
     {"FX", FAM_FX, SC_TRACK, GR_FX, {P_DIST, P_CHOR, P_DLY, P_REV}},
-    {"DIST", FAM_FX, SC_TRACK, GR_NONE, {P_DTYPE, P_DIST, P_DRING, 0xFF}},   /* Jangada GRIT: TYPE, DIST, FREQ (RING) */
+    {"DIST", FAM_FX, SC_TRACK, GR_NONE, {P_DTYPE, P_DIST, P_DRING, P_TFLT}},   /* Jangada GRIT: TYPE, DIST, FREQ (RING); the
+                                                                                 * track's FILT (drum track too) */
     {"SLICER", FAM_FX, SC_TRACK, GR_SLCR, {P_SLCR, P_SLPAT, P_SLRATE, P_SLDEPTH}},   /* drum track too */
     {"DLY", FAM_FX, SC_GLOBAL, GR_NONE, {G_DTIME, G_DFDBK, G_DCOLOR, G_DMIX}},
     {"REV/CHO", FAM_FX, SC_GLOBAL, GR_NONE, {G_RSIZE, G_RDAMP, G_CRATE, G_CDEPTH}},

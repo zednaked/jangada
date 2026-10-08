@@ -363,7 +363,7 @@ const CMD = { INFO: 1, GET: 2, SET: 3, DUMP: 4, DESC: 5, STEP_GET: 6, STEP_SET: 
 const PUSH = new Set([CMD.CHANGED, CMD.RELOAD, CMD.STEP_CHANGED, CMD.TRACK_CHANGED]);
 /* user preset bank: name 1..12 printable ASCII, a 16-step pattern of (note, flags 1 acc 2 slide 4 tie) */
 const UP = { NAME_MAX: 12, PAT: 16, LIST_MAX: 16 };
-const F = { INT: 0, PCT: 1, BIPCT: 2, TIME: 3, LFOHZ: 4, CUTOFF: 5, DB: 6, SEMI: 7, ENUM: 8, BPM: 9, NOTE: 10, ONOFF: 11, OCT: 12, STEPS: 13 };
+const F = { INT: 0, PCT: 1, BIPCT: 2, TIME: 3, LFOHZ: 4, CUTOFF: 5, DB: 6, SEMI: 7, ENUM: 8, BPM: 9, NOTE: 10, ONOFF: 11, OCT: 12, STEPS: 13, FILT: 14 };
 
 const v14enc = (v) => { const u = Math.max(-8192, Math.min(8191, Math.round(v))) + 8192; return [u & 0x7F, (u >> 7) & 0x7F]; };
 const v14dec = (lo, hi) => (lo | (hi << 7)) - 8192;
@@ -844,6 +844,7 @@ function fmtValue(d, v) {
     case F.NOTE: return [NOTE_NAMES[((v % 12) + 12) % 12], ""];
     case F.ONOFF: return [v ? "ON" : "OFF", ""];
     case F.STEPS: return [String(v), "STEP"];
+    case F.FILT: return [v === 0 ? "OFF" : v < 0 ? "LP" + Math.trunc((-v * 100 + 32) / 64) : "HP" + Math.trunc((v * 100 + 31) / 63), ""];
     default: return [String(v), d.unit || ""];
   }
 }
@@ -1446,7 +1447,7 @@ function makeMockDevice(opt = {}) {
     NONE, NONE, NONE, NONE,
     NONE, NONE, NONE, NONE,
     NONE, NONE, NONE, NONE,
-    D("EVOL", F.PCT, 0, 127, 0), D("TENS", F.PCT, 0, 127, 0), D("RAMP", F.ENUM, 0, 6, 0, ["OFF", "1BAR", "2BAR", "4BAR", "8BAR", "16BAR", "32BAR"]),
+    D("EVOL", F.PCT, 0, 127, 0), D("TENS", F.PCT, 0, 127, 0), D("RAMP", F.ENUM, 0, 6, 0, ["OFF", "1BAR", "2BAR", "4BAR", "8BAR", "16BAR", "32BAR"]), D("FILT", F.FILT, -64, 63, 0),
   ];
   const GP = [
     D("BPM", F.BPM, 40, 240, 120), D("SWG", F.PCT, 0, 100, 0), D("CLK", F.ENUM, 0, 2, 0, ["INT", "USB", "TRS"]), D("TUNE", F.INT, -50, 50, 0),
@@ -1615,7 +1616,7 @@ function makeMockDevice(opt = {}) {
         P("PLUCK", [0, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 127, 0], 0, 13),
         P("CARVAO", [0, 1, -20, 0, 24, 0, 40, 4, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 127, 0], 0, 0)] },
   ];
-  const P_COUNT = 83, G_COUNT = 35, NSTEP = 64, P_E0 = 64, NEDIT = 16, G_ENGSEL = 20, P_SLCR = 45;
+  const P_COUNT = 84, G_COUNT = 35, NSTEP = 64, P_E0 = 64, NEDIT = 16, G_ENGSEL = 20, P_SLCR = 45;
   /* </generated> */
   /* factory PATTERNS[] (ui.c): absolute notes, 0 rest; flags 1 accent, 2 slide, 4 tie (holds the previous note) */
   const T_ = 4;
@@ -2533,7 +2534,7 @@ function selfLoad() {
 const stepEdit = new Map(); /* index -> time of the last edit */
 
 /* parameter ids (firmware/src/core.h); used only when P_COUNT / G_COUNT match */
-const EXPECT = { pcount: 83, gcount: 35, pe0: 64 };   /* tools/gen_editor_tables.py --check: == the firmware */
+const EXPECT = { pcount: 84, gcount: 35, pe0: 64 };   /* tools/gen_editor_tables.py --check: == the firmware */
 const P = { LEVEL: 0, SLEN: 29 };
 const LAYOUT = (pe0) => [
   { t: "ENV", pages: [["ENV", 0, [1, 2, 3, 4]], ["ENV DEST", 0, [5, 6, 7, 8]]] },

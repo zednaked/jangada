@@ -545,7 +545,7 @@ static int p_lockable(const track_t *t, uint32_t id)
             return 0;
     } else if (!(id <= P_LD_AMP || id == P_SGATE || (id >= P_DIST && id <= P_REV) || id == P_GLIDE ||
                  id == P_PAN || id == P_DETUNE || id == P_SLDEPTH || id == P_M1AMT || id == P_M2AMT ||
-                 id == P_M3AMT || id == P_M4AMT || id == P_DRING || id == P_TENS) || id == P_LWAVE) {
+                 id == P_M3AMT || id == P_M4AMT || id == P_DRING || id == P_TENS || id == P_TFLT) || id == P_LWAVE) {
         return 0;
     }
     d = lock_desc(t, id);

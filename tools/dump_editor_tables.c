@@ -9,7 +9,7 @@
 #undef main
 
 static const char *const FMT[] = {"INT", "PCT", "BIPCT", "TIME", "LFOHZ", "CUTOFF", "DB", "SEMI", "ENUM", "BPM",
-                                  "NOTE", "ONOFF", "OCT", "STEPS"};
+                                  "NOTE", "ONOFF", "OCT", "STEPS", "FILT"};
 
 static void js_str(const char *s)
 {

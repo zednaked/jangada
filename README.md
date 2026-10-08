@@ -258,6 +258,8 @@ record opens the **TRACKS** view: BPM, bar.beat, one row per track with its step
 ### Sequencer and arpeggiator
 - 64 steps per track, chords, ties, accent, slide; live recording.
 - **RTCH** ratchet x1–x4 and **CHNC** chance 100/75/50/25 % per step (STEP 2).
+- **FILT** on every track (FX → DIST, knob 4): left a low-pass, right a high-pass, centre off; it stays
+  when the sound changes and can be locked on a step.
 - **Micro timing**, **parameter locks** (12 a track) and **fills** per step, in the SEQ layer; they are
   saved with the project.
 - Arpeggiator with the **UDI** and **RPT** modes; divisions up to **4BAR** (in the sequencer too).

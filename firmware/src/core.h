@@ -24,7 +24,7 @@ enum { V_POLY, V_MONO, V_LEGATO, V_UNISON };   /* P_VOICE */
 /* ------------------------------------------------------- parameters --- */
 enum {
     F_INT, F_PCT, F_BIPCT, F_TIME, F_LFOHZ, F_CUTOFF, F_DB, F_SEMI, F_ENUM, F_BPM, F_NOTE,
-    F_ONOFF, F_OCT, F_STEPS
+    F_ONOFF, F_OCT, F_STEPS, F_FILT
 };
 
 typedef struct {
@@ -63,6 +63,8 @@ enum {                          /* per-track parameters */
      * (a macro that opens the sound) and its RAMP (bars to reach it). After the engine's own: P_E0 keeps
      * its place (saved data use the keys anyway) */
     P_EVOL, P_TENS, P_TRAMP,
+    P_TFLT,                                    /* Jangada 0.7 (after SLOOP 2.4): the track's filter, < 0 a low-pass
+                                                * closing, > 0 a high-pass opening, 0 off (fx.c djf_block) */
     P_COUNT
 };
 #define NEDIT 16                 /* engine parameters P_E0.. */

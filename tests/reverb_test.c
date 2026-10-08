@@ -102,6 +102,45 @@ int main(void)
             left += rev_comb[i] != 0;
         ok(!left, "rev_clear: combs and allpasses all silent");
     }
+    {   /* Jangada 0.7 (after SLOOP 2.4): the track's FILT (djf_block / djf_run, P_TFLT): LP closed keeps a low
+         * sine and takes a high one down, HP the other way, 0 glides open and then bypasses */
+        static int32_t b[CTL];
+        djf_t f;
+        tsvf_t c;
+        double lo, hi;
+        uint32_t k, i, ph;
+        for (k = 0; k < 4u; k++) {
+            int32_t v = k < 2u ? -60 : 60;
+            uint32_t hz = k & 1u ? 8000u : 100u;
+            double e = 0, e0 = 0;
+            memset(&f, 0, sizeof f);
+            for (ph = 0, i = 0; i < 400u; i++) {        /* 400 blocks: the glide done, then measured */
+                uint32_t j;
+                int bypass = !djf_block(&f, v, &c);
+                for (j = 0; j < CTL; j++, ph++)
+                    b[j] = (int32_t)(20000.0 * sin(2.0 * M_PI * hz * ph / FS)) << 2;
+                if (i >= 300u)
+                    for (j = 0; j < CTL; j++)
+                        e0 += (double)(b[j] >> 2) * (b[j] >> 2);
+                if (!bypass)
+                    djf_run(&f, &c, b, CTL, 0, 2);
+                if (i >= 300u)
+                    for (j = 0; j < CTL; j++)
+                        e += (double)(b[j] >> 2) * (b[j] >> 2);
+            }
+            if (k == 0) lo = e / e0;
+            if (k == 1) hi = e / e0;
+            if (k == 1u)
+                ok(lo > 0.7 && hi < 0.01, "FILT LP: 100 Hz through, 8 kHz down");
+            if (k == 2u) lo = e / e0;
+            if (k == 3u)
+                ok(lo < 0.01 && e / e0 > 0.7, "FILT HP: 100 Hz down, 8 kHz through");
+        }
+        for (i = 0; i < 200u && djf_block(&f, 0, &c); i++)
+            ;
+        ok(i < 200u && !f.mode, "FILT back to 0: glides open, then bypassed");
+        ok(p_lockable(&trk[0], P_TFLT), "FILT: lockable");
+    }
     if (fails)
         printf("REVERB: %u FAILED\n", fails);
     return fails != 0;

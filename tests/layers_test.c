@@ -159,6 +159,7 @@ int main(void){
    apply_preset_to(u, f); assert(f && u->p[P_EVOL] == 90 && u->p[P_TENS] == 110 && u->p[P_TRAMP] == 5);
    apply_preset_to(u, 0); assert(!u->p[P_EVOL] && !u->p[P_TENS] && !u->p[P_TRAMP]);
    u->p[P_EVOL] = 50; track_defaults(u); assert(!u->p[P_EVOL]);
+   u->p[P_TFLT] = -30; apply_preset_to(u, 1); assert(u->p[P_TFLT] == -30); u->p[P_TFLT] = 0;   /* FILT: the mix, kept */
    set_engine_of(u, TRK_DEF[1][0]); apply_preset_to(u, TRK_DEF[1][1]); u->engine = u->eng_req;
    printf("%-46s ok\n", "presets: EVOL TENS RAMP set and reset");
  }
