@@ -1227,6 +1227,12 @@ static void midi_cc(track_t *t, uint32_t cc, uint32_t v)
     case 11:                                        /* EXPRESSION (mod.c EXPR) */
         t->ex = (uint8_t)v;
         break;
+    case 16:                                        /* Jangada 0.8: GENERAL PURPOSE 1..4 -> the macro knobs */
+    case 17:                                        /* MAC1..MAC4 (song-wide: any channel) */
+    case 18:
+    case 19:
+        song.g[G_MAC1 + cc - 16u] = (int16_t)v;
+        break;
     case 64:                                        /* SUSTAIN */
         if (v >= 64u)
             t->sus = 1;

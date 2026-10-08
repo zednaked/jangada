@@ -101,7 +101,7 @@ and nothing leaves your browser.
 |---|---|
 | **Engines** | 10: ANALOG (superwave, Moog-style ladder filter), FM6 (6-operator, Dexed), DIGITAL (4-op FM), PHASE, LOFI, SAMPLE, VOICE, TRIO, WHEEL, GRAIN |
 | **Voices and tracks** | 8 voices over 4 tracks (3 synths + drums, or 4 synths) |
-| **Parameters** | 16 per engine, a 4-slot modulation matrix with 9 sources |
+| **Parameters** | 16 per engine, a 4-slot modulation matrix with 13 sources (4 of them macro knobs) |
 | **Presets** | 93 factory (31 dark, drone and northeastern ones by Jangada), 32 user, 72 FM6 patches (8 + two banks of 32) |
 | **Drums** | 5 Jangada kits + 32 synthesised + GM; 7 factory beats |
 | **Sequencer** | 64 steps per track, chords, ratchet, chance, accent, slide, swing; UDI / RPT arp up to 4 bars |
@@ -233,8 +233,12 @@ and it keeps breathing on its own, even while you play the other tracks.
   bank 1 or 2, SAVE writes it, any other button cancels.
 - And the others: DIGITAL (4-operator FM), PHASE, LOFI, SAMPLE, VOICE, TRIO, WHEEL, GRAIN.
 - **16 parameters per engine** (Felucca has 8).
-- **Modulation matrix** (LFO → MOD 1–4): sources LFO, ENV, VEL, KEY, RND, MODW, AT, EXPR and DRIFT;
-  destinations filter, pitch, shape or any engine parameter.
+- **Modulation matrix** (LFO → MOD 1–4): sources LFO, ENV, VEL, KEY, RND, MODW, AT, EXPR, DRIFT and
+  MAC1–MAC4; destinations filter, pitch, shape or any engine parameter.
+- **Macros for playing live** (LFO → MACRO): four knobs, MAC1–MAC4, for the whole song. Point matrix slots
+  at the same MAC, on one part or on all of them, and one knob moves them together: MAC1 → CUT on every part
+  is a BRIGHTNESS, MAC2 → DRV + SDRV a DRIVE. MIDI CC 16–19 move them from a controller (any channel). They
+  belong to the hands, not the song: a project does not store them, and loading one leaves them where they are.
 - **One-key chords** (SCL → CHORD): TRIAD, 7TH, 9TH, SUS4, POWER; the white keys walk the scale and
   each plays its chord.
 

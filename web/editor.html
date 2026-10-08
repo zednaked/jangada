@@ -1443,9 +1443,9 @@ function makeMockDevice(opt = {}) {
     D("REV", F.PCT, 0, 127, 0), D("VCE", F.ENUM, 0, 3, 0, ["POLY", "MONO", "LEG", "UNI"]), D("GLD", F.TIME, 0, 127, 0), D("PAN", F.BIPCT, -64, 63, 0),
     D("MUTE", F.ENUM, 0, 1, 0, ["OFF", "ON"]), D("GLMOD", F.ENUM, 0, 1, 0, ["RATE", "TIME"]), D("PRIO", F.ENUM, 0, 2, 0, ["LAST", "LOW", "HIGH"]), D("ALLOC", F.ENUM, 0, 1, 0, ["ROT", "REUSE"]),
     D("DTUNE", F.INT, 0, 127, 40), D("SLCR", F.ENUM, 0, 2, 0, ["OFF", "GATE", "STUT"]), D("PAT", F.INT, 1, 16, 1), D("RATE", F.ENUM, 0, 5, 1, ["1/8", "1/16", "1/32", "8T", "16T", "32T"]),
-    D("DEPTH", F.PCT, 0, 127, 127), D("SRC", F.ENUM, 0, 9, 0, ["OFF", "LFO", "ENV", "VEL", "KEY", "RND", "MODW", "AT", "EXPR", "DRIFT"]), D("DST", F.ENUM, 0, 18, 0, ["CUT", "PIT", "SHP", "E1", "E2", "E3", "E4", "E5", "E6", "E7", "E8", "E9", "E10", "E11", "E12", "E13", "E14", "E15", "E16"]), D("AMT", F.BIPCT, -64, 63, 0),
-    D("SRC", F.ENUM, 0, 9, 0, ["OFF", "LFO", "ENV", "VEL", "KEY", "RND", "MODW", "AT", "EXPR", "DRIFT"]), D("DST", F.ENUM, 0, 18, 0, ["CUT", "PIT", "SHP", "E1", "E2", "E3", "E4", "E5", "E6", "E7", "E8", "E9", "E10", "E11", "E12", "E13", "E14", "E15", "E16"]), D("AMT", F.BIPCT, -64, 63, 0), D("SRC", F.ENUM, 0, 9, 0, ["OFF", "LFO", "ENV", "VEL", "KEY", "RND", "MODW", "AT", "EXPR", "DRIFT"]),
-    D("DST", F.ENUM, 0, 18, 0, ["CUT", "PIT", "SHP", "E1", "E2", "E3", "E4", "E5", "E6", "E7", "E8", "E9", "E10", "E11", "E12", "E13", "E14", "E15", "E16"]), D("AMT", F.BIPCT, -64, 63, 0), D("SRC", F.ENUM, 0, 9, 0, ["OFF", "LFO", "ENV", "VEL", "KEY", "RND", "MODW", "AT", "EXPR", "DRIFT"]), D("DST", F.ENUM, 0, 18, 0, ["CUT", "PIT", "SHP", "E1", "E2", "E3", "E4", "E5", "E6", "E7", "E8", "E9", "E10", "E11", "E12", "E13", "E14", "E15", "E16"]),
+    D("DEPTH", F.PCT, 0, 127, 127), D("SRC", F.ENUM, 0, 13, 0, ["OFF", "LFO", "ENV", "VEL", "KEY", "RND", "MODW", "AT", "EXPR", "DRIFT", "MAC1", "MAC2", "MAC3", "MAC4"]), D("DST", F.ENUM, 0, 18, 0, ["CUT", "PIT", "SHP", "E1", "E2", "E3", "E4", "E5", "E6", "E7", "E8", "E9", "E10", "E11", "E12", "E13", "E14", "E15", "E16"]), D("AMT", F.BIPCT, -64, 63, 0),
+    D("SRC", F.ENUM, 0, 13, 0, ["OFF", "LFO", "ENV", "VEL", "KEY", "RND", "MODW", "AT", "EXPR", "DRIFT", "MAC1", "MAC2", "MAC3", "MAC4"]), D("DST", F.ENUM, 0, 18, 0, ["CUT", "PIT", "SHP", "E1", "E2", "E3", "E4", "E5", "E6", "E7", "E8", "E9", "E10", "E11", "E12", "E13", "E14", "E15", "E16"]), D("AMT", F.BIPCT, -64, 63, 0), D("SRC", F.ENUM, 0, 13, 0, ["OFF", "LFO", "ENV", "VEL", "KEY", "RND", "MODW", "AT", "EXPR", "DRIFT", "MAC1", "MAC2", "MAC3", "MAC4"]),
+    D("DST", F.ENUM, 0, 18, 0, ["CUT", "PIT", "SHP", "E1", "E2", "E3", "E4", "E5", "E6", "E7", "E8", "E9", "E10", "E11", "E12", "E13", "E14", "E15", "E16"]), D("AMT", F.BIPCT, -64, 63, 0), D("SRC", F.ENUM, 0, 13, 0, ["OFF", "LFO", "ENV", "VEL", "KEY", "RND", "MODW", "AT", "EXPR", "DRIFT", "MAC1", "MAC2", "MAC3", "MAC4"]), D("DST", F.ENUM, 0, 18, 0, ["CUT", "PIT", "SHP", "E1", "E2", "E3", "E4", "E5", "E6", "E7", "E8", "E9", "E10", "E11", "E12", "E13", "E14", "E15", "E16"]),
     D("AMT", F.BIPCT, -64, 63, 0), D("CHRD", F.ENUM, 0, 5, 0, ["OFF", "TRIAD", "7TH", "9TH", "SUS4", "POWER"]), D("TYPE", F.ENUM, 0, 4, 0, ["SOFT", "FUZZ", "FOLD", "CRUSH", "RING"]), D("FREQ", F.CUTOFF, 0, 127, 48),
     NONE, NONE, NONE, NONE,
     NONE, NONE, NONE, NONE,
@@ -1463,7 +1463,8 @@ function makeMockDevice(opt = {}) {
     D("ENG", F.ENUM, 0, 8, 0, ["ANALOG", "DIGITAL", "PHASE", "LOFI", "SAMPLE", "VOICE", "TRIO", "WHEEL", "GRAIN"]), D("SET", F.ENUM, 0, 1, 0, ["--", "GO"]), D("CLRSQ", F.ENUM, 0, 1, 0, ["--", "GO"]), D("INIT", F.ENUM, 0, 1, 0, ["--", "GO"]),
     D("CH", F.INT, 0, 16, 10), D("LVL", F.INT, 0, 127, 100), D("REV", F.INT, 0, 127, 16), D("T4", F.ENUM, 0, 1, 0, ["DRUM", "SYNTH"]),
     D("DUST", F.PCT, 0, 127, 0), D("DUCK", F.PCT, 0, 127, 0), D("FILT", F.BIPCT, -64, 63, 0), D("KIT", F.ENUM, 0, 37, 0, ["GM", "808", "909", "606", "80S", "VINTAGE", "TRAP", "DRILL", "BOOMBAP", "LO-FI", "PHONK", "HOUSE", "D.HOUSE", "TECHNO", "MINIMAL", "ELECTRO", "DISCO", "GARAGE", "JUNGLE", "DUBSTEP", "DEMBOW", "AMAPIANO", "AFRO", "LATIN", "TRIBAL", "SYNTHWV", "CHIP", "ARCADE", "GLITCH", "INDUSTR", "HYPER", "AMBIENT", "JAZZ", "RUST", "FORGE", "PISTON", "HURT", "MANGUE"]),
-    D("TYPE", F.ENUM, 0, 2, 0, ["ROOM", "SPRING", "PLATE"]), D("TAPE", F.PCT, 0, 127, 0), D("HUM", F.PCT, 0, 127, 0),
+    D("TYPE", F.ENUM, 0, 2, 0, ["ROOM", "SPRING", "PLATE"]), D("TAPE", F.PCT, 0, 127, 0), D("HUM", F.PCT, 0, 127, 0), D("MAC1", F.PCT, 0, 127, 0),
+    D("MAC2", F.PCT, 0, 127, 0), D("MAC3", F.PCT, 0, 127, 0), D("MAC4", F.PCT, 0, 127, 0),
   ];
   const P = (name, e, env = [10, 70, 90, 60], mono = 0, pat = 0) => ({ name, e, env, mono, pat });
   const ENG = [
@@ -1622,7 +1623,7 @@ function makeMockDevice(opt = {}) {
         P("PLUCK", [0, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 127, 0], 0, 13),
         P("CARVAO", [0, 1, -20, 0, 24, 0, 40, 4, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 127, 0], 0, 0)] },
   ];
-  const P_COUNT = 86, G_COUNT = 35, NSTEP = 64, P_E0 = 64, NEDIT = 16, G_ENGSEL = 20, P_SLCR = 45;
+  const P_COUNT = 86, G_COUNT = 39, NSTEP = 64, P_E0 = 64, NEDIT = 16, G_ENGSEL = 20, P_SLCR = 45;
   /* </generated> */
   /* factory PATTERNS[] (ui.c): absolute notes, 0 rest; flags 1 accent, 2 slide, 4 tie (holds the previous note) */
   const T_ = 4;
@@ -2544,7 +2545,7 @@ function selfLoad() {
 const stepEdit = new Map(); /* index -> time of the last edit */
 
 /* parameter ids (firmware/src/core.h); used only when P_COUNT / G_COUNT match */
-const EXPECT = { pcount: 86, gcount: 35, pe0: 64 };   /* tools/gen_editor_tables.py --check: == the firmware */
+const EXPECT = { pcount: 86, gcount: 39, pe0: 64 };   /* tools/gen_editor_tables.py --check: == the firmware */
 const P = { LEVEL: 0, SLEN: 29 };
 const LAYOUT = (pe0) => [
   { t: "ENV", pages: [["ENV", 0, [1, 2, 3, 4]], ["ENV DEST", 0, [5, 6, 7, 8]]] },

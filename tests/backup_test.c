@@ -300,7 +300,7 @@ int main(void)
     power_on();
     rc = list();
     check("LIST: 15 objects; the working project (with its FM6 patches) and the settings, the rest empty",
-          !rc && ED_BK_N == 15u && arc[0].id == 0 && arc[0].len == JNG_SIZE(P_COUNT, G_COUNT) + JNG_FM6_SIZE &&
+          !rc && ED_BK_N == 15u && arc[0].id == 0 && arc[0].len == JNG_SIZE(P_COUNT, G_STORED) + JNG_FM6_SIZE &&
           arc[1].len == sizeof(persist_t) && arc[2].len == 0 && arc[6].len == 0 && arc[8].id == 8 && arc[8].len == 0 &&
           arc[9].id == 9 && arc[9].len == 0 && arc[10].id == 10 && arc[10].len == 0 && arc[11].id == 11 &&
           arc[11].len == 0 && arc[12].id == 32 && arc[12].len == 0 && arc[14].id == 34);
@@ -349,7 +349,7 @@ int main(void)
     rc = capture();
     check("capture: every object read back, each matching its CRC from LIST", !rc);
     check("capture: projects 2 and 4 stored as JNG1, 1 and 3 empty",
-          obj(3)->len == JNG_SIZE(P_COUNT, G_COUNT) + JNG_FM6_SIZE && obj(5)->len == obj(3)->len && !obj(2)->len && !obj(4)->len &&
+          obj(3)->len == JNG_SIZE(P_COUNT, G_STORED) + JNG_FM6_SIZE && obj(5)->len == obj(3)->len && !obj(2)->len && !obj(4)->len &&
           !memcmp(obj(3)->data, "JNG1", 4));
     check("capture: project 2 is what the flash holds", !memcmp(obj(3)->data, nor + 0x97000 + 2u * 4096u + 256u, obj(3)->len) ||
                                                        !memcmp(obj(3)->data, nor + 0x97000 + 3u * 4096u + 256u, obj(3)->len));

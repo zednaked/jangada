@@ -117,6 +117,31 @@ int main(void)
             diff += a[0][i] != b[0][i];
         check("render: VEL -> CUT -63 changes the sound", diff > 0);
     }
+
+    {   /* Jangada 0.8: the macro knobs (song.g[G_MAC1..]) as sources: at 0 nothing, up it moves every slot on it */
+        int16_t b4, b5;
+        t = setup();
+        b4 = t->p[P_E0 + 4], b5 = t->p[P_E0 + 5];
+        slot(t, 0, MS_MAC1, MD_E0 + 4, 40);            /* MAC1 opens CUT and RES at once */
+        slot(t, 1, MS_MAC1, MD_E0 + 5, 40);
+        song.g[G_MAC1] = 0;
+        moved = mod_voice(t, e, &v, 0, 0, d, keep);
+        check("MAC1 at 0: no change", t->p[P_E0 + 4] == b4 && t->p[P_E0 + 5] == b5);
+        mod_restore(t, moved, keep);
+        song.g[G_MAC1] = 127;
+        moved = mod_voice(t, e, &v, 0, 0, d, keep);
+        check("MAC1 up: one knob moves both slots (CUT and RES)", t->p[P_E0 + 4] > b4 && t->p[P_E0 + 5] > b5);
+        mod_restore(t, moved, keep);
+        song.g[G_MAC2] = 127;
+        slot(t, 0, MS_MAC2, MD_E0 + 4, 40);
+        slot(t, 1, MS_OFF, 0, 0);
+        song.g[G_MAC1] = 0;
+        moved = mod_voice(t, e, &v, 0, 0, d, keep);
+        check("MAC2 is its own knob", t->p[P_E0 + 4] > b4 && t->p[P_E0 + 5] == b5);
+        mod_restore(t, moved, keep);
+        song.g[G_MAC2] = 0;
+        check("the macros are not stored in a project (G_STORED)", G_STORED == G_MAC1 && G_MAC4 + 1 == G_COUNT);
+    }
     puts(fails ? "MOD TEST FAILED" : "mod: all ok");
     return fails != 0;
 }

@@ -5,7 +5,9 @@
  * Sources: LFO (the part's LFO, bipolar), ENV (the voice's ADSR), VEL (note velocity),
  * KEY (the note around C4: +-1 at +-4 octaves), RND (a value fixed per note, from its age:
  * it does not draw from rng(), so nothing else changes when it is used), MODW / AT / EXPR (MIDI),
- * DRIFT (the part's slow random walk, drone.c: tens of seconds to minutes, never the same twice).
+ * DRIFT (the part's slow random walk, drone.c: tens of seconds to minutes, never the same twice),
+ * MAC1..MAC4 (the song's macro knobs, G_MAC1.., 0..1, on the MACRO page: point slots of one part or of
+ * all at the same MAC and one knob moves them all, a performance control).
  *
  * Targets: FLT / PIT / SHP add to the voice's modulation as LFO DEST and ENV DEST do (the
  * same scale: AMT 63 is what DEST 63 is there). E1..E16 move the engine's own parameter for
@@ -14,7 +16,8 @@
  *
  * With every SRC at OFF nothing here runs, and the sound is Felucca's to the sample. */
 enum { MS_OFF, MS_LFO, MS_ENV, MS_VEL, MS_KEY, MS_RND, MS_MODW, MS_AT, MS_EXPR,   /* (MIDI: appended) */
-       MS_DRIFT };                                     /* Jangada DRONES: the part's slow walk (drone.c) */
+       MS_DRIFT,                                       /* Jangada DRONES: the part's slow walk (drone.c) */
+       MS_MAC1, MS_MAC2, MS_MAC3, MS_MAC4 };            /* Jangada 0.8: the macro knobs (song.g) */
 enum { MD_FLT, MD_PIT, MD_SHP, MD_E0 };
 #include "drone.c"                                     /* Jangada DRONES: EVOL, TENS, RAMP and DRIFT */
 
@@ -74,6 +77,11 @@ static int32_t mod_src(const track_t *t, const voice_t *v, uint32_t src, int32_t
         return (int32_t)t->ex * 258;
     case MS_DRIFT:
         return drn[(uint32_t)(t - trk) % NTRK].w[0];
+    case MS_MAC1:
+    case MS_MAC2:
+    case MS_MAC3:
+    case MS_MAC4:
+        return (int32_t)song.g[G_MAC1 + src - MS_MAC1] * 258;
     }
     return 0;
 }

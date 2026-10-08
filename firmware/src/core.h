@@ -91,8 +91,14 @@ enum {                          /* global parameters */
     /* Jangada GRIT (fx.c): the master through a worn tape (saturation, wow, flutter, dull highs) and the
      * hum of an analog recording (60 Hz and its odd harmonics, hiss, a rare crackle) */
     G_TAPE, G_HUM,
+    /* Jangada 0.8 (issue #2): four macro knobs for playing live, sources MAC1..MAC4 of every part's matrix
+     * (mod.c): point slots of one part or of all at a MAC and one knob moves them all */
+    G_MAC1, G_MAC2, G_MAC3, G_MAC4,
     G_COUNT
 };
+/* the globals a stored project keeps: all before the macros. The macros are where the hands are, not part of
+ * the song (a load leaves them as they are); and the worst-case project fills its flash object to 2 bytes */
+#define G_STORED G_MAC1
 
 /* ----------------------------------------------------------- voices --- */
 typedef struct {

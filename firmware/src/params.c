@@ -14,7 +14,8 @@ static const char *const N_SCALE[] = {"CHR", "MAJ", "MIN", "DOR", "MIX", "PEN", 
 static const char *const N_ONOFF[] = {"OFF", "ON"};
 static const char *const N_T4[] = {"DRUM", "SYNTH"};
 /* Jangada modulation matrix (mod.c): sources, and the targets before the engine's own (MD_E0..) */
-static const char *const N_MSRC[] = {"OFF", "LFO", "ENV", "VEL", "KEY", "RND", "MODW", "AT", "EXPR", "DRIFT"};
+static const char *const N_MSRC[] = {"OFF", "LFO", "ENV", "VEL", "KEY", "RND", "MODW", "AT", "EXPR", "DRIFT",
+                                     "MAC1", "MAC2", "MAC3", "MAC4"};
 static const char *const N_MDST[] = {"CUT", "PIT", "SHP", "E1", "E2", "E3", "E4", "E5", "E6", "E7", "E8",
                                      "E9", "E10", "E11", "E12", "E13", "E14", "E15", "E16"};
 static const char *const N_QUANT[] = {"OFF", "SNAP", "WHITE"};   /* seq.c kb_map; 1 = SNAP as the old ON */
@@ -152,6 +153,9 @@ static const param_desc_t GP[G_COUNT] = {
     /* Jangada GRIT: the master's worn tape and the hum of an analog recording (fx.c) */
     [G_TAPE] = PD("TAPE", F_PCT, 0, 127, 0),
     [G_HUM] = PD("HUM", F_PCT, 0, 127, 0),
+    /* Jangada 0.8: the macro knobs (mod.c MS_MAC1..) */
+    [G_MAC1] = PD("MAC1", F_PCT, 0, 127, 0), [G_MAC2] = PD("MAC2", F_PCT, 0, 127, 0),
+    [G_MAC3] = PD("MAC3", F_PCT, 0, 127, 0), [G_MAC4] = PD("MAC4", F_PCT, 0, 127, 0),
 };
 
 static const param_desc_t *track_desc(const track_t *t, uint32_t id)
@@ -309,6 +313,7 @@ static const page_t PAGES[] = {
     {"MOD 2", FAM_LFO, SC_TRACK, GR_NONE, {P_M2SRC, P_M2DST, P_M2AMT, 0xFF}},
     {"MOD 3", FAM_LFO, SC_TRACK, GR_NONE, {P_M3SRC, P_M3DST, P_M3AMT, 0xFF}},
     {"MOD 4", FAM_LFO, SC_TRACK, GR_NONE, {P_M4SRC, P_M4DST, P_M4AMT, 0xFF}},
+    {"MACRO", FAM_LFO, SC_GLOBAL, GR_NONE, {G_MAC1, G_MAC2, G_MAC3, G_MAC4}},   /* Jangada 0.8: the matrix's MAC1..4 */
     {"FX", FAM_FX, SC_TRACK, GR_FX, {P_DIST, P_CHOR, P_DLY, P_REV}},
     {"DIST", FAM_FX, SC_TRACK, GR_NONE, {P_DTYPE, P_DIST, P_DRING, P_TFLT}},   /* Jangada GRIT: TYPE, DIST, FREQ (RING); the
                                                                                  * track's FILT (drum track too) */

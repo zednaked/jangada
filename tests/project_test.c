@@ -81,7 +81,7 @@ int main(void)
 
     bad += check("keys: Felucca's format-3 positions are keys 0..56",
                  P_KEY[P_LEVEL] == 0 && P_KEY[P_SLDEPTH] == 48 && P_KEY[P_E0] == 49 && P_KEY[P_E7] == 56);
-    bad += check("JNG1 fits one flash object", JNG_SIZE(P_COUNT, G_COUNT) <= 4096u - 256u &&
+    bad += check("JNG1 fits one flash object", JNG_SIZE(P_COUNT, G_STORED) <= 4096u - 256u &&
                                                    sizeof(project_v3_t) <= 4096u - 256u);
 
     /* format 2, as written before the SLICER */
@@ -150,7 +150,7 @@ int main(void)
         n = proj_to_jng(&q, buf.jng);
         bad += check("JNG1: T4 SYNTH with its engine / preset", proj_import(&q2, buf.jng, (int)n) && q2.g[G_T4] == 1 &&
                                                                 q2.t[TRK_DRUM].engine == 6 && q2.t[TRK_DRUM].preset == 2);
-        bad += check("JNG1 -> today: as stored", n == JNG_SIZE(P_COUNT, G_COUNT) &&
+        bad += check("JNG1 -> today: as stored", n == JNG_SIZE(P_COUNT, G_STORED) &&
                                                      proj_import(&q2, buf.jng, (int)n) && !memcmp(&q, &q2, sizeof q));
         buf.jng[JNG_HDR + P_LEVEL] = 120;              /* a key this build does not know, instead of LEVEL's */
         {
@@ -168,7 +168,7 @@ int main(void)
     {   /* JNG1 sections (Jangada 0.5): the tracks' FM6 patches; a project of 0.4 has none */
         uint32_t n, k, sum;
         bad += check("JNG1 of Jangada 0.4 (no sections): no FM6 patches (PTCH's patch on load)",
-                     proj_import(&q2, buf.jng, 0) == 0 && (proj_to_jng(&q, buf.jng), proj_import(&q2, buf.jng, (int)JNG_SIZE(P_COUNT, G_COUNT))) &&
+                     proj_import(&q2, buf.jng, 0) == 0 && (proj_to_jng(&q, buf.jng), proj_import(&q2, buf.jng, (int)JNG_SIZE(P_COUNT, G_STORED))) &&
                          !q2.has_fm6 && buf.jng[11] == 0);
         for (t = 0; t < NTRK; t++)
             for (k = 0; k < FM6_PACKED; k++)
@@ -177,11 +177,11 @@ int main(void)
         q.sum = proj_sum(&q);
         n = proj_to_jng(&q, buf.jng);
         bad += check("JNG1 with the FM6 section: stored and read back as it was",
-                     n == JNG_SIZE(P_COUNT, G_COUNT) + JNG_FM6_SIZE && buf.jng[11] == 1 && n <= 4096u - 256u &&
+                     n == JNG_SIZE(P_COUNT, G_STORED) + JNG_FM6_SIZE && buf.jng[11] == 1 && n <= 4096u - 256u &&
                          proj_import(&q2, buf.jng, (int)n) && !memcmp(&q, &q2, sizeof q) && q2.has_fm6);
         /* a section a later firmware may add (tag 9, 5 bytes) before the FM6 one: skipped */
-        memmove(buf.jng + JNG_SIZE(P_COUNT, G_COUNT) - 4u + 8u, buf.jng + JNG_SIZE(P_COUNT, G_COUNT) - 4u, JNG_FM6_SIZE);
-        memcpy(buf.jng + JNG_SIZE(P_COUNT, G_COUNT) - 4u, "\x09\x05\x00" "abcde", 8);
+        memmove(buf.jng + JNG_SIZE(P_COUNT, G_STORED) - 4u + 8u, buf.jng + JNG_SIZE(P_COUNT, G_STORED) - 4u, JNG_FM6_SIZE);
+        memcpy(buf.jng + JNG_SIZE(P_COUNT, G_STORED) - 4u, "\x09\x05\x00" "abcde", 8);
         buf.jng[11] = 2;
         n += 8u;
         memcpy(buf.jng + 4, &n, 4);
@@ -189,7 +189,7 @@ int main(void)
         memcpy(buf.jng + n - 4u, &sum, 4);
         bad += check("JNG1: an unknown section skipped, the FM6 one read",
                      proj_import(&q2, buf.jng, (int)n) && !memcmp(q2.fm6, q.fm6, sizeof q.fm6) && q2.has_fm6);
-        buf.jng[JNG_SIZE(P_COUNT, G_COUNT) - 4u + 1u] = 6;   /* its length now runs past the end */
+        buf.jng[JNG_SIZE(P_COUNT, G_STORED) - 4u + 1u] = 6;   /* its length now runs past the end */
         sum = proj_hash(buf.jng, n - 4u);
         memcpy(buf.jng + n - 4u, &sum, 4);
         bad += check("JNG1: sections that do not fill it exactly: refused", !proj_import(&q2, buf.jng, (int)n));
@@ -215,7 +215,7 @@ int main(void)
         q.sum = proj_sum(&q);
         n = proj_to_jng(&q, buf.jng);
         bad += check("JNG1 section 2 at its largest: fits one flash object",
-                     n == JNG_SIZE(P_COUNT, G_COUNT) + JNG_FM6_SIZE + JNG_SEQX_MAX && n <= 4096u - 256u && buf.jng[11] == 2);
+                     n == JNG_SIZE(P_COUNT, G_STORED) + JNG_FM6_SIZE + JNG_SEQX_MAX && n <= 4096u - 256u && buf.jng[11] == 2);
         bad += check("JNG1 section 2: nudges, conditions, locks read back as they were",
                      proj_import(&q2, buf.jng, (int)n) && !memcmp(&q, &q2, sizeof q));
         memset(&q.t[1].x, 0, sizeof q.t[1].x);         /* a track with none, one with only locks */
@@ -225,13 +225,13 @@ int main(void)
         q.sum = proj_sum(&q);
         n = proj_to_jng(&q, buf.jng);
         bad += check("JNG1 section 2: tracks with none / only locks, without the FM6 section",
-                     n == JNG_SIZE(P_COUNT, G_COUNT) + 3u + (1u + NSTEP + 3u * NLOCK) * 2u + 1u + 3u * NLOCK + 1u &&
+                     n == JNG_SIZE(P_COUNT, G_STORED) + 3u + (1u + NSTEP + 3u * NLOCK) * 2u + 1u + 3u * NLOCK + 1u &&
                          proj_import(&q2, buf.jng, (int)n) && !memcmp(&q, &q2, sizeof q) && !q2.has_fm6);
         for (t = 0; t < NTRK; t++)
             memset(&q.t[t].x, 0, sizeof q.t[t].x);
         q.sum = proj_sum(&q);
         n = proj_to_jng(&q, buf.jng);
-        bad += check("JNG1: no nudge, condition or lock: no section 2", n == JNG_SIZE(P_COUNT, G_COUNT) && buf.jng[11] == 0);
+        bad += check("JNG1: no nudge, condition or lock: no section 2", n == JNG_SIZE(P_COUNT, G_STORED) && buf.jng[11] == 0);
     }
 
     /* damaged / wrong size */

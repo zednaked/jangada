@@ -246,20 +246,20 @@ static uint32_t jng_size(uint32_t np, uint32_t ng) { return JNG_SIZE(np, ng); }
 static uint32_t proj_to_jng(const project_t *q, uint8_t *b)   /* -> bytes written */
 {
     uint32_t xl = jng_seqx_len(q);
-    uint32_t n = jng_size(P_COUNT, G_COUNT) + (q->has_fm6 ? JNG_FM6_SIZE : 0u) + (xl ? 3u + xl : 0u), o = JNG_HDR, i, k, sum;
+    uint32_t n = jng_size(P_COUNT, G_STORED) + (q->has_fm6 ? JNG_FM6_SIZE : 0u) + (xl ? 3u + xl : 0u), o = JNG_HDR, i, k, sum;
     uint32_t m = PROJ_MAGIC_JNG;
     memset(b, 0, n);
     memcpy(b, &m, 4);
     memcpy(b + 4, &n, 4);
     b[8] = P_COUNT;
-    b[9] = G_COUNT;
+    b[9] = G_STORED;                                   /* (not the macros: core.h) */
     b[10] = q->sel;
     b[11] = (uint8_t)((q->has_fm6 ? 1u : 0u) + (xl ? 1u : 0u));   /* sections */
     for (k = 0; k < P_COUNT; k++)
         b[o + k] = P_KEY[k];
     o += (P_COUNT + 1u) & ~1u;
-    memcpy(b + o, q->g, 2u * G_COUNT);
-    o += 2u * G_COUNT;
+    memcpy(b + o, q->g, 2u * G_STORED);
+    o += 2u * G_STORED;
     for (i = 0; i < NTRK; i++) {
         memcpy(b + o, q->t[i].p, 2u * P_COUNT);
         o += 2u * P_COUNT;
@@ -398,7 +398,7 @@ static int proj_import(project_t *q, const void *b, int n)
 #if FELUCCA_FLASH
 /* the stored form of a project, both ways (any format in, "JNG1" out) */
 static uint8_t proj_io[ST_PAYLOAD_MAX] __attribute__((aligned(4)));
-_Static_assert(JNG_SIZE(P_COUNT, G_COUNT) + JNG_FM6_SIZE + JNG_SEQX_MAX <= ST_PAYLOAD_MAX && sizeof(project_v3_t) <= ST_PAYLOAD_MAX,
+_Static_assert(JNG_SIZE(P_COUNT, G_STORED) + JNG_FM6_SIZE + JNG_SEQX_MAX <= ST_PAYLOAD_MAX && sizeof(project_v3_t) <= ST_PAYLOAD_MAX,
                "a stored project fits one flash object");
 
 /* slot from flash into RAM (format 3, or format 2 / 1 converted) */
@@ -483,7 +483,7 @@ static void proj_apply(const project_t *p)
     panic_req = (1u << NTRK) - 1u;
     fm1_irq_off();                                      /* the audio ISR must not see half a project */
     for (i = 0; i < G_COUNT; i++)
-        if (i != G_SLOT && i != G_LOAD && i != G_SAVE)
+        if (i != G_SLOT && i != G_LOAD && i != G_SAVE && i < G_STORED)   /* (the macros stay where they are) */
             song.g[i] = (int16_t)clamp(p->g[i], GP[i].min, GP[i].max);
     if (song.t4 != (song.g[G_T4] != 0)) {               /* Jangada: the project's track 4 type, before */
         t4_reset(TDRUM);                                /* the tracks below are read with it */

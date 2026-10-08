@@ -122,6 +122,12 @@ int main(void)
     midi(0xB0, 121, 0);
     run(1);
     ok(!t->mw && !t->at && !t->ex && !t->bend16, "CC121 RESET ALL CONTROLLERS");
+    midi(0xB3, 16, 70);                             /* Jangada 0.8: CC16..19 -> MAC1..4, on any channel */
+    midi(0xB0, 19, 127);
+    run(1);
+    ok(song.g[G_MAC1] == 70 && song.g[G_MAC4] == 127 && mod_src(t, &t->v[0], MS_MAC1, 0, 0) == 70 * 258,
+       "CC16..19 move the macro knobs MAC1..4 (any channel)");
+    song.g[G_MAC1] = song.g[G_MAC4] = 0;
 
     {   /* clock in: 24 clocks a beat at 100 BPM -> BPM 100; START / STOP */
         uint32_t k, per = 60u * FS / 100u / 24u / CTL;       /* blocks between two clocks */

@@ -100,7 +100,7 @@ FM-1, e nada sai do seu navegador.
 |---|---|
 | **Motores** | 10: ANALOG (superwave, filtro ladder estilo Moog), FM6 (6 operadores, Dexed), DIGITAL (FM 4 op), PHASE, LOFI, SAMPLE, VOICE, TRIO, WHEEL, GRAIN |
 | **Vozes e trilhas** | 8 vozes por 4 trilhas (3 synths + bateria, ou 4 synths) |
-| **Parâmetros** | 16 por motor, matriz de modulação de 4 slots com 9 origens |
+| **Parâmetros** | 16 por motor, matriz de modulação de 4 slots com 13 origens (4 delas knobs de macro) |
 | **Presets** | 93 de fábrica (31 escuros, drones e nordestinos da Jangada), 32 de usuário, 72 patches FM6 (8 + dois bancos de 32) |
 | **Bateria** | 5 kits da Jangada + 32 sintetizados + GM; 7 batidas de fábrica |
 | **Sequencer** | 64 passos por trilha, acordes, ratchet, chance, acento, slide, swing; arp UDI / RPT até 4 compassos |
@@ -234,8 +234,12 @@ solte, e ele continua respirando sozinho, inclusive enquanto você toca outras t
   banco 1 ou 2, SAVE grava, qualquer outro botão cancela.
 - E os outros: DIGITAL (FM de 4 operadores), PHASE, LOFI, SAMPLE, VOICE, TRIO, WHEEL, GRAIN.
 - **16 parâmetros por motor** (o Felucca tem 8).
-- **Matriz de modulação** (LFO → MOD 1–4): origens LFO, ENV, VEL, KEY, RND, MODW, AT, EXPR e DRIFT;
-  destinos filtro, pitch, forma ou qualquer parâmetro do motor.
+- **Matriz de modulação** (LFO → MOD 1–4): origens LFO, ENV, VEL, KEY, RND, MODW, AT, EXPR, DRIFT e
+  MAC1–MAC4; destinos filtro, pitch, forma ou qualquer parâmetro do motor.
+- **Macros para tocar ao vivo** (LFO → MACRO): quatro knobs, MAC1–MAC4, da música inteira. Aponte slots da
+  matriz para a mesma MAC, numa parte ou em todas, e um knob mexe em tudo junto: MAC1 → CUT em todas as partes
+  é um BRILHO, MAC2 → DRV + SDRV um DRIVE. Os MIDI CC 16–19 mexem nelas de um controlador (qualquer canal). Elas
+  são das mãos, não da música: o projeto não as guarda, e carregar um deixa as macros onde estão.
 - **Acordes de uma tecla** (SCL → CHORD): TRIAD, 7TH, 9TH, SUS4, POWER; as teclas brancas andam pela
   escala e cada uma toca o acorde dela.
 
