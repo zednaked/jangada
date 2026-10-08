@@ -212,6 +212,12 @@ and it keeps breathing on its own, even while you play the other tracks.
   four-pole transistor ladder (24 dB/octave) with saturated feedback: RES makes it sing and thins the lows as the
   hardware does, DRV pushes it into a growl. To find it: tap **EDIT** (don't
   hold it) up to the EDIT 4 page and turn knob 1 to the end; CUT, RES and DRV are on EDIT 2. Presets **PICHE BASS**, **MOTOR LEAD** and **LODO** (a drone).
+  **SAT** (EDIT 4, knobs 2 and 3): a saturation per voice after the filter, before the VCA
+  (OSC → FILTER → SAT → VCA): **WARM** (tube, even harmonics), **HARD** (a wall: buzz) or **FOLD** (a
+  wavefolder); **SDRV** how hard. Each voice is shaped alone, so chords stay clean where the track's DIST
+  would smear them. Preset **SUCATA**.
+- **Modulation into the filter**: the MOD 1–4 matrix reaches every engine parameter, so CUT, RES, DRV and SDRV
+  are destinations: LFO → RES, ENV → CUT, VEL → DRV, ENV → SDRV. They move per voice, every block.
 - **FM6**: 6-operator FM (Dexed's msfa core), 32 algorithms, 8 factory patches (PTCH F1–F8) and
   **two banks of 32** in flash (B1–B32 and B33–B64: two whole cartridges), with macros on the knobs (ALG
   FB MLVL MRAT MEG VMOD DTUN). Each track's patch goes along in the project, the autosave and the backup.

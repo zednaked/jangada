@@ -6,12 +6,49 @@
  * Jangada (EDIT 3 / 4): SUPR up to 6 more copies of oscillator 1, spread by SDTN (a superwave:
  * copy k sits k steps of the spread above or below, so one accumulator of the spread phase drives
  * them all); SUB a square an octave below; DRFT a slow random wander of the pitch per voice;
- * FTYP LP12 (Felucca's), LP24, BP, HP or LADR (a four-pole transistor ladder, ladder_*). With
+ * FTYP LP12 (Felucca's), LP24, BP, HP or LADR (a four-pole transistor ladder, ladder_*); SAT a
+ * saturation per voice after the filter, before the VCA (analog_sat), SDRV how hard. With
  * more than 4 voices sounding the superwave keeps
  * fewer copies (the CPU, see analog_render_x). With all of them at their defaults the original
  * render runs, sample for sample (analog_render); otherwise analog_render_x. */
 static const char *const N_ANALOG_WAVE[] = {"SAW", "SQR", "TRI", "SIN", "PWM"};
 static const char *const N_ANALOG_FTYP[] = {"LP12", "LP24", "BP", "HP", "LADR"};
+static const char *const N_ANALOG_SAT[] = {"OFF", "WARM", "HARD", "FOLD"};
+
+/* Jangada: SAT, the filter's output into a shaper of its own, voice by voice (a chord does not
+ * intermodulate as it does through the track's DIST), before the envelope: OSC -> FILTER -> SAT -> VCA.
+ *   WARM  a tube: 1x .. 2.5x into tanh with a bias (the even harmonics), the level made up (1 / drive):
+ *         quiet parts stay, loud ones thicken;
+ *   HARD  1x .. 6x into a hard wall: buzz, square edges;
+ *   FOLD  the signal as the phase of a sine (as DIST FOLD): past a quarter turn it folds back.
+ * No state: nothing to clear at note-on, and SDRV can be moved by the matrix (ENV -> SDRV) for free. */
+typedef struct { int32_t g, bias, b0, mk; } asat_t;
+static inline void analog_sat_coef(asat_t *c, uint32_t type, int32_t d)
+{
+    if (type == 1) {
+        c->g = 4096 + d * 48;                         /* Q12 */
+        c->bias = d * 40;
+        c->b0 = softclip(c->bias);
+        c->mk = (int32_t)(((uint32_t)32767u << 12) / (uint32_t)c->g);   /* Q15 */
+    } else if (type == 2) {
+        c->g = 4096 + d * 161;
+        c->bias = c->b0 = 0;
+        c->mk = 32767 - d * 90;                       /* the wall is loud: 1 .. 0.65 */
+    } else {
+        c->g = 32768 + d * 1806;                      /* phase gain: a quarter turn at full scale .. 8x */
+        c->bias = (int32_t)((uint32_t)d << 21);
+        c->b0 = sine_i((uint32_t)c->bias);
+        c->mk = 26000 - d * 80;
+    }
+}
+static inline int32_t analog_sat(const asat_t *c, uint32_t type, int32_t x)   /* x: about Q15 */
+{
+    if (type == 1)
+        return mulq15(softclip(((clamp(x, -65536, 65535) * c->g) >> 12) + c->bias) - c->b0, c->mk);
+    if (type == 2)
+        return mulq15(clamp((clamp(x, -65536, 65535) * c->g) >> 12, -22000, 22000), c->mk);
+    return mulq15(sine_i((uint32_t)clamp(x, -65536, 65535) * (uint32_t)c->g + (uint32_t)c->bias) - c->b0, c->mk);
+}
 
 /* Jangada: LADR, the transistor ladder: four one-pole low-passes in a row (each the trapezoidal one,
  * G = g / (1 + g) from the SVF's table), the fourth fed back to the input through a tanh. RES 0..127 is
@@ -93,6 +130,8 @@ __attribute__((noinline)) static void analog_render_x(track_t *t, voice_t *v, in
     static const int8_t COPY_AT[6] = {1, -1, 2, -2, 3, -3};   /* spread steps of copy k */
     const int16_t *p = t->p;
     uint32_t wave = (uint32_t)p[P_E0], i, k, ncopy = (uint32_t)p[P_E8], ftyp = (uint32_t)p[P_E12];
+    uint32_t sat = (uint32_t)p[P_E13];
+    asat_t sc;
     int32_t det = p[P_E1], mix = p[P_E2], noise = p[P_E3], sub = p[P_E10], drift = p[P_E11];
     int32_t cut = (p[P_E4] << 8) + m->cutoff + (p[P_E7] * (v->pitch16 - 60 * 16) >> 4);
     tsvf_t flt;
@@ -136,6 +175,8 @@ __attribute__((noinline)) static void analog_render_x(track_t *t, voice_t *v, in
         ladder_coef(&lad, cut, p[P_E5]);
     else
         tsvf_coef(&flt, cut, p[P_E5]);
+    if (sat)
+        analog_sat_coef(&sc, sat, p[P_E14]);
     for (i = 0; i < n; i++) {
         int32_t a = analog_osc(wave, ph0, inc1, pw), b = analog_osc(wave, ph1, inc2, pw), s, y, bp, ab;
         if (ncopy) {
@@ -174,6 +215,8 @@ __attribute__((noinline)) static void analog_render_x(track_t *t, voice_t *v, in
             ab = 16000 + (softclip((ab - 16000) * 2) >> 1);
             y = y < 0 ? -ab : ab;
         }
+        if (sat)
+            y = analog_sat(&sc, sat, y << 1) >> 1;
         out[i] += mulq15(mulq15(y << 1, amp_at(m, i)), VOICE_FS) << 1;
     }
     v->ph[0] = ph0;
@@ -312,12 +355,17 @@ static const preset_t ANALOG_PRESETS[] = {
     {"LODO", {4, 14, 64, 8, 40, 110, 30, 40}, {110, 90, 127, 110}, 0, 0, FX(15, 40, 30, 100), ARP(7, 9, 1, 127),
      .x = {4, 41, 1, 51, 5},                        /* a little superwave, DRFT; the resonance sings, the LFO moves it */
      SET({P_AHOLD, 1}, {P_LRATE, 7}, {P_LD_FLT, 22})},
+    /* Jangada: SAT after the filter (OSC -> LADR -> SAT -> VCA): scrap metal; the envelope folds the
+     * attack harder (ENV -> SDRV) and lets the tail go smooth */
+    {"SUCATA", {0, 7, 64, 0, 50, 75, 20, 50}, {0, 65, 45, 30}, 40, 1, FX(0, 0, 30, 15), PAT(2),
+     .x = {1, 1, 1, 1, 5, 4, 41},                   /* LADR, SAT FOLD, SDRV 40 */
+     SET({P_M1SRC, 2}, {P_M1DST, 17}, {P_M1AMT, 40})},
 };
 
 static void analog_render(track_t *t, voice_t *v, int32_t *out, uint32_t n, const vmod_t *m)
 {
     const int16_t *p = t->p;
-    if (p[P_E8] || p[P_E10] || p[P_E11] || p[P_E12])     /* Jangada's features: their own render */
+    if (p[P_E8] || p[P_E10] || p[P_E11] || p[P_E12] || p[P_E13])     /* Jangada's features: their own render */
         analog_render_x(t, v, out, n, m);
     else
         analog_render_lp(t, v, out, n, m);
@@ -338,6 +386,8 @@ static const engine_t ENG_ANALOG = {
         {"SUB", F_PCT, 0, 127, 0, 0, 0},
         {"DRFT", F_PCT, 0, 127, 0, 0, 0},
         {"FTYP", F_ENUM, 0, 4, 0, N_ANALOG_FTYP, 0},  /* EDIT 4 (Jangada: LADR 4) */
+        {"SAT", F_ENUM, 0, 3, 0, N_ANALOG_SAT, 0},
+        {"SDRV", F_PCT, 0, 127, 64, 0, 0},
     },
     ANALOG_PRESETS, sizeof(ANALOG_PRESETS) / sizeof(ANALOG_PRESETS[0]), 1, analog_note_on, analog_render,
     0xF986, {P_E4, P_E5, P_ATK, P_REL},

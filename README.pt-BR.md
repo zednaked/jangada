@@ -212,6 +212,12 @@ solte, e ele continua respirando sozinho, inclusive enquanto você toca outras t
   graves como no hardware, o DRV empurra para o rosnado. Para achar: toque **EDIT** (sem
   segurar) até a página EDIT 4 e gire o knob 1 até o fim; CUT, RES e DRV ficam no EDIT 2. Presets **PICHE BASS**, **MOTOR LEAD** e
   **LODO** (um drone).
+  **SAT** (EDIT 4, knobs 2 e 3): uma saturação por voz depois do filtro, antes do VCA
+  (OSC → FILTRO → SAT → VCA): **WARM** (válvula, harmônicos pares), **HARD** (um muro: zumbido) ou **FOLD**
+  (um wavefolder); **SDRV** o quanto. Cada voz é moldada sozinha, então os acordes ficam limpos onde o DIST da
+  trilha borraria. Preset **SUCATA**.
+- **Modulação no filtro**: a matriz MOD 1–4 alcança todo parâmetro do motor, então CUT, RES, DRV e SDRV são
+  destinos: LFO → RES, ENV → CUT, VEL → DRV, ENV → SDRV. Mexem por voz, a cada bloco.
 - **FM6**: FM de 6 operadores (o núcleo msfa do Dexed), 32 algoritmos, 8 patches de fábrica (PTCH
   F1–F8) e **dois bancos de 32** na flash (B1–B32 e B33–B64: dois cartuchos inteiros), com macros nos
   knobs (ALG FB MLVL MRAT MEG VMOD DTUN). O patch de cada trilha vai junto no projeto, no autosave e no
