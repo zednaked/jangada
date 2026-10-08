@@ -60,7 +60,7 @@ static uint32_t scope_w;
 #define FM1_NCOL 8
 static const int8_t FM1_KEYMAP[6][FM1_NCOL];
 #define FM1_TICKS_PER_US 1
-static uint8_t fm1_led[FM1_NCOL], fm1_led_dim[FM1_NCOL], fm1_led_bg[FM1_NCOL];
+static uint8_t fm1_led[FM1_NCOL], fm1_led_dim[FM1_NCOL], fm1_led_bg[FM1_NCOL], fm1_led_breath[FM1_NCOL];
 static uint16_t fm1_led_bg_ns;
 #include "ui_input.c"
 #include "upreset.c"

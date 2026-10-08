@@ -32,7 +32,7 @@ static uint32_t cur_fam(void) { return ui.home ? FAM_HOME : cur_page()->fam; }
 
 static int layer_visible(void);                     /* ui_layers.c */
 static uint32_t layer_now(void);
-static uint32_t layers_leds(uint8_t *nl);
+static uint32_t layers_leds(uint8_t *nl, uint8_t *br);
 static uint32_t layers_key_glow(void);
 
 /* Jangada (after SLOOP 2.3, @renebohne's NOTES): what sounds on track t, as keys (bit k = key k, 0 = F3).
@@ -83,7 +83,7 @@ static uint32_t lights_keys_mask(void)             /* menu KEYS: the Cs, or ever
  * and the backlight (bl: menu LIGHTS, every button and the KEYS) */
 static void ui_leds(void)
 {
-    uint8_t nl[FM1_NCOL] = {0}, dl[FM1_NCOL] = {0}, bl[FM1_NCOL] = {0};
+    uint8_t nl[FM1_NCOL] = {0}, dl[FM1_NCOL] = {0}, bl[FM1_NCOL] = {0}, br[FM1_NCOL] = {0};
     uint32_t k, c, keys, glow = 0, back, sounding = lights_notes ? keys_sounding(TSEL) : 0u;
     uint32_t fam = cur_fam();
     static uint8_t ready;
@@ -94,10 +94,15 @@ static void ui_leds(void)
     led_put(nl, panel.btn[FAM_BTN[fam]], 1);
     led_put(nl, panel.btn[B_PLAY], song.playing && ((song.tick / 64u) & 1u) == 0u);   /* blinks: intended */
     led_put(nl, panel.btn[B_REC], song.rec != 0u);
-    led_put(nl, panel.btn[B_OCTDN], song.octave < 0);
-    led_put(nl, panel.btn[B_OCTUP], song.octave > 0);
+    if (ui.confirm || (ui.menu && menu_new_armed)) {    /* a dialog: OCT- (back) lit, OCT+ (do it) breathes */
+        led_put(nl, panel.btn[B_OCTDN], 1);
+        led_put(br, panel.btn[B_OCTUP], 1);
+    } else {
+        led_put(nl, panel.btn[B_OCTDN], song.octave < 0);
+        led_put(nl, panel.btn[B_OCTUP], song.octave > 0);
+    }
     if (layer_visible()) {                              /* Jangada: a layer shows what its keys do */
-        keys = layers_leds(nl);                         /* (its button; the keys it lights) */
+        keys = layers_leds(nl, br);                     /* (its button; the keys it lights) */
         glow = (layers_key_glow() | sounding) & ~keys;  /* landmarks; NOTES: what sounds glows under the keys */
     } else {
         keys = fm1_in.notes | sounding;                 /* menu NOTES: what sounds lights its key */
@@ -115,6 +120,7 @@ static void ui_leds(void)
         fm1_led[c] = nl[c];
         fm1_led_dim[c] = dl[c];
         fm1_led_bg[c] = (uint8_t)(bl[c] & ~nl[c]);
+        fm1_led_breath[c] = (uint8_t)(br[c] & ~nl[c]);
     }
     fm1_led_bg_ns = LIGHTS_NS[lights_lvl % LIGHTS_N];
 }

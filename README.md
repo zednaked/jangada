@@ -288,6 +288,8 @@ record opens the **TRACKS** view: BPM, bar.beat, one row per track with its step
 - Menu (hold **HOME**): COLOR, SPEAKER (a low cut for the speaker), **LIGHTS** (the buttons glow
   dimly, for playing in the dark), **KEYS** (lights the C keys or the white ones), **NOTES** (sounding
   notes light their keys), USB AUDIO, MIDI OUT, MIDI IN, NEW PROJECT, ABOUT.
+- Nothing blinks hard: what can be pressed **breathes** (a slow fade), such as a locked layer's button or
+  OCT+ in a dialog.
 
 ### On the site
 - **[Studio](https://zednaked.github.io/jangada/webapp/studio/)**: Jangada in the browser.

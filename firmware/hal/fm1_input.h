@@ -35,6 +35,12 @@
  * lit LED); fm1_led_bg[col]: the backlight (menu LIGHTS), fm1_led_bg_ns, shorter. TIMER4 times the
  * pulses bit by bit; only a pulse longer than the whole shift waits for the rest. An LED in several
  * layers takes the brightest.
+ * Breathing (Jangada 0.7, after Felucca 1.0.5 #119: never a hard blink in a dark room): fm1_led_breath[col]
+ * fade from dark up to ~60 % of lit and back, all in step, FM1_BREATH_FRAMES a cycle (~1.1 s). The level B of
+ * a frame (fm1__frame, once a frame: a smoothstep squared x the peak) below the glow G (the glow pulse's share of
+ * a lit tick) is a pulse that long, as the glow; above it the breathing LEDs are lit for whole frames, which ones
+ * a first-order sigma-delta picks (the lit share (B - G) / (1 - G)), the others get the full glow. No division
+ * in the ISR (the constants are folded); a column's lit tick and its pulse use the same frame's choice.
  */
 #pragma once
 #include <stdint.h>
@@ -91,6 +97,14 @@ static volatile struct {
 static uint8_t fm1_led[FM1_NCOL];
 static uint8_t fm1_led_dim[FM1_NCOL];   /* same layout as fm1_led: the glow */
 static uint8_t fm1_led_bg[FM1_NCOL];    /* same layout: the backlight (labels readable in the dark) */
+static uint8_t fm1_led_breath[FM1_NCOL];   /* same layout: breathing (see top) */
+#define FM1_BREATH_FRAMES 1024u    /* a breath, in frames (~1.1 s) */
+#define FM1_BREATH_PK 154u         /* its peak, /256 of a lit LED (~60 %) */
+#define FM1__LIT_NS 95000u         /* a lit LED's time a frame (one tick) */
+#define FM1__G_Q15 ((FM1_GLOW_NS * 32768u) / FM1__LIT_NS)   /* the glow's share of lit, Q15 */
+static uint32_t fm1__br_ph, fm1__br_acc, fm1__br_t;      /* the breath: frame, sigma-delta, this frame's pulse */
+static uint8_t fm1__br_on;                                /* this frame: the breathing LEDs lit */
+static uint16_t fm1__br_cols;                             /* the columns lit with it (their pulse: none) */
 static volatile uint16_t fm1_led_bg_ns; /* the backlight pulse a frame (ns), 0 = off (menu LIGHTS) */
 static fm1_enc_t fm1__enc[FM1_NENC];  /* the decoders (scan ISR only) */
 
@@ -226,6 +240,22 @@ static void fm1_input_scan(void)
 static void fm1__frame(void)
 {
     uint32_t e;                                    /* (the keys: fm1__keys, as each column is read) */
+    {   /* the breath's level this frame (see top) */
+        uint32_t ph = fm1__br_ph = (fm1__br_ph + 1u) % FM1_BREATH_FRAMES, x, sm, b;
+        x = (ph < FM1_BREATH_FRAMES / 2u ? ph : FM1_BREATH_FRAMES - ph) * (65536u / FM1_BREATH_FRAMES);   /* Q15 0..1..0 */
+        sm = (x * x >> 15) * (3u * 32768u - 2u * x) >> 15;   /* smoothstep, Q15 */
+        b = ((sm * sm) >> 15) * FM1_BREATH_PK >> 8;          /* x the peak: the level, Q15 of lit */
+        if (b <= FM1__G_Q15) {
+            fm1__br_on = 0;
+            fm1__br_t = FM1__NS_T(b * FM1__LIT_NS >> 15);    /* (b <= G: < 2^32) */
+        } else {
+            fm1__br_acc += (b - FM1__G_Q15) * (uint32_t)((32768ull * 32768u) / (32768u - FM1__G_Q15)) >> 15;
+            fm1__br_on = fm1__br_acc >= 32768u;
+            if (fm1__br_on)
+                fm1__br_acc -= 32768u;
+            fm1__br_t = FM1__NS_T(FM1_GLOW_NS);
+        }
+    }
     for (e = 0; e < FM1_NENC; e++) {               /* quadrature decoder + detents (fm1_enc.h) */
         const uint8_t *m = FM1_ENC[e];
         uint32_t cur = ((fm1_in.raw[m[0]] >> m[1]) & 1u) << 1 | ((fm1_in.raw[m[2]] >> m[3]) & 1u);
@@ -244,19 +274,22 @@ static void fm1_input_tick(void)
 {
     uint32_t p = fm1__tick_col, n = p + 1u == FM1_NCOL ? 0u : p + 1u, i;
     uint32_t w = 0xFFFFu ^ (1u << n) ^ (n < 2u ? 1u << (11u + n) : 0u);
-    uint32_t lit = fm1_led[p], a = fm1_led_dim[p] & ~lit, b = fm1_led_bg[p] & ~lit & ~a;
-    uint32_t ta = a ? FM1__NS_T(FM1_GLOW_NS) : 0u, tb = b ? FM1__NS_T(fm1_led_bg_ns) : 0u;
+    uint32_t lit = fm1_led[p] | (((fm1__br_cols >> p) & 1u) ? fm1_led_breath[p] : 0u), a = fm1_led_dim[p] & ~lit;
+    uint32_t b = fm1_led_bg[p] & ~lit & ~a, c = fm1_led_breath[p] & ~lit;
+    uint32_t ta = a ? FM1__NS_T(FM1_GLOW_NS) : 0u, tb = b ? FM1__NS_T(fm1_led_bg_ns) : 0u, tc = c ? fm1__br_t : 0u;
     uint32_t tmax = ta > tb ? ta : tb;
+    if (tc > tmax)
+        tmax = tc;
     fm1__led_lines(0);
     fm1_in.raw[p] = (uint8_t)fm1__rows();          /* column p has been latched one tick (the lines dark) */
     if (tmax) {
-        uint32_t t0 = fm1_ticks(), cur = lit | a | (tb ? b : 0u), on, d;
+        uint32_t t0 = fm1_ticks(), cur = lit | a | (tb ? b : 0u) | (tc ? c : 0u), on, d;
         fm1__led_lines(cur);                       /* (the 595 still drives column p) */
         for (i = 0; i < 16u || cur; i++) {         /* the shift; then wait if the pulse is longer */
             if (i < 16u)
                 fm1__sr_bit(w, i);
             d = fm1_ticks() - t0;
-            on = d < tmax ? lit | (d < ta ? a : 0u) | (d < tb ? b : 0u) : 0u;
+            on = d < tmax ? lit | (d < ta ? a : 0u) | (d < tb ? b : 0u) | (d < tc ? c : 0u) : 0u;
             if (on != cur) {
                 fm1__led_lines(on);
                 cur = on;
@@ -266,7 +299,11 @@ static void fm1_input_tick(void)
     } else {
         fm1__sr_word(w);
     }
-    fm1__led_lines(fm1_led[n]);
+    if (fm1__br_on)                                /* column n's lit tick: the breathing ones too, this frame */
+        fm1__br_cols |= (uint16_t)(1u << n);
+    else
+        fm1__br_cols &= (uint16_t)~(1u << n);
+    fm1__led_lines(fm1_led[n] | (fm1__br_on ? fm1_led_breath[n] : 0u));
     fm1__tick_col = (uint8_t)n;
     fm1__keys(p);                                  /* its keys now: no wait for the frame's end */
     if (n == 0u)

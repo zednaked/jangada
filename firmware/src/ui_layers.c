@@ -679,9 +679,9 @@ static uint32_t layers_key_glow(void)                  /* dim: the FX landmarks 
     return 1u << key_of_white(0) | 1u << key_of_white(4) | 1u << key_of_white(8) | 1u << key_of_white(12);
 }
 
-static uint32_t layers_leds(uint8_t *nl)               /* ui_leds: the layer's button; the keys lit */
+static uint32_t layers_leds(uint8_t *nl, uint8_t *br) /* ui_leds: the layer's button; the keys lit */
 {
-    led_put(nl, panel.btn[LAYER_BTN[layer_now()]], ly.lock ? (int)((fm1_ms >> 8) & 1u) : 1);   /* locked: blinks */
+    led_put(ly.lock ? br : nl, panel.btn[LAYER_BTN[layer_now()]], 1);   /* locked: breathes (0.7: no blink) */
     return layers_key_leds() | fm1_in.notes;
 }
 
