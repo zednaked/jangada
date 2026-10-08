@@ -52,7 +52,7 @@ static track_t *setup(uint32_t len)
 static void tick(track_t *t)                 /* one block; the note-ons it made, at the block's time */
 {
     uint32_t a = vage, k;
-    seq_tick(t, BLK, BLK);
+    seq_tick(t, BLK, BLK * (uint32_t)song.g[G_BPM]);   /* (seq_pos counts units) */
     if (vage != a)
         for (k = 0; k < NVOICE; k++)
             if (t->v[k].age > a && nhits < 4096u) {
@@ -110,6 +110,31 @@ int main(void)
     step_micro_set(t, 0, -20);
     run(t, 10 * P - P / 2u);                 /* (0, then 20/64 of a step before each next pass) */
     ok(nhits == 10, "nudge: a single looping step nudged early: once a pass");
+
+    {   /* no drift (Jangada 0.7: seq_pos counts units): 100 bars of 1/16 at 133 BPM, the last downbeat within a
+         * block of its exact time; a 1/8 track and a 1/16 one stay together */
+        uint32_t last16 = 0, last8 = 0, n16 = 0, n8 = 0, a;
+        double exact;
+        t = setup(16);
+        song.g[G_BPM] = 133;
+        trk[1].p[P_SLEN] = 8; trk[1].p[P_SDIV] = 1; trk[1].p[P_SGATE] = 32;   /* (DIV 1: an 1/8) */
+        for (i = 0; i < 8u; i++)
+            trk[1].step[i] = (step_t){{(uint8_t)(70 + i), 0, 0, 0}, 1, ST_NOTE, 0, 100};
+        trk[1].seq_idx = 7; trk[1].seq_pos = 0x7FFFFFFFu;
+        while (n16 <= 1600u) {
+            a = vage;
+            seq_tick(&trk[1], BLK, BLK * 133u);
+            if (vage != a) { last8 = now; n8++; }
+            a = vage;
+            seq_tick(t, BLK, BLK * 133u);
+            if (vage != a) { if (n16 % 16u == 0) last16 = now; n16++; }
+            now += BLK;
+        }
+        exact = 100.0 * 4.0 * 60.0 * FS / 133.0;
+        ok(fabs((double)last16 - exact) <= BLK && n8 == 801u && last8 == last16,
+           "no drift: 100 bars at 133 BPM within a block; 1/8 and 1/16 together");
+        song.g[G_BPM] = 120;
+    }
 
     /* ---- locks */
     t = setup(4);

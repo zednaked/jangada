@@ -123,6 +123,7 @@ static int test_timing(void)
 {
     const uint32_t steps = 64u, pat = 8u;
     uint32_t f = 0, k, b0 = 0, bad_mid = 0, bad_edge = 0, n = 0;
+    uint64_t u = 0;
     static int32_t out[16u * 44100u];
     int bad = 0;
     char what[160];
@@ -141,11 +142,12 @@ static int test_timing(void)
         slicer_track(t, out + f, CTL);
         f += CTL;
     }
-    for (k = 0; k < steps; k++) {                 /* the step lengths as seq.c step_samples has them */
-        uint32_t base = (uint32_t)FS * 60u / 97u / 4u, len, idx = k & 15u, on = (SL_PAT[pat - 1u] >> idx) & 1u;
-        uint32_t non = (SL_PAT[pat - 1u] >> ((idx + 1u) & 15u)) & 1u;
-        int32_t sw = (20 + 10) * (int32_t)base / 250;
-        len = base + (uint32_t)((idx & 1u) ? -sw : sw);
+    for (k = 0; k < steps; k++) {                 /* the step lengths as seq.c seq_len has them (units), each */
+        uint32_t idx = k & 15u, on = (SL_PAT[pat - 1u] >> idx) & 1u, len;   /* starting at the first sample at / after */
+        uint32_t non = (SL_PAT[pat - 1u] >> ((idx + 1u) & 15u)) & 1u;    /* its exact time */
+        int32_t sw = (20 + 10) * (int32_t)(441u * 6u);
+        u += (uint64_t)((uint32_t)FS * 60u / 4u + (uint32_t)((idx & 1u) ? -sw : sw));
+        len = (uint32_t)((u + 96u) / 97u) - b0;
         if (b0 + len >= f)
             break;
         n++;

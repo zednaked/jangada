@@ -29,7 +29,7 @@ static uint32_t run(track_t *t, uint32_t steps)
 {
     uint32_t period = div_samples((uint32_t)t->p[P_SDIV]), s0 = vage, done = 0;
     while (done < steps * period - BLK) {    /* stop just short of the next pass */
-        seq_tick(t, BLK, BLK);
+        seq_tick(t, BLK, BLK * (uint32_t)song.g[G_BPM]);   /* (seq_pos counts units) */
         done += BLK;
     }
     return vage - s0;
@@ -76,11 +76,11 @@ int main(void)
 
     t = setup(0);
     t->seq_pos = 0x7FFFFFFFu;
-    seq_tick(t, BLK, BLK);
+    seq_tick(t, BLK, BLK * (uint32_t)song.g[G_BPM]);   /* (seq_pos counts units) */
     seq_stop();
     assert(t->rat_left == 0 && t->seq_n == 0);
     t = setup(3u << SF_RATCH_SH);
-    seq_tick(t, BLK, BLK);
+    seq_tick(t, BLK, BLK * (uint32_t)song.g[G_BPM]);   /* (seq_pos counts units) */
     assert(t->rat_left == 3u);
     seq_stop();
     assert(t->rat_left == 0);

@@ -189,10 +189,13 @@ static void arp_silence(track_t *t)
     t->arp_nch = 0;
 }
 
-static void arp_tick(track_t *t, uint32_t n)
+/* n samples (the gate counts them); adv: the units the steps move, as seq_tick's (Jangada 0.7: exact at
+ * any tempo, and a MIDI clock moves the arp too) */
+static void arp_tick(track_t *t, uint32_t n, uint32_t adv)
 {
     uint32_t period = div_samples((uint32_t)t->p[P_ARATE]), cnt, list[64], len = 0, i, j, o;
-    int32_t sw = t->p[P_ASWING] * (int32_t)period / 250;
+    uint32_t q = DIV_Q24[(uint32_t)t->p[P_ARATE] % 10u];
+    int32_t sw = t->p[P_ASWING] * (int32_t)(441u * q);   /* (units: BEAT_U / 24 / 250 = 441) */
     if (t->arp_note || t->arp_nch) {
         if (t->arp_off <= n)
             arp_silence(t);
@@ -204,13 +207,13 @@ static void arp_tick(track_t *t, uint32_t n)
             arp_silence(t);
         return;
     }
-    t->arp_pos += n;
+    t->arp_pos += adv;
     {
-        uint32_t len = period + (uint32_t)((t->arp_idx & 1u) ? sw : -sw);
-        if (t->arp_pos < len && t->arp_pos != 0xFFFFFFF + n)
+        uint32_t len = BEAT_U / 24u * q + (uint32_t)((t->arp_idx & 1u) ? sw : -sw);
+        if (t->arp_pos < len && t->arp_pos != 0xFFFFFFF + adv)
             return;
         /* the remainder carries on, as seq_tick does (setting 0 drifted: each step rounded up to a block) */
-        t->arp_pos = t->arp_pos == 0xFFFFFFF + n || t->arp_pos - len >= len ? 0 : t->arp_pos - len;
+        t->arp_pos = t->arp_pos == 0xFFFFFFF + adv || t->arp_pos - len >= len ? 0 : t->arp_pos - len;
     }
     /* build the note list: held notes (sorted or as played) over OCT octaves */
     for (i = 0; i < t->nheld; i++)
@@ -275,17 +278,16 @@ static uint32_t step_samples(const track_t *t, uint32_t period, uint32_t idx)
     return period + (uint32_t)((idx & 1u) ? -sw : sw);
 }
 
-/* Jangada (after SLOOP 2.3): while a MIDI clock drives the sequencer (seq_u, events_block), seq_pos
- * counts units (a sample at 1 BPM, fx.c BEAT_U a beat) and a step is a whole number of the master's
- * pulses: DIV in 1/24 beat x BEAT_U / 24, the swing as for samples (BEAT_U / 24 / 250 = 441 exactly).
- * With the internal clock it counts samples, as ever. */
-static uint8_t seq_u;                               /* (fx.c DIV_Q24, BEAT_U) */
+/* seq_pos counts units (a sample at 1 BPM, fx.c BEAT_U a beat), as the beat clock does: a step is
+ * DIV in 1/24 beat x BEAT_U / 24 exactly, at any tempo, the swing as for samples (BEAT_U / 24 / 250 = 441
+ * exactly). Jangada 0.7: with the internal clock too (it counted whole samples, div_samples rounded down:
+ * the steps ran ahead of the beat clock, 8 samples a bar of 1/16 at 120 BPM, and tracks on different
+ * DIVs drifted apart); a MIDI clock (after SLOOP 2.3, seq_u) moves it by its pulses (mclk_adv) */
+static uint8_t seq_u;                               /* a MIDI clock drives the sequencer (fx.c DIV_Q24, BEAT_U) */
 static uint32_t seq_len(const track_t *t, uint32_t idx)   /* step idx as seq_pos counts it */
 {
     uint32_t div = (uint32_t)t->p[P_SDIV] % 10u;
     int32_t sw;
-    if (!seq_u)
-        return step_samples(t, div_samples(div), idx);
     sw = (t->p[P_SSWING] + song.g[G_SWING]) * (int32_t)(441u * DIV_Q24[div]);
     return BEAT_U / 24u * DIV_Q24[div] + (uint32_t)((idx & 1u) ? -sw : sw);
 }
@@ -840,8 +842,8 @@ static void seq_fire(track_t *t, uint32_t idx, uint32_t period)
     seq_step(t, idx, period, skip);
 }
 
-/* n samples; adv: what seq_pos moves (n, or the units of the MIDI clock: seq_u). The gates and the
- * ratchets count samples in both. Jangada (after SLOOP 2.4): a step fires at its nudge, 1/64 of its
+/* n samples; adv: the units seq_pos moves (n x BPM, or the MIDI clock's: seq_u). The gates and the
+ * ratchets count samples. Jangada (after SLOOP 2.4): a step fires at its nudge, 1/64 of its
  * length a unit: late, once the grid is that far into it (mx_due until then); early, that far before
  * its grid step begins (mx_early: the grid then enters it fired already). The steps keep their order
  * whatever the nudges (the next one fires early only after the one before has fired); the recording,
@@ -1070,18 +1072,8 @@ static __attribute__((noinline)) uint32_t mclk_adv(uint32_t n)   /* units to adv
     return adv;
 }
 
-/* the sequencer changes what seq_pos counts (samples <-> units: seq_len) when a clock comes or goes */
-static __attribute__((noinline)) void seq_units(uint32_t on)
-{
-    uint32_t i, bpm = (uint32_t)song.g[G_BPM];
-    for (i = 0; i < NTRK; i++) {
-        track_t *t = &trk[i];
-        if (t->seq_pos >= 0x7FFFFFFFu)
-            continue;                               /* (step 0 not played yet) */
-        t->seq_pos = on ? t->seq_pos * bpm : t->seq_pos / bpm;
-    }
-    seq_u = (uint8_t)on;
-}
+/* a clock comes or goes (seq_pos counts units either way, seq_len) */
+static void seq_units(uint32_t on) { seq_u = (uint8_t)on; }
 
 static void midi_rt_out(uint32_t b) { midi_out_event(0x0Fu | b << 8); }
 
@@ -1183,8 +1175,7 @@ static void events_block(uint32_t n)
     clk_adv = adv;
     if (song.playing) {                               /* the fill: the bar this block reaches (its downbeat step
                                                        * fires in it, before clk_beat moves), 1/16 beat ahead: a
-                                                       * downbeat a little early (nudged; the steps' rounded length,
-                                                       * div_samples, runs ahead of the beat clock) is the new bar's */
+                                                       * downbeat nudged a little early is the new bar's */
         uint32_t bar = (clk_beat + (clk_pos + adv + BEAT_U / 16u) / BEAT_U) / 4u;
         if (bar != fill_bar) {
             fill_bar = bar;
@@ -1194,10 +1185,10 @@ static void events_block(uint32_t n)
     }
     fill_now = (uint8_t)(fill_held || fill_bar_on);
     for (i = 0; i < NTRK; i++)
-        seq_tick(&trk[i], n, seq_u ? adv : n);
+        seq_tick(&trk[i], n, adv);
     for (i = 0; i < NTRK; i++)
         if (trk_synth(i))
-            arp_tick(&trk[i], n);
+            arp_tick(&trk[i], n, adv);
     if (song.playing) {
         song.tick++;
         clk_pos += adv;                               /* fx.c: the beat clock (the MIDI clock's pulses) */

@@ -203,13 +203,13 @@ static int tracks_demo(const char *dir, const char *name, uint32_t solo)
     wav_hdr(w, frames);
     for (f = 0; f < frames; f += CTL) {
         int32_t o[2 * CTL];
-        uint32_t barn = f / bar, period = div_samples(2);
+        uint32_t barn = f / bar, period = div_samples(2), pu = period * (uint32_t)song.g[G_BPM];   /* (seq_pos: units) */
         if (barn == 4u && !song.rec)
             song.rec = 0x0Eu;                      /* bars 5..6: tracks 2, 3, 4 armed */
         if (barn == 6u)
             song.rec = 0;
         /* (a) a clap into the drums, late in step 3: lands on step 4, sounds now, step 4 does not repeat it */
-        if (song.rec && !clap_done && td->seq_idx == 3u && td->seq_pos > period * 3u / 4u) {
+        if (song.rec && !clap_done && td->seq_idx == 3u && td->seq_pos > pu * 3u / 4u) {
             input_on(td, 39, 110);
             clap_done = 1;
             clap_age = drums.age;
@@ -219,7 +219,7 @@ static int tracks_demo(const char *dir, const char *name, uint32_t solo)
             clap_pass = 2;
         }
         /* (b) MIDI ch 3 into the lead, early in its step 1 */
-        if (song.rec && !lead_done && t3->seq_idx == 1u && t3->seq_pos < period / 4u) {
+        if (song.rec && !lead_done && t3->seq_idx == 1u && t3->seq_pos < pu / 4u) {
             midi_in_q[mi_w++ % MQ] = 0x09u | 0x92u << 8 | 84u << 16 | 100u << 24;
             lead_done = 1;
         } else if (lead_done == 1u && t3->seq_idx == 2u) {
@@ -227,7 +227,7 @@ static int tracks_demo(const char *dir, const char *name, uint32_t solo)
             lead_done = 2;
         }
         /* (c) the keys, track 2 selected: two keys at once into the empty pad step 14 */
-        if (song.rec && !keys_on && !keys_t && t2->seq_idx == 14u && t2->seq_pos < period / 4u) {
+        if (song.rec && !keys_on && !keys_t && t2->seq_idx == 14u && t2->seq_pos < pu / 4u) {
             song.sel = 1;
             fm1_in.notes = (1u << 7) | (1u << 11);
             keys_on = 1;
@@ -502,7 +502,7 @@ static void rec_run_to(track_t *t, uint32_t idx, uint32_t q)
     do {
         mix_block(o, CTL);
     } while (++guard < 100000u && !(t->seq_idx == idx &&
-             t->seq_pos >= step_samples(t, div_samples((uint32_t)t->p[P_SDIV]), idx) * q / 100u));
+             t->seq_pos >= seq_len(t, idx) / 100u * q));
 }
 static int rec_step_is(const track_t *t, uint32_t i, uint32_t time, uint32_t n, uint32_t note)
 {

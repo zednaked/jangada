@@ -23,12 +23,19 @@ static track_t *arp_setup(uint32_t mode, uint32_t oct)
     return t;
 }
 
+/* n samples of the arp: a whole step (div_samples) moves its exact units (seq.c arp_tick counts units) */
+static void atick(track_t *t, uint32_t n)
+{
+    uint32_t r = (uint32_t)t->p[P_ARATE] % 10u;
+    arp_tick(t, n, n >= div_samples(r) ? BEAT_U / 24u * DIV_Q24[r] : n * (uint32_t)song.g[G_BPM]);
+}
+
 /* the note of each of the next n arp steps */
 static void arp_run(track_t *t, uint32_t n, uint8_t *out)
 {
     uint32_t period = div_samples((uint32_t)t->p[P_ARATE]), i;
     for (i = 0; i < n; i++) {
-        arp_tick(t, i ? period : 1u);
+        atick(t, i ? period : 1u);
         out[i] = t->arp_note;
     }
 }
@@ -77,19 +84,19 @@ int main(void)
     }
     {
         t = arp_setup(7, 2);
-        arp_tick(t, 1);
+        atick(t, 1);
         assert(t->arp_note == 0 && t->arp_nch == 6);
         assert(t->arp_chord[0] == 60 && t->arp_chord[2] == 67 && t->arp_chord[3] == 72 && t->arp_chord[5] == 79);
-        arp_tick(t, div_samples((uint32_t)t->p[P_ARATE]));      /* next step: the chord again */
+        atick(t, div_samples((uint32_t)t->p[P_ARATE]));      /* next step: the chord again */
         assert(t->arp_nch == 6);
         t->nheld = 0;                                            /* keys up: the chord stops */
-        arp_tick(t, 1);
+        atick(t, 1);
         assert(t->arp_nch == 0);
         printf("%-46s ok\n", "RPT: whole chord over OCT, retriggered, stops");
     }
     {
         t = arp_setup(7, 4);                                     /* 12 notes asked: NVOICE kept */
-        arp_tick(t, 1);
+        atick(t, 1);
         assert(t->arp_nch == NVOICE);
         printf("%-46s ok\n", "RPT: at most NVOICE notes");
     }

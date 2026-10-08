@@ -16,7 +16,7 @@
  * The step clock: per track, always running (also with the SLICER OFF, so switching it on lands
  * in time), restarted with the transport (seq_start -> slicer_start: step 0 starts with the
  * sequencer's step 0), BPM and the track's + the global SWING as the sequencer has them (seq.c
- * step_samples); sample exact. With the SLICER OFF and no ramp left, the signal is not touched. */
+ * seq_len, in units): no drift, every step starts where the sequencer's does. With the SLICER OFF and no ramp left, the signal is not touched. */
 #define SL_NPAT 16
 #define SL_LEN 4096u                    /* recording, 22.05 kHz samples a track: 186 ms, 8 KB */
 #define SL_RAMP_LOG2 7
@@ -49,6 +49,8 @@ static int16_t sl_buf[NTRK][SL_LEN] __attribute__((section(".pool")));
 typedef struct {
     uint32_t pos, len;           /* samples into the step, its length */
     uint32_t base;               /* the step without swing */
+    uint32_t e;                  /* units (a sample at 1 BPM) the step's start sample is past its exact time: the
+                                  * steps start at the first sample at or after it, as the sequencer's (seq.c seq_len) */
     uint32_t rp, loop;           /* repeat: read position, loop length (44.1 kHz samples), 0 = none */
     uint32_t rec;                /* recorded (22.05 kHz samples) */
     int32_t gc;                  /* gate closure, Q15: 0 = open */
@@ -67,6 +69,7 @@ static void slicer_start(void)   /* seq_start: the next block starts step 0 of e
     for (k = 0; k < NTRK; k++) {
         sl[k].idx = 15;
         sl[k].pos = sl[k].len = 0;
+        sl[k].e = 0;
     }
 }
 
@@ -78,9 +81,15 @@ static void sl_enter(const track_t *t, sl_t *s)
     uint32_t mode = (uint32_t)t->p[P_SLCR];
     int32_t sw;
     s->idx = (uint8_t)((s->idx + 1u) & 15u);
-    s->base = (uint32_t)FS * 60u / (uint32_t)song.g[G_BPM] / SL_DEN[(uint32_t)t->p[P_SLRATE] % 6u];
-    sw = (t->p[P_SSWING] + song.g[G_SWING]) * (int32_t)s->base / 250;   /* as seq.c step_samples */
-    s->len = s->base + (uint32_t)((s->idx & 1u) ? -sw : sw);
+    {   /* in units, as seq.c seq_len: exact at any tempo; the swing 441 units a percent of a 1/24 beat */
+        uint32_t den = SL_DEN[(uint32_t)t->p[P_SLRATE] % 6u], bpm = (uint32_t)song.g[G_BPM];
+        uint32_t bu = (uint32_t)FS * 60u / den, need;
+        sw = (t->p[P_SSWING] + song.g[G_SWING]) * (int32_t)(441u * 24u / den);
+        need = bu + (uint32_t)((s->idx & 1u) ? -sw : sw) - (s->e < bu / 2u ? s->e : 0u);
+        s->base = bu / bpm;
+        s->len = (need + bpm - 1u) / bpm;
+        s->e = s->len * bpm - need;
+    }
     s->pos = 0;
     s->bit = (uint8_t)((sl_pattern(t) >> s->idx) & 1u);
     s->rp = 0;
