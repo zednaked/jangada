@@ -912,15 +912,17 @@ static void draw_columns(void)
         return;
     }
     if (cur_page()->graph == GR_BROWSE) {
-        uint32_t total, cur = preset_pos(&total);
+        uint32_t total, cur = preset_pos(&total), shown, r = preset_cat_rank(cur, &shown);
         char u[8];
-        fmt_int(val, (int32_t)cur + 1);
+        if (!ui.pcat)
+            r = cur, shown = total;                       /* (ALL: the place in the whole list) */
+        fmt_int(val, preset_in(cur) ? (int32_t)r + 1 : 0);
         str_cpy(u, "/", 8);
-        fmt_int(u + 1, (int32_t)total);
+        fmt_int(u + 1, (int32_t)shown);
         draw_column(0, "No.", val, u, VAL(0u), -1, ICON_NONE);
         draw_column(1, "ENG", ENGINES[TSEL->eng_req]->name, "", VAL(1u), -1, engine_icon(ENGINES[TSEL->eng_req]->name));
         draw_column(2, "KIND", is_drum(TSEL) || !total ? "" : preset_kind(cur), "", VAL(2u), -1, ICON_AUTO);   /* (Jangada 0.6) */
-        draw_column(3, "", "", "", C_HI, -1, ICON_AUTO);
+        draw_column(3, "CAT", is_drum(TSEL) ? "" : PC_NAMES[ui.pcat], "", VAL(3u), -1, ICON_AUTO);   /* (0.8.1) */
         return;
     }
     if (cur_page()->graph == GR_USER) {                  /* SLOT, then three GO buttons */

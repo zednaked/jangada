@@ -310,56 +310,56 @@ __attribute__((noinline)) static void analog_render_lp(track_t *t, voice_t *v, i
 }
 
 static const preset_t ANALOG_PRESETS[] = {
-    {"SAW LEAD", {0, 12, 64, 0, 90, 30, 10, 64}, {4, 70, 100, 50}, 20, 1, FX(0, 10, 45, 30), PAT(4)},
-    {"SOFT PAD", {0, 20, 64, 4, 60, 10, 0, 32}, {80, 90, 110, 95}, 10, 0, FX(0, 60, 20, 70), PAT(5)},
-    {"SQR BASS", {1, 0, 0, 0, 50, 70, 40, 64}, {0, 60, 40, 30}, 30, 1, FX(5, 0, 10, 10), PAT(2)},
-    {"PWM STR", {4, 8, 40, 0, 75, 20, 0, 48}, {60, 80, 110, 85}, 8, 0, FX(0, 50, 20, 60), PAT(5)},
-    {"ACID", {0, 0, 0, 0, 50, 100, 25, 64}, {0, 55, 20, 30}, 48, 1, FX(20, 0, 45, 15), PAT(1)},
-    {"SINE KEY", {3, 6, 50, 0, 127, 0, 0, 0}, {2, 80, 30, 70}, 0, 0, FX(0, 30, 25, 40), PAT(6)},
-    {"RAVE", {4, 30, 64, 0, 85, 20, 30, 64}, {20, 80, 110, 60}, 10, 1, FX(30, 40, 30, 30), ARP(1, 2, 2, 50)},
-    {"SUB BASS", {3, 0, 0, 0, 40, 0, 20, 0}, {0, 60, 100, 20}, 0, 1, FX(0, 0, 0, 10), PAT(8)},
-    {"PLUCK", {0, 8, 50, 0, 30, 40, 0, 64}, {0, 88, 0, 60}, 55, 0, FX(0, 20, 50, 30), PAT(3)},
-    {"BRASS", {0, 10, 64, 0, 45, 20, 10, 64}, {35, 70, 90, 45}, 40, 0, FX(0, 20, 20, 40), PAT(6)},
-    {"WIND", {0, 0, 0, 90, 30, 90, 0, 0}, {60, 90, 60, 80}, 50, 0, FX(0, 30, 30, 70), PAT(5)},
-    {"STRINGS", {0, 25, 64, 0, 70, 10, 0, 32}, {70, 90, 115, 90}, 5, 0, FX(0, 60, 20, 70), PAT(5)},
+    {"SAW LEAD", {0, 12, 64, 0, 90, 30, 10, 64}, {4, 70, 100, 50}, 20, 1, FX(0, 10, 45, 30), PAT(4), CAT(LEAD)},
+    {"SOFT PAD", {0, 20, 64, 4, 60, 10, 0, 32}, {80, 90, 110, 95}, 10, 0, FX(0, 60, 20, 70), PAT(5), CAT(PAD)},
+    {"SQR BASS", {1, 0, 0, 0, 50, 70, 40, 64}, {0, 60, 40, 30}, 30, 1, FX(5, 0, 10, 10), PAT(2), CAT(BASS)},
+    {"PWM STR", {4, 8, 40, 0, 75, 20, 0, 48}, {60, 80, 110, 85}, 8, 0, FX(0, 50, 20, 60), PAT(5), CAT(PAD)},
+    {"ACID", {0, 0, 0, 0, 50, 100, 25, 64}, {0, 55, 20, 30}, 48, 1, FX(20, 0, 45, 15), PAT(1), CAT(BASS)},
+    {"SINE KEY", {3, 6, 50, 0, 127, 0, 0, 0}, {2, 80, 30, 70}, 0, 0, FX(0, 30, 25, 40), PAT(6), CAT(KEYS)},
+    {"RAVE", {4, 30, 64, 0, 85, 20, 30, 64}, {20, 80, 110, 60}, 10, 1, FX(30, 40, 30, 30), ARP(1, 2, 2, 50), CAT(LEAD)},
+    {"SUB BASS", {3, 0, 0, 0, 40, 0, 20, 0}, {0, 60, 100, 20}, 0, 1, FX(0, 0, 0, 10), PAT(8), CAT(BASS)},
+    {"PLUCK", {0, 8, 50, 0, 30, 40, 0, 64}, {0, 88, 0, 60}, 55, 0, FX(0, 20, 50, 30), PAT(3), CAT(PLUCK)},
+    {"BRASS", {0, 10, 64, 0, 45, 20, 10, 64}, {35, 70, 90, 45}, 40, 0, FX(0, 20, 20, 40), PAT(6), CAT(LEAD)},
+    {"WIND", {0, 0, 0, 90, 30, 90, 0, 0}, {60, 90, 60, 80}, 50, 0, FX(0, 30, 30, 70), PAT(5), CAT(FX)},
+    {"STRINGS", {0, 25, 64, 0, 70, 10, 0, 32}, {70, 90, 115, 90}, 5, 0, FX(0, 60, 20, 70), PAT(5), CAT(PAD)},
     /* Jangada: dark / industrial */
     {"RUST BASS", {0, 14, 64, 6, 38, 70, 110, 40}, {0, 60, 90, 25}, 30, 1, FX(70, 0, 0, 12), PAT(2),
-     .x = {1, 1, 71, 9, 2}},                        /* + SUB, a little DRFT, LP24 */
+     .x = {1, 1, 71, 9, 2}, CAT(BASS)},                        /* + SUB, a little DRFT, LP24 */
     {"HURT PAD", {4, 26, 64, 10, 55, 25, 15, 30}, {95, 90, 115, 105}, 6, 0, FX(0, 70, 25, 95), .x = {1, 1, 1, 41, 2},
-     SET({P_LRATE, 18}, {P_LD_FLT, 16}, {P_LD_SHP, 30}, {P_M1SRC, 5}, {P_M1DST, 4}, {P_M1AMT, 14})},
+     SET({P_LRATE, 18}, {P_LD_FLT, 16}, {P_LD_SHP, 30}, {P_M1SRC, 5}, {P_M1DST, 4}, {P_M1AMT, 14}), CAT(PAD)},
     /* Jangada: drones */
     {"DRONE SAW", {0, 40, 64, 20, 45, 35, 40, 20}, {120, 90, 127, 120}, 0, 0, FX(15, 60, 35, 110), ARP(7, 9, 1, 127),
      .x = {7, 61, 51, 51, 2},                       /* superwave 6, SUB, DRFT, LP24 */
-     SET({P_AHOLD, 1}, {P_LRATE, 6}, {P_LD_FLT, 24}, {P_M1SRC, 1}, {P_M1DST, 8}, {P_M1AMT, 18}, {P_M2SRC, 5}, {P_M2DST, 4}, {P_M2AMT, 20})},
+     SET({P_AHOLD, 1}, {P_LRATE, 6}, {P_LD_FLT, 24}, {P_M1SRC, 1}, {P_M1DST, 8}, {P_M1AMT, 18}, {P_M2SRC, 5}, {P_M2DST, 4}, {P_M2AMT, 20}), CAT(DRONE)},
     /* Jangada: superwave */
-    {"SUPER SAW", {0, 12, 0, 0, 95, 15, 0, 40}, {2, 80, 110, 55}, 10, 0, FX(0, 30, 40, 60), .x = {7, 51, 1, 11, 1}},
+    {"SUPER SAW", {0, 12, 0, 0, 95, 15, 0, 40}, {2, 80, 110, 55}, 10, 0, FX(0, 30, 40, 60), .x = {7, 51, 1, 11, 1}, CAT(LEAD)},
     {"SUPER PAD", {0, 20, 64, 0, 60, 20, 0, 30}, {90, 90, 115, 100}, 6, 0, FX(0, 50, 30, 90), .x = {6, 71, 1, 31, 2},
-     SET({P_LRATE, 12}, {P_LD_FLT, 14})},
+     SET({P_LRATE, 12}, {P_LD_FLT, 14}), CAT(PAD)},
     {"HP SHIMMER", {0, 30, 64, 10, 70, 60, 0, 64}, {60, 90, 110, 100}, 0, 0, FX(0, 60, 50, 100), .x = {5, 81, 1, 21, 4},
-     SET({P_LRATE, 9}, {P_LD_FLT, 20})},
+     SET({P_LRATE, 9}, {P_LD_FLT, 20}), CAT(PAD)},
     /* Jangada: the Nordeste (with the MANGUE kit; SCL NORD or MIX) */
     {"BAIAO BASS", {1, 8, 64, 0, 36, 40, 40, 50}, {0, 50, 60, 20}, 35, 1, FX(20, 0, 0, 10), PAT(12),
-     .x = {1, 1, 51, 11, 2}},                       /* round and plucked, + SUB, LP24 */
+     .x = {1, 1, 51, 11, 2}, CAT(BASS)},                       /* round and plucked, + SUB, LP24 */
     {"RABECA", {0, 8, 64, 12, 70, 60, 30, 40}, {40, 90, 127, 90}, 0, 0, FX(10, 30, 20, 80), ARP(7, 9, 1, 127),
      .x = {1, 1, 1, 31, 3},                         /* the fiddle: nasal (BP), bow noise, its vibrato; a drone */
-     SET({P_AHOLD, 1}, {P_LRATE, 89}, {P_LD_PIT, 2})},
+     SET({P_AHOLD, 1}, {P_LRATE, 89}, {P_LD_PIT, 2}), CAT(DRONE)},
     /* Jangada DRONES that evolve (drone.c): rust on a superwave; the walks move it, the tension opens it
      * over 16 bars (RES, DRV, the superwave's spread) */
     {"FERRUGEM", {0, 30, 64, 22, 34, 40, 30, 20}, {120, 90, 127, 120}, 0, 0, FX(25, 50, 30, 115), ARP(7, 9, 1, 127),
      .x = {7, 41, 61, 41, 2},                       /* superwave 6, SUB, DRFT, LP24 */
-     SET({P_AHOLD, 1}, {P_LRATE, 5}, {P_LD_FLT, 10}, {P_EVOL, 90}, {P_TENS, 110}, {P_TRAMP, 5})},
+     SET({P_AHOLD, 1}, {P_LRATE, 5}, {P_LD_FLT, 10}, {P_EVOL, 90}, {P_TENS, 110}, {P_TRAMP, 5}), CAT(DRONE)},
     /* Jangada: the ladder (FTYP LADR): tar, an engine, mud */
     {"PICHE BASS", {0, 6, 64, 0, 30, 70, 60, 50}, {0, 55, 40, 25}, 45, 1, FX(30, 0, 0, 10), PAT(2),
-     .x = {1, 1, 41, 1, 5}},                        /* two saws into the ladder, + SUB */
-    {"MOTOR LEAD", {0, 8, 50, 0, 55, 95, 90, 64}, {2, 70, 90, 40}, 35, 1, FX(40, 0, 35, 30), .x = {1, 1, 1, 11, 5}},
+     .x = {1, 1, 41, 1, 5}, CAT(BASS)},                        /* two saws into the ladder, + SUB */
+    {"MOTOR LEAD", {0, 8, 50, 0, 55, 95, 90, 64}, {2, 70, 90, 40}, 35, 1, FX(40, 0, 35, 30), .x = {1, 1, 1, 11, 5}, CAT(LEAD)},
     {"LODO", {4, 14, 64, 8, 40, 110, 30, 40}, {110, 90, 127, 110}, 0, 0, FX(15, 40, 30, 100), ARP(7, 9, 1, 127),
      .x = {4, 41, 1, 51, 5},                        /* a little superwave, DRFT; the resonance sings, the LFO moves it */
-     SET({P_AHOLD, 1}, {P_LRATE, 7}, {P_LD_FLT, 22})},
+     SET({P_AHOLD, 1}, {P_LRATE, 7}, {P_LD_FLT, 22}), CAT(DRONE)},
     /* Jangada: SAT after the filter (OSC -> LADR -> SAT -> VCA): scrap metal; the envelope folds the
      * attack harder (ENV -> SDRV) and lets the tail go smooth */
     {"SUCATA", {0, 7, 64, 0, 50, 75, 20, 50}, {0, 65, 45, 30}, 40, 1, FX(0, 0, 30, 15), PAT(2),
      .x = {1, 1, 1, 1, 5, 4, 41},                   /* LADR, SAT FOLD, SDRV 40 */
-     SET({P_M1SRC, 2}, {P_M1DST, 17}, {P_M1AMT, 40})},
+     SET({P_M1SRC, 2}, {P_M1DST, 17}, {P_M1AMT, 40}), CAT(BASS)},
 };
 
 static void analog_render(track_t *t, voice_t *v, int32_t *out, uint32_t n, const vmod_t *m)

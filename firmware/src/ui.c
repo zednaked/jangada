@@ -66,6 +66,7 @@ static struct {
     uint8_t confirm;             /* 1 = "clear the sequence?" (REC held on SEQ / ARP), 2 = "clear track n?" (TRACKS) */
     uint8_t confirm_trk;         /* the track the dialog clears */
     uint8_t uslot;               /* SAVE > USER: the selected user preset slot */
+    uint8_t pcat;                /* Jangada 0.8.1: the PRESETS filter, a PC_* category (0: all) */
     char msg[24];
     uint32_t enc_t[NE];
     /* drawn-state cache */
@@ -532,35 +533,80 @@ static const char *preset_kind_long(uint32_t n)      /* ... and in the top bar *
     uint32_t g = preset_group(n);
     return g < PG_FM6 ? ENGINES[g]->name : g < PG_USER ? BK[g - PG_FM6] : "USER PRESETS";
 }
-/* the first entry of the next (dir > 0) or the previous group, wrapping round */
+/* Jangada 0.8.1 (issue #2): the categories. Each factory preset has one (preset_t.cat: BASS, LEAD, ..); KNOB 4 on the
+ * PRESETS page picks one and then every way of browsing (the PRESETS knob, KNOB 1, the group jump) walks only
+ * its presets, across the engines. ALL: the whole list as before. The FM6 bank voices and the user presets
+ * have none: ALL only */
+static const char *const PC_NAMES[PC_COUNT] = {"ALL", "BASS", "LEAD", "PAD", "KEYS", "PLUCK", "PERC", "DRONE", "FX"};
+static uint32_t preset_cat(uint32_t n)               /* the category of list index n, PC_NONE = none */
+{
+    uint32_t k, e = preset_at(n, &k);
+    return e < NENGINES ? ENGINES[e]->presets[k].cat : PC_NONE;
+}
+static int preset_in(uint32_t n) { return !ui.pcat || preset_cat(n) == ui.pcat; }   /* shown by the filter */
+
+/* the next (dir > 0) or the previous entry the filter shows, wrapping round; cur when there is none */
+static uint32_t preset_step(uint32_t cur, int32_t dir)
+{
+    uint32_t total, i, n;
+    preset_pos(&total);
+    if (!total)
+        return 0;
+    for (i = 1; i <= total; i++) {
+        n = dir > 0 ? (cur + i) % total : (cur + total * 2u - i) % total;
+        if (preset_in(n))
+            return n;
+    }
+    return cur;
+}
+
+/* the first entry the filter shows of the next (dir > 0) or the previous group, wrapping round */
 static uint32_t preset_group_jump(uint32_t cur, int32_t dir)
 {
-    uint32_t total, n, g;
+    uint32_t total, n, g, i;
     preset_pos(&total);
     if (!total)
         return 0;
     cur %= total;
     g = preset_group(cur);
-    if (dir > 0) {
-        for (n = (cur + 1u) % total; n != cur; n = (n + 1u) % total)
-            if (preset_group(n) != g)
-                return n;
-        return cur;
+    for (i = 1; i < total; i++) {
+        n = dir > 0 ? (cur + i) % total : (cur + total - i) % total;
+        if (!preset_in(n) || preset_group(n) == g)
+            continue;
+        if (dir < 0) {                                   /* the previous group: back to its first shown */
+            g = preset_group(n);
+            while (n && preset_group(n - 1u) == g)
+                n--;
+            while (!preset_in(n))
+                n++;
+        }
+        return n;                                        /* (forward: the first shown of the next group) */
     }
-    n = cur;
-    while (n && preset_group(n - 1u) == g)               /* the start of this group ... */
-        n--;
-    if (n == 0u) {                                       /* ... was the first: the last group's start */
-        g = preset_group(total - 1u);
-        for (n = total - 1u; n && preset_group(n - 1u) == g; n--)
-            ;
-        return n;
-    }
-    n--;                                                 /* the previous group: back to its start */
-    g = preset_group(n);
-    while (n && preset_group(n - 1u) == g)
-        n--;
-    return n;
+    return cur;
+}
+
+/* the filter: KNOB 4 on the PRESETS page. A sound outside the new category: the first one in it is loaded */
+static void preset_go(uint32_t n);
+static void preset_cat_turn(int32_t dir)
+{
+    uint32_t total, cur = preset_pos(&total);
+    ui.pcat = (uint8_t)((ui.pcat + (dir > 0 ? 1u : PC_COUNT - 1u)) % PC_COUNT);
+    if (total && !preset_in(cur))
+        preset_go(preset_step(cur, 1));
+    ui_say("CAT ", PC_NAMES[ui.pcat]);
+    ui.force = 1;
+}
+static uint32_t preset_cat_rank(uint32_t cur, uint32_t *count)   /* cur's place among those shown, and how many */
+{
+    uint32_t total, n, r = 0;
+    preset_pos(&total);
+    *count = 0;
+    for (n = 0; n < total; n++)
+        if (preset_in(n)) {
+            r += n < cur;
+            ++*count;
+        }
+    return r;
 }
 
 static void preset_go(uint32_t n)                    /* load list index n into the selected track */

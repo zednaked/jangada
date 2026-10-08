@@ -268,23 +268,23 @@ static void drawbar_render(track_t *t, voice_t *v, int32_t *out, uint32_t n, con
 
 static const preset_t DRAWBAR_PRESETS[] = {
     /* name, {REG, SUB, BODY, TOP, PERC, CLICK, DRIVE, ROTR}, {A D S R}, fenv, mono */
-    {"FULL ORGAN", {15, 0, 0, 0, 0, 30, 20, 1}, {0, 64, 127, 45}, 0, 0, FX(0, 0, 10, 35), PAT(5)},
-    {"JAZZ PERC", {4, 0, 0, 0, 2, 50, 8, 1}, {0, 64, 127, 40}, 0, 0, FX(0, 0, 0, 25), PAT(3)},
-    {"GOSPEL", {6, 0, 0, 0, 1, 60, 40, 2}, {0, 64, 127, 45}, 0, 0, FX(0, 0, 0, 40), PAT(6)},
-    {"SOFT FLUTE", {1, 0, -2, 0, 0, 10, 0, 1}, {0, 64, 127, 55}, 0, 0, FX(0, 20, 15, 55), PAT(5)},
-    {"ROCK DRIVE", {7, 0, 0, 0, 0, 70, 100, 2}, {0, 64, 127, 40}, 0, 0, FX(35, 0, 10, 25), PAT(4)},
+    {"FULL ORGAN", {15, 0, 0, 0, 0, 30, 20, 1}, {0, 64, 127, 45}, 0, 0, FX(0, 0, 10, 35), PAT(5), CAT(KEYS)},
+    {"JAZZ PERC", {4, 0, 0, 0, 2, 50, 8, 1}, {0, 64, 127, 40}, 0, 0, FX(0, 0, 0, 25), PAT(3), CAT(KEYS)},
+    {"GOSPEL", {6, 0, 0, 0, 1, 60, 40, 2}, {0, 64, 127, 45}, 0, 0, FX(0, 0, 0, 40), PAT(6), CAT(KEYS)},
+    {"SOFT FLUTE", {1, 0, -2, 0, 0, 10, 0, 1}, {0, 64, 127, 55}, 0, 0, FX(0, 20, 15, 55), PAT(5), CAT(KEYS)},
+    {"ROCK DRIVE", {7, 0, 0, 0, 0, 70, 100, 2}, {0, 64, 127, 40}, 0, 0, FX(35, 0, 10, 25), PAT(4), CAT(KEYS)},
     /* Jangada: dark / industrial */
-    {"DIRTY ORGN", {7, 0, 0, 0, 0, 60, 127, 2}, {0, 64, 127, 40}, 0, 0, FX(60, 0, 20, 40), PAT(6)},
+    {"DIRTY ORGN", {7, 0, 0, 0, 0, 60, 127, 2}, {0, 64, 127, 40}, 0, 0, FX(60, 0, 20, 40), PAT(6), CAT(KEYS)},
     /* Jangada: drones */
     {"DRONE ORGN", {4, 4, 2, -4, 0, 0, 30, 1}, {90, 64, 127, 110}, 0, 0, FX(25, 30, 30, 100), ARP(7, 9, 1, 127),
-     SET({P_AHOLD, 1})},
+     SET({P_AHOLD, 1}), CAT(DRONE)},
     /* Jangada: the Nordeste: the sanfona's reeds, its bellows (the fast rotor), as a drone */
     {"SANFONA", {10, 0, 0, 2, 0, 10, 30, 2}, {60, 64, 127, 90}, 0, 0, FX(10, 40, 10, 60), ARP(7, 9, 1, 127),
-     SET({P_AHOLD, 1})},
+     SET({P_AHOLD, 1}), CAT(DRONE)},
     /* Jangada DRONES that evolve (drone.c): the sanfona at the end of the day in the sertao; its reeds drift
      * and breathe, the tension pulls them apart (a musette that gets sour) and drives them, over 16 bars */
     {"SERTAO", {10, 1, 0, 1, 0, 0, 20, 1}, {90, 64, 127, 110}, 0, 0, FX(10, 45, 20, 90), ARP(7, 9, 1, 127),
-     SET({P_AHOLD, 1}, {P_EVOL, 100}, {P_TENS, 100}, {P_TRAMP, 5})},
+     SET({P_AHOLD, 1}, {P_EVOL, 100}, {P_TENS, 100}, {P_TRAMP, 5}), CAT(DRONE)},
 };
 
 static const engine_t ENG_DRAWBAR = {

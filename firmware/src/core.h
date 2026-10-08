@@ -138,7 +138,11 @@ typedef struct {
     int16_t x[NEDIT - 8];        /* Jangada: P_E8.. stored + 1, 0 = the engine's default; last, so the
                                   * positional initializers above stay as they are (.x = {..}) */
     const int16_t (*set)[2];     /* Jangada: any other parameters, {P_*, value} .. {-1}: SET(..) */
+    uint8_t cat;                 /* Jangada 0.8.1 (issue #2): the category, PC_* (CAT(..)); the PRESETS page filters by it */
 } preset_t;
+/* preset categories (ui.c PC_NAMES; 0 = none: an FM6 bank voice, a user preset) */
+enum { PC_NONE, PC_BASS, PC_LEAD, PC_PAD, PC_KEYS, PC_PLUCK, PC_PERC, PC_DRONE, PC_FX, PC_COUNT };
+#define CAT(c) .cat = PC_##c
 #define FX(d, c, dl, r) .fx = {(d) + 1, (c) + 1, (dl) + 1, (r) + 1}
 #define ARP(m, rt, o, g) .arp = {(m) + 1, (rt) + 1, (o) + 1, (g) + 1}
 #define PAT(n) .pat = (n)

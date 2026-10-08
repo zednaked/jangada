@@ -226,6 +226,10 @@ and it keeps breathing on its own, even while you play the other tracks.
   patch. **Hold HOME and turn PRESETS** to jump a group at a time (each engine's presets, FM6 BANK 1,
   FM6 BANK 2, the user presets; the group shows in the top bar, and that HOME press opens nothing);
   **KNOB 3 (KIND)** on the PRESETS page does the same.
+- **Preset categories**: every factory preset is a **BASS**, **LEAD**, **PAD**, **KEYS**, **PLUCK**, **PERC**,
+  **DRONE** or **FX**. **KNOB 4 (CAT)** on the PRESETS page picks one, and from then on the PRESETS knob,
+  KNOB 1 and the group jump walk only those presets, across all the engines (No. counts within the
+  category). **ALL** is the whole list. FM6 bank voices and user presets show under ALL.
 - **Dexed edits Jangada live**: point Dexed's (or another DX7 editor's) MIDI at the FM-1 and turning a
   knob there changes the FM6 track at once; send a voice to the track or a 32-voice cartridge to a
   bank, and ask for them back. The cartridge goes to the bank the FM6 track's PTCH is in (B33–B64:

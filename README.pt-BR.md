@@ -227,6 +227,10 @@ solte, e ele continua respirando sozinho, inclusive enquanto você toca outras t
   FM6 com aquele patch. **Segure HOME e gire PRESETS** para pular um grupo de cada vez (os presets de
   cada motor, FM6 BANK 1, FM6 BANK 2, os presets de usuário; o grupo aparece na barra de cima, e esse
   toque no HOME não abre nada); o **KNOB 3 (KIND)** da página PRESETS faz o mesmo.
+- **Categorias de preset**: todo preset de fábrica é **BASS**, **LEAD**, **PAD**, **KEYS**, **PLUCK**, **PERC**,
+  **DRONE** ou **FX**. O **KNOB 4 (CAT)** da página PRESETS escolhe uma, e a partir daí o knob PRESETS, o
+  KNOB 1 e o pulo de grupo só andam por esses presets, atravessando todos os motores (o No. conta dentro da
+  categoria). **ALL** é a lista inteira. As vozes dos bancos FM6 e os presets de usuário aparecem no ALL.
 - **O Dexed edita a Jangada ao vivo**: com o MIDI do Dexed (ou outro editor DX7) apontado para o FM-1,
   girar um knob lá muda a trilha FM6 na hora; mande uma voz para a trilha ou um cartucho de 32 para um
   banco, e peça de volta. O cartucho vai para o banco em que está o PTCH da trilha FM6 (B33–B64: banco

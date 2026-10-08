@@ -422,20 +422,20 @@ static void grain_render(track_t *t, voice_t *v, int32_t *out, uint32_t n, const
 
 static const preset_t GRAIN_PRESETS[] = {
     /* name, {SRC, POS, SIZE, DENS, PTCH, SPRD, RAND, TONE}, {A D S R}, fenv, mono */
-    {"CLOUD PAD", {2, 50, 92, 88, 0, 40, 14, 100}, {70, 90, 120, 90}, 0, 0, FX(0, 40, 25, 85), PAT(5)},
-    {"GLITCH", {3, 64, 24, 112, 0, 100, 90, 127}, {0, 70, 100, 30}, 0, 0, FX(10, 0, 50, 25), PAT(4)},
-    {"FROZEN", {0, 40, 108, 72, 0, 0, 10, 92}, {50, 100, 127, 100}, 0, 0, FX(0, 30, 20, 95), PAT(5)},
-    {"SHIMMER", {1, 30, 70, 100, 12, 30, 24, 110}, {30, 90, 110, 90}, 0, 0, FX(0, 50, 40, 90), PAT(7)},
+    {"CLOUD PAD", {2, 50, 92, 88, 0, 40, 14, 100}, {70, 90, 120, 90}, 0, 0, FX(0, 40, 25, 85), PAT(5), CAT(PAD)},
+    {"GLITCH", {3, 64, 24, 112, 0, 100, 90, 127}, {0, 70, 100, 30}, 0, 0, FX(10, 0, 50, 25), PAT(4), CAT(FX)},
+    {"FROZEN", {0, 40, 108, 72, 0, 0, 10, 92}, {50, 100, 127, 100}, 0, 0, FX(0, 30, 20, 95), PAT(5), CAT(PAD)},
+    {"SHIMMER", {1, 30, 70, 100, 12, 30, 24, 110}, {30, 90, 110, 90}, 0, 0, FX(0, 50, 40, 90), PAT(7), CAT(PAD)},
     /* Jangada: dark / industrial */
     {"GHOST KEYS", {0, 40, 110, 90, 0, 50, 20, 80}, {90, 90, 120, 110}, 0, 0, FX(0, 40, 40, 115),
-     SET({P_LRATE, 5}, {P_M1SRC, 1}, {P_M1DST, 4}, {P_M1AMT, 20})},
+     SET({P_LRATE, 5}, {P_M1SRC, 1}, {P_M1DST, 4}, {P_M1AMT, 20}), CAT(KEYS)},
     /* Jangada: drones */
     {"DRONE DUST", {2, 50, 100, 120, -12, 90, 70, 70}, {110, 90, 127, 118}, 0, 0, FX(20, 30, 50, 120), ARP(7, 9, 1, 127),
-     SET({P_AHOLD, 1}, {P_LRATE, 7}, {P_M1SRC, 1}, {P_M1DST, 4}, {P_M1AMT, 30})},
+     SET({P_AHOLD, 1}, {P_LRATE, 7}, {P_M1SRC, 1}, {P_M1DST, 4}, {P_M1AMT, 30}), CAT(DRONE)},
     /* Jangada DRONES that evolve (drone.c): ash of a piano, an octave down; the walks wander through the
      * recording (SHP moves POS) and the grain size, the tension thickens and scatters it over 8 bars */
     {"CINZA", {0, 60, 110, 100, -12, 70, 40, 60}, {120, 90, 127, 120}, 0, 0, FX(15, 40, 45, 125), ARP(7, 9, 1, 127),
-     SET({P_AHOLD, 1}, {P_EVOL, 127}, {P_TENS, 80}, {P_TRAMP, 4})},
+     SET({P_AHOLD, 1}, {P_EVOL, 127}, {P_TENS, 80}, {P_TRAMP, 4}), CAT(DRONE)},
 };
 
 static const engine_t ENG_GRAIN = {

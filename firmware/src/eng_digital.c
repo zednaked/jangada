@@ -114,24 +114,24 @@ static void digital_render(track_t *t, voice_t *v, int32_t *out, uint32_t n, con
 
 static const preset_t DIGITAL_PRESETS[] = {
     /* ALG R2 R3 R4 INDEX MODDEC FDBK - */
-    {"E.PIANO", {4, 1, 1, 14, 70, 55, 0, 0}, {0, 80, 40, 60}, 0, 0, FX(0, 50, 25, 35), PAT(6)},
-    {"BELL", {4, 8, 1, 4, 90, 70, 0, 0}, {0, 95, 0, 85}, 0, 0, FX(0, 0, 30, 70), PAT(7)},
-    {"BASS", {0, 1, 1, 1, 48, 40, 8, 0}, {0, 60, 70, 25}, 0, 1, FX(0, 0, 10, 10), PAT(2)},
-    {"BRASS", {0, 1, 1, 1, 70, 40, 20, 0}, {40, 70, 100, 40}, 20, 0, FX(0, 20, 20, 40), PAT(6)},
-    {"ORGAN", {7, 2, 3, 4, 0, 0, 0, 0}, {2, 60, 127, 20}, 0, 0, FX(10, 40, 0, 30), PAT(6)},
-    {"PAD", {5, 2, 1, 3, 40, 90, 10, 0}, {80, 90, 110, 95}, 0, 0, FX(0, 60, 30, 70), PAT(5)},
-    {"MARIMBA", {4, 4, 1, 1, 60, 30, 0, 0}, {0, 80, 0, 60}, 0, 0, FX(0, 0, 25, 40), PAT(3)},
-    {"FUNK KEY", {3, 1, 3, 5, 90, 25, 20, 0}, {0, 45, 30, 30}, 0, 0, FX(0, 20, 30, 20), PAT(6)},
+    {"E.PIANO", {4, 1, 1, 14, 70, 55, 0, 0}, {0, 80, 40, 60}, 0, 0, FX(0, 50, 25, 35), PAT(6), CAT(KEYS)},
+    {"BELL", {4, 8, 1, 4, 90, 70, 0, 0}, {0, 95, 0, 85}, 0, 0, FX(0, 0, 30, 70), PAT(7), CAT(KEYS)},
+    {"BASS", {0, 1, 1, 1, 48, 40, 8, 0}, {0, 60, 70, 25}, 0, 1, FX(0, 0, 10, 10), PAT(2), CAT(BASS)},
+    {"BRASS", {0, 1, 1, 1, 70, 40, 20, 0}, {40, 70, 100, 40}, 20, 0, FX(0, 20, 20, 40), PAT(6), CAT(LEAD)},
+    {"ORGAN", {7, 2, 3, 4, 0, 0, 0, 0}, {2, 60, 127, 20}, 0, 0, FX(10, 40, 0, 30), PAT(6), CAT(KEYS)},
+    {"PAD", {5, 2, 1, 3, 40, 90, 10, 0}, {80, 90, 110, 95}, 0, 0, FX(0, 60, 30, 70), PAT(5), CAT(PAD)},
+    {"MARIMBA", {4, 4, 1, 1, 60, 30, 0, 0}, {0, 80, 0, 60}, 0, 0, FX(0, 0, 25, 40), PAT(3), CAT(PLUCK)},
+    {"FUNK KEY", {3, 1, 3, 5, 90, 25, 20, 0}, {0, 45, 30, 30}, 0, 0, FX(0, 20, 30, 20), PAT(6), CAT(KEYS)},
     /* Jangada: dark / industrial */
-    {"METAL HIT", {4, 13, 6, 0, 110, 30, 60, 0}, {0, 50, 0, 40}, 0, 0, FX(80, 0, 30, 40), PAT(6)},
+    {"METAL HIT", {4, 13, 6, 0, 110, 30, 60, 0}, {0, 50, 0, 40}, 0, 0, FX(80, 0, 30, 40), PAT(6), CAT(PERC)},
     /* Jangada: drones */
     {"DRONE FM", {5, 2, 1, 3, 50, 127, 30, 0}, {110, 90, 127, 120}, 0, 0, FX(0, 60, 30, 100), ARP(7, 9, 1, 127),
-     SET({P_AHOLD, 1}, {P_LRATE, 10}, {P_M1SRC, 1}, {P_M1DST, 7}, {P_M1AMT, 25}, {P_M2SRC, 5}, {P_M2DST, 9}, {P_M2AMT, 15})},
+     SET({P_AHOLD, 1}, {P_LRATE, 10}, {P_M1SRC, 1}, {P_M1DST, 7}, {P_M1AMT, 25}, {P_M2SRC, 5}, {P_M2DST, 9}, {P_M2AMT, 15}), CAT(DRONE)},
     /* Jangada DRONES that evolve (drone.c): an abyss of FM, a sub-octave and a metal overtone; DRIFT also
      * moves the timbre (MOD 1 -> SHP), the tension takes 32 bars to open */
     {"ABISMO", {5, 0, 2, 7, 34, 127, 8, 0}, {120, 90, 127, 118}, 0, 0, FX(15, 40, 35, 120), ARP(7, 9, 1, 127),
      SET({P_AHOLD, 1}, {P_LRATE, 6}, {P_M1SRC, 9}, {P_M1DST, 2}, {P_M1AMT, 20}, {P_EVOL, 110}, {P_TENS, 80},
-         {P_TRAMP, 6})},
+         {P_TRAMP, 6}), CAT(DRONE)},
 };
 
 static const engine_t ENG_DIGITAL = {

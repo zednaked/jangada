@@ -246,13 +246,15 @@ static void edit_param(uint32_t slot, int32_t steps)
         if (slot == 0u && !is_drum(TSEL)) {
             uint32_t total, cur = preset_pos(&total);
             if (total)
-                preset_go((cur + (steps > 0 ? 1u : total - 1u)) % total);
+                preset_go(preset_step(cur, steps));      /* (the category filter, KNOB 4) */
         } else if (slot == 1u && !is_drum(TSEL)) {
             select_engine((TSEL->eng_req + (steps > 0 ? 1u : NENGINES - 1u)) % NENGINES);
         } else if (slot == 2u && !is_drum(TSEL)) {
             uint32_t total, cur = preset_pos(&total);
             if (total)
                 preset_go(preset_group_jump(cur, steps));
+        } else if (slot == 3u && !is_drum(TSEL)) {       /* KNOB 4 (Jangada 0.8.1): the category */
+            preset_cat_turn(steps);
         }
         return;
     }
@@ -588,7 +590,7 @@ static void ui_input(void)
             preset_go(n);
             ui_message(preset_kind_long(n));
         } else if (total)
-            preset_go((cur + (s > 0 ? 1u : total - 1u)) % total);   /* past the factory ones: user presets */
+            preset_go(preset_step(cur, s));             /* past the factory ones: user presets (the filter: KNOB 4) */
     }
     if ((s = panel_enc(EN_ALGO)) != 0)             /* ALGORITHM: the selected track, on every page */
         track_select((uint32_t)clamp((int32_t)song.sel + (s > 0 ? 1 : -1), 0, NTRK - 1));

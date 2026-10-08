@@ -281,4 +281,34 @@ int main(void){
    song.sel = 0;
  }
  printf("%-46s ok\n", "GLO > KIT: browser order, kit beats, BEAT (Jangada)");
+ { /* Jangada 0.8.1 (issue #2): the preset categories. Every factory preset has one; KNOB 4 on the PRESETS page
+    * picks it and KNOB 1 / KNOB 3 walk only its presets, across the engines; ALL is the list as before */
+   uint32_t e, k, pi, total, cur, n, nb = 0, c, eng0;
+   for (e = 0; e < NENGINES; e++)
+     for (k = 0; k < ENGINES[e]->npresets; k++)
+       if (!ENGINES[e]->presets[k].cat || ENGINES[e]->presets[k].cat >= PC_COUNT) {
+         printf("no category: %s %s\n", ENGINES[e]->name, ENGINES[e]->presets[k].name); return 1; }
+   for (pi = 0; pi < NPAGES && PAGES[pi].graph != GR_BROWSE; pi++) ;
+   assert(pi < NPAGES); ui.page = (uint8_t)pi; song.sel = 0; ui.pcat = 0;
+   assert(!is_drum(TSEL));
+   cur = preset_pos(&total);
+   edit_param(0, 1); assert(preset_pos(&total) == (cur + 1u) % total);           /* ALL: one by one, as before */
+   for (n = 0; n < total; n++) nb += preset_cat(n) == PC_BASS;
+   edit_param(3, 1); assert(ui.pcat == PC_BASS && preset_cat(preset_pos(&total)) == PC_BASS);   /* moved into BASS */
+   { uint32_t start = preset_pos(&total), steps = 0;                             /* a full turn: every BASS once */
+     do { edit_param(0, 1); steps++; assert(preset_cat(preset_pos(&total)) == PC_BASS); } while (preset_pos(&total) != start && steps < 500u);
+     assert(steps == nb); }
+   edit_param(0, -1); assert(preset_cat(preset_pos(&total)) == PC_BASS);           /* backwards too */
+   eng0 = TSEL->eng_req; c = 0;
+   for (n = 0; n < 12u; n++) { edit_param(2, 1); assert(preset_cat(preset_pos(&total)) == PC_BASS); c += TSEL->eng_req != eng0; }
+   assert(c > 0);                                                                  /* KNOB 3: engine to engine, BASS only */
+   edit_param(2, -1); assert(preset_cat(preset_pos(&total)) == PC_BASS);
+   for (n = 0; n < PC_COUNT - 1u; n++) edit_param(3, 1);                           /* round to ALL */
+   assert(ui.pcat == 0);
+   cur = preset_pos(&total); edit_param(0, 1); assert(preset_pos(&total) == (cur + 1u) % total);
+   for (n = 0; n < PC_COUNT - 1u; n++) edit_param(3, -1);                          /* back past FX .. to BASS */
+   assert(ui.pcat == PC_BASS && preset_cat(preset_pos(&total)) == PC_BASS);
+   ui.pcat = 0;
+ }
+ printf("%-46s ok\n", "PRESETS: categories, the filter (Jangada 0.8.1)");
  return 0;}

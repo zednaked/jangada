@@ -72,6 +72,9 @@ BREAK_HITS = [(0, "kick", 1.0), (0, "chh", 0.55), (2, "kick", 0.7), (2, "chh", 0
               (14, "snare", 0.35)]
 SLC_GRID, SLC_AUTO = 128, 32                 # eng_slice.c slc_src_t
 
+# Jangada 0.8.1: the category of each factory set's preset (core.h PC_*); a set not named here: none (or PERC, a kit)
+SET_CAT = {"PIANO": "KEYS", "TRANH": "PLUCK", "FLUTE": "LEAD", "SAX": "LEAD", "PERC": "PERC"}
+
 ENV = {"wave":(5, 80, 100, 50), "kit": (0, 127, 127, 60), "multi": (0, 85, 0, 75),
        "oneshot": (0, 127, 127, 70), "sus": (12, 80, 120, 60)}
 
@@ -312,11 +315,13 @@ class Builder:
             k = self.kinds.get(name, "wave")
             a, d, s_, r = ENV[k]
             loop = 0 if k == "kit" else 1
-            L.append(f'    {{"{name}", {{{i}, 0, 0, {loop}, 127, 0, 0, 0}}, {{{a}, {d}, {s_}, {r}}}, 0, 0}},')
+            cat = SET_CAT.get(name, "PERC" if k == "kit" else None)   # Jangada 0.8.1: the PRESETS filter
+            cat = f", CAT({cat})" if cat else ""
+            L.append(f'    {{"{name}", {{{i}, 0, 0, {loop}, 127, 0, 0, 0}}, {{{a}, {d}, {s_}, {r}}}, 0, 0{cat}}},')
         piano = next((i for i, (n, _, _) in enumerate(named) if n == "PIANO"), None)
         if piano is not None:                    # Jangada: dark piano textures (after the set presets)
-            L.append(f'    {{"QUIET KEYS", {{{piano}, 0, 0, 1, 80, 0, 0, 0}}, {{0, 127, 127, 90}}, 0, 0, FX(0, 10, 45, 100)}},')
-            L.append(f'    {{"BROKEN KEY", {{{piano}, -12, 90, 1, 70, 0, 60, 0}}, {{0, 127, 127, 70}}, 0, 0, FX(40, 0, 50, 70)}},')
+            L.append(f'    {{"QUIET KEYS", {{{piano}, 0, 0, 1, 80, 0, 0, 0}}, {{0, 127, 127, 90}}, 0, 0, FX(0, 10, 45, 100), CAT(KEYS)}},')
+            L.append(f'    {{"BROKEN KEY", {{{piano}, -12, 90, 1, 70, 0, 60, 0}}, {{0, 127, 127, 70}}, 0, 0, FX(40, 0, 50, 70), CAT(KEYS)}},')
         L.append("};")
         names = ", ".join(f'"{n}"' for n, _, _ in named)
         L.append("#define SMP_SET_NAMES_INIT " + names)
