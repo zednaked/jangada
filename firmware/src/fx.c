@@ -173,7 +173,8 @@ static uint32_t div_samples(uint32_t div)
 
 static uint32_t delay_samples(void)
 {
-    uint32_t s = div_samples((uint32_t)song.g[G_DTIME]);
+    static const uint8_t DLY_Q24[8] = {24, 12, 6, 3, 8, 4, 18, 9};   /* N_DLY in 1/24 beat: + 1/8 and 1/16 dotted */
+    uint32_t s = (uint32_t)FS * 60u / (uint32_t)song.g[G_BPM] * DLY_Q24[(uint32_t)song.g[G_DTIME] % 8u] / 24u;
     return s < 16u ? 16u : s >= DLY_LEN ? DLY_LEN - 1u : s;
 }
 

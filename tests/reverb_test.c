@@ -141,6 +141,16 @@ int main(void)
         ok(i < 200u && !f.mode, "FILT back to 0: glides open, then bypassed");
         ok(p_lockable(&trk[0], P_TFLT), "FILT: lockable");
     }
+    {   /* the delay's dotted TIMEs (Jangada 0.7): 1/8D = 3/4 beat, 1/16D = 3/8 beat */
+        int16_t keep = song.g[G_DTIME];
+        uint32_t q, e8, e16;
+        song.g[G_BPM] = 120;
+        song.g[G_DTIME] = 0; q = delay_samples();
+        song.g[G_DTIME] = 6; e8 = delay_samples();
+        song.g[G_DTIME] = 7; e16 = delay_samples();
+        ok(e8 == q * 3u / 4u && e16 == q * 3u / 8u && GP[G_DTIME].max == 7, "delay TIME 1/8D, 1/16D");
+        song.g[G_DTIME] = keep;
+    }
     if (fails)
         printf("REVERB: %u FAILED\n", fails);
     return fails != 0;

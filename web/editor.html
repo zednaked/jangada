@@ -1451,7 +1451,7 @@ function makeMockDevice(opt = {}) {
   ];
   const GP = [
     D("BPM", F.BPM, 40, 240, 120), D("SWG", F.PCT, 0, 100, 0), D("CLK", F.ENUM, 0, 2, 0, ["INT", "USB", "TRS"]), D("TUNE", F.INT, -50, 50, 0),
-    D("TIME", F.ENUM, 0, 5, 1, ["1/4", "1/8", "1/16", "1/32", "8T", "16T"]), D("FDBK", F.PCT, 0, 120, 60), D("COLR", F.PCT, 0, 127, 70), D("MIX", F.PCT, 0, 127, 90),
+    D("TIME", F.ENUM, 0, 7, 1, ["1/4", "1/8", "1/16", "1/32", "8T", "16T", "1/8D", "1/16D"]), D("FDBK", F.PCT, 0, 120, 60), D("COLR", F.PCT, 0, 127, 70), D("MIX", F.PCT, 0, 127, 90),
     D("SIZE", F.PCT, 0, 127, 90), D("DAMP", F.PCT, 0, 127, 60), D("CRT", F.LFOHZ, 0, 127, 40), D("CDP", F.PCT, 0, 127, 60),
     D("MIDI", F.ENUM, 0, 0, 0, ["--"]), D("SYNC", F.ENUM, 0, 1, 0, ["OFF", "OUT"]), D("ROUT", F.ENUM, 0, 0, 0, ["--"]), D("CPU", F.INT, 0, 0, 0),
     D("SLOT", F.INT, 1, 4, 1), D("NAME", F.ENUM, 0, 0, 0, ["--"]), D("LOAD", F.ENUM, 0, 1, 0, ["--", "GO"]), D("SAVE", F.ENUM, 0, 1, 0, ["--", "GO"]),

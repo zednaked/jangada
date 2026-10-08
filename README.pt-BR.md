@@ -259,6 +259,7 @@ gravar abre a tela **TRACKS**: BPM, compasso.beat, uma linha por trilha com pass
 ### Sequencer e arpejador
 - 64 passos por trilha, acordes, ties, acento, slide; gravação ao vivo.
 - **RTCH** ratchet x1–x4 e **CHNC** chance 100/75/50/25 % por passo (STEP 2).
+- TIME do delay também pontuado: **1/8D** e **1/16D**.
 - **FILT** em cada trilha (FX → DIST, knob 4): para a esquerda passa-baixa, para a direita passa-alta,
   no centro desligado; fica quando o som muda e aceita lock por passo.
 - **Micro timing**, **parameter locks** (12 por trilha) e **viradas (fills)** por passo, na camada SEQ;
