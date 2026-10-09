@@ -680,3 +680,5 @@ static void track_select(uint32_t i)
     sync_reload = 1;
     ui.force = 1;
 }
+
+#include "midi_learn.c"     /* Jangada 0.9: MIDI LEARN (after Felucca 1.5), its UI side */

@@ -303,6 +303,8 @@ static void edit_param(uint32_t slot, int32_t steps)
     }
     v = clamp(*vp + accel(EN_K1 + slot, steps, d->max - d->min), d->min, d->max);
     *vp = (int16_t)v;
+    if (pg->scope == SC_TRACK || pg->scope == SC_ENGINE)
+        ml_knob(id);                                      /* MIDI LEARN: this parameter is picked */
     if (pg->scope == SC_TRACK && (id == P_VOICE || id == P_ALLOC))
         panic_req |= (uint8_t)(1u << song.sel);           /* Jangada: as a preset change: a POLY note on v[0] hung */
     if (pg->scope == SC_TRACK && id == P_CHORD)
@@ -436,6 +438,7 @@ static void ui_input(void)
         ui_input_ms = fm1_ms;                           /* Jangada: not idle (project.c autosave) */
     fm6_ask_input(&pressed);                            /* Jangada 0.6: "FM6 BANK n? SAVE=YES" */
     layers_input(&pressed, fm1_ms);                     /* Jangada: FX / GLO tap, hold, lock (ui_layers.c) */
+    ml_poll();                                          /* MIDI LEARN: a CC came for the picked parameter */
     fm6_poll();                                         /* Jangada: FM6 PTCH turned -> its patch */
     /* Jangada: the punch-in effect's name on screen when one starts (ui_layers.c: the FX layer) */
     if (punch.req != punch_shown) {
@@ -540,7 +543,10 @@ static void ui_input(void)
             break;
         case B_OCTDN:
         case B_OCTUP: {
-            uint32_t both = (1u << panel.btn[B_OCTDN]) | (1u << panel.btn[B_OCTUP]);
+            uint32_t both;
+            if (b == B_OCTDN && ml_oct_down())          /* MIDI LEARN: OCT- clears the picked one's CC */
+                break;
+            both = (1u << panel.btn[B_OCTDN]) | (1u << panel.btn[B_OCTUP]);
             if ((fm1_in.buttons & both) == both)
                 song.octave = 0;
             else

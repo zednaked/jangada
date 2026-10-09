@@ -329,6 +329,34 @@ int main(void)
         song.g[G_ROUTE] = 0;
         song.sel = 0;
     }
+    {   /* MIDI LEARN (0.9): a learned CC sets its parameter over the range, on any channel; its own job is gone */
+        int16_t before = trk[2].p[P_E4];
+        memset(ml_tab, 0, sizeof ml_tab);
+        ml_tab[0] = 74;                                          /* CC74 -> track 3's E5 (by its key) */
+        ml_tab[1] = 2;
+        ml_tab[2] = (uint8_t)(P_KEY[P_E4] + 1u);
+        ml_tab[3] = 20;                                          /* CC20 -> track 1's INSERT MIX */
+        ml_tab[4] = 0;
+        ml_tab[5] = (uint8_t)(P_KEY[P_IMIX] + 1u);
+        midi(0xB5, 74, 127);                                     /* channel 6: whatever it plays */
+        run(1);
+        ok(trk[2].p[P_E4] == track_desc(&trk[2], P_E4)->max, "LEARN: CC74 127 -> T3 E5 at its top (any channel)");
+        midi(0xB0, 74, 0);
+        midi(0xB0, 20, 64);
+        run(1);
+        ok(trk[2].p[P_E4] == track_desc(&trk[2], P_E4)->min && trk[0].p[P_IMIX] == 64, "LEARN: 0 -> its bottom; CC20 -> T1 MIX");
+        ml_arm = 1;
+        ml_heard = 0;
+        midi(0xB0, 74, 5);
+        midi(0xB0, 1, 99);                                       /* MOD WHEEL: never learned, does its job */
+        run(1);
+        ok(ml_heard == 75 && trk[2].p[P_E4] == track_desc(&trk[2], P_E4)->min, "LEARN waiting: the CC goes to it, not to the map");
+        ok(!ml_free_cc(1) && !ml_free_cc(64) && !ml_free_cc(16) && ml_free_cc(74) && ml_free_cc(20), "LEARN: the CCs with a job are never learned");
+        ml_arm = 0;
+        ml_heard = 0;
+        memset(ml_tab, 0, sizeof ml_tab);
+        trk[2].p[P_E4] = before;
+    }
     if (fails)
         printf("MIDI: %u FAILED\n", fails);
     return fails != 0;

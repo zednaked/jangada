@@ -311,4 +311,25 @@ int main(void){
    ui.pcat = 0;
  }
  printf("%-46s ok\n", "PRESETS: categories, the filter (Jangada 0.8.1)");
+ { /* MIDI LEARN (0.9): GLO + key 14 on, a knob picks, a CC learns it, OCT- clears it, the menu clears all */
+   uint32_t pi;
+   ly.btn = ly.lock = 0; ui.menu = 0; ui.confirm = 0; song.sel = 0;
+   memset(ml_tab, 0, sizeof ml_tab);
+   layer_key(LY_MIX, key_of_white(13), 1, 0); assert(ml_ui.on && !ml_ui.pick);
+   for (pi = 0; pi < NPAGES && strcmp(PAGES[pi].title, "INSERT 2"); pi++) ;
+   assert(pi < NPAGES); ui.page = (uint8_t)pi; ui.home = 0;
+   edit_param(0, 1); assert(ml_ui.pick && ml_ui.id == P_IMIX && ml_arm);
+   ui.force = 1; ui_draw();                                  /* the footer's LEARN row draws */
+   ml_heard = 21; ml_poll();                                 /* CC20 came */
+   assert(!ml_ui.pick && !ml_arm && ml_count() == 1 && ml_tab[0] == 20 && ml_tab[1] == 0 && ml_tab[2] == P_KEY[P_IMIX] + 1u);
+   edit_param(0, -1); ml_heard = 75; ml_poll();               /* the same one, CC74 now: replaces CC20 */
+   assert(ml_count() == 1 && ml_find(0, P_IMIX) < ML_N && ml_tab[3u * ml_find(0, P_IMIX)] == 74);
+   edit_param(0, 1); assert(ml_oct_down() && ml_count() == 0);   /* OCT-: its CC goes */
+   ml_heard = 2; ml_poll(); assert(ml_count() == 0);          /* CC1 (MOD WHEEL): never learned */
+   ml_learn(30, 1, P_E0); ml_learn(31, 2, P_ITYPE);
+   assert(ml_count() == 2 && !strcmp(ml_menu_value(), "2 CC") && ml_clear_all() && ml_count() == 0 && !strcmp(ml_menu_value(), "NONE"));
+   layer_key(LY_MIX, key_of_white(13), 1, 0); assert(!ml_ui.on && !ml_arm);
+   ui.force = 1; ui_draw();
+ }
+ printf("%-46s ok\n", "MIDI LEARN: pick, learn, replace, clear (0.9)");
  return 0;}

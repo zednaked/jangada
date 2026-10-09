@@ -7,9 +7,10 @@
  * (KEYS / SEQ: the sequencer and the arp too) and MIDI IN (NOTES / CLOCK: the clock only): Jangada 0.7, after
  * SLOOP 2.4 (seq.c). OCT- goes back (the BACK row is gone). */
 /* ------------------------------------------------------------ menu --- */
-enum { MI_COLOR, MI_SPEAKER, MI_LIGHTS, MI_KEYS, MI_NOTES, MI_USB, MI_MOUT, MI_MIN, MI_NEW, MI_ABOUT, MI_COUNT };
+enum { MI_COLOR, MI_SPEAKER, MI_LIGHTS, MI_KEYS, MI_NOTES, MI_USB, MI_MOUT, MI_MIN, MI_LEARN, MI_NEW, MI_ABOUT,
+       MI_COUNT };
 static const char *const MI_NAME[MI_COUNT] = {"COLOR", "SPEAKER", "LIGHTS", "KEYS", "NOTES", "USB AUDIO",
-                                              "MIDI OUT", "MIDI IN", "NEW PROJECT", "ABOUT"};
+                                              "MIDI OUT", "MIDI IN", "MIDI LEARN", "NEW PROJECT", "ABOUT"};
 static const char *const LIGHTS_NAME[LIGHTS_N] = {"OFF", "LOW", "MID", "HIGH"};
 static const char *const KEYS_NAME[KEYS_N] = {"OFF", "C KEYS", "WHITE KEYS"};
 #define MI_DY 17                                    /* rows between two menu lines */
@@ -44,7 +45,7 @@ static void menu_new_project(void)
 static void draw_menu(void)
 {
     uint32_t i, pass, sig = ui.menu * 7u + ui.menu_sel * 131u + settings.palette * 1009u + settings.lowcut * 7919u +
-                            menu_new_armed * 104729u + lights_word() * 1299709u;
+                            menu_new_armed * 104729u + lights_word() * 1299709u + ml_count() * 7u;
     if (!ui.force && sig == ui.menu_sig)
         return;
     ui.menu_sig = sig;
@@ -78,7 +79,8 @@ static void draw_menu(void)
         } else {
             static const char *const HINT[MI_COUNT] = {
                 "", "ON: LESS BASS (SPEAKER)", "BUTTONS GLOW IN THE DARK", "KEYS GLOW TOO (WITH LIGHTS)",
-                "SOUNDING NOTES LIGHT THEIR KEYS", "", "", "", "EVERY TRACK BACK TO START", ""};
+                "SOUNDING NOTES LIGHT THEIR KEYS", "", "", "", "OCT+ CLEARS EVERY CC (GLO+14 LEARNS)",
+                "EVERY TRACK BACK TO START", ""};
             const char *hint = HINT[ui.menu_sel % MI_COUNT];
             for (i = 0; i < MI_COUNT; i++) {          /* a row card each, the selected one lit */
                 int32_t y = 3 + (int32_t)i * MI_DY;
@@ -89,7 +91,8 @@ static void draw_menu(void)
                                 i == MI_NOTES ? (lights_notes ? "ON" : "OFF") :
                                 i == MI_USB ? (usb_full ? "FULL" : "MASTER") :
                                 i == MI_MOUT ? (midi_seq_out ? "SEQ" : "KEYS") :
-                                i == MI_MIN ? (midi_clk_only ? "CLOCK" : "NOTES") : 0;
+                                i == MI_MIN ? (midi_clk_only ? "CLOCK" : "NOTES") :
+                                i == MI_LEARN ? ml_menu_value() : 0;
                 cv_rrect(4, y - 1, 232, 15, 5, sel ? C_SEL : C_SURF, C_BG);
                 cv_text(14, y - 1, &FONT_S, MI_NAME[i], sel ? C_WHITE : C_GRAY);
                 if (v)                                  /* (KEYS needs LIGHTS: gray while it is off) */
@@ -201,6 +204,10 @@ static void menu_input(uint32_t pressed)
             menu_new_project();
             menu_close();
             ui_message("NEW PROJECT");
+            break;
+        case MI_LEARN:                                 /* OCT+: every learned CC goes */
+            ui_message(ml_clear_all() ? "LEARNED CCS CLEARED" : "NO CC LEARNED");
+            menu_close();
             break;
         case MI_ABOUT:
             ui.menu = 2;

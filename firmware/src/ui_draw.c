@@ -830,13 +830,17 @@ static void draw_foot(void)
     {   /* step markers: the playhead only when it is in the shown bank, the cursor only in SEQ */
         uint32_t ph = song.playing && t->seq_idx / 16u == ui.bank ? t->seq_idx : 0xFFu;
         sig = str_hash(0x9E3779B9u, s) + ph * 97u + (song.seq_mode ? ui.cursor : 0xFFu) * 3001u + steps_hash(t) +
-              ui.bank * 7u + (uint32_t)t->p[P_SLEN] * 13u;
+              ui.bank * 7u + (uint32_t)t->p[P_SLEN] * 13u + ml_ui.on * 7919u;
     }
     if (!ui.force && sig == ui.foot_sig)
         return;
     ui.foot_sig = sig;
     cv_begin(240, H_FOOT, C_BG);
-    {
+    if (ml_ui.on) {                                   /* row 1 while MIDI LEARN: what is picked, its CC */
+        char ml[32];
+        ml_line(ml);
+        cv_text(6, 1, &FONT_S, ml, C_WHITE);
+    } else {
         uint32_t i;
         for (i = 0; i < 16u; i++) {                   /* row 1: the cursor's bank as 16 thin bars */
             uint32_t si = ui.bank * 16u + i;

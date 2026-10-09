@@ -1277,8 +1277,49 @@ static void sustain_release(track_t *t)             /* the pedal up: the notes i
     t->sus_held[0] = t->sus_held[1] = t->sus_held[2] = t->sus_held[3] = 0;
 }
 
+/* MIDI LEARN (Jangada 0.9, after Felucca 1.5, Discussion #170): up to ML_N CCs, each set to one parameter of one
+ * track, whatever channel it comes on. An entry is three bytes of ml_tab: the CC, the track, the parameter's stable
+ * key + 1 (keys.h: the map survives parameters added or moved; 0 = an empty entry). Kept with the settings
+ * (project.c persist_t). A learned CC is the user's: it no longer does its own job. The CCs with a job of their own
+ * (MODW 1, EXPR 11, MAC 16..19, SUSTAIN 64, bank select 0 / 32, data entry 6 / 38 / 96..101, 120..127) are never
+ * learned. The UI (midi_learn.c) writes the entries with the interrupts off; ml_arm / ml_heard hand it a CC heard
+ * while it waits for one */
+#define ML_N 16u
+static uint8_t ml_tab[3u * ML_N];
+static volatile uint8_t ml_arm;                     /* the UI waits for a CC (LEARN with a parameter picked) */
+static volatile uint8_t ml_heard;                   /* .. the CC that came meanwhile, + 1 (0 none) */
+static int ml_free_cc(uint32_t cc)
+{
+    return cc && cc < 120u && cc != 1u && cc != 6u && cc != 11u && (cc < 16u || cc > 19u) && cc != 32u &&
+           cc != 38u && cc != 64u && (cc < 96u || cc > 101u);
+}
+/* 1: cc is learned (its parameters set here) or taken by LEARN waiting for one */
+static __attribute__((noinline)) int midi_learned(uint32_t cc, uint32_t v)
+{
+    uint32_t i, id, hit = 0;
+    if (!ml_free_cc(cc))
+        return 0;
+    if (ml_arm) {
+        if (!ml_heard)
+            ml_heard = (uint8_t)(cc + 1u);
+        return 1;
+    }
+    for (i = 0; i < ML_N; i++) {
+        const uint8_t *e = &ml_tab[3u * i];
+        if (e[2] && e[0] == cc && e[1] < NTRK && (id = key_param(e[2] - 1u)) < P_COUNT) {
+            track_t *t = &trk[e[1]];
+            const param_desc_t *d = track_desc(t, id);
+            t->p[id] = (int16_t)(d->min + ((int32_t)v * (d->max - d->min) + 63) / 127);   /* 0..127 over its range */
+            hit = 1;
+        }
+    }
+    return hit;
+}
+
 static void midi_cc(track_t *t, uint32_t cc, uint32_t v)
 {
+    if (midi_learned(cc, v))
+        return;
     switch (cc) {
     case 1:                                         /* MOD WHEEL (mod.c MODW) */
         t->mw = (uint8_t)v;

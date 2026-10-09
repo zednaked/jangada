@@ -4,8 +4,8 @@
  * screen shows the keys as 16 tiles (4 x 4) and the knobs as dials. Tapped (let go within TAP_MS,
  * nothing touched) the button opens its pages as before.
  *   FX    the 16 punch-in effects (punch.c, run by seq.c keyboard_block)   knobs: FILTER DUST DUCK TAPE
- *   GLO   keys 1..4 mute, 5..8 solo, 9 held: a fill, 10: the next bar a fill (after SLOOP 2.4), the last
- *         white key: tap tempo                                             knobs: the levels of tracks 1..4
+ *   GLO   keys 1..4 mute, 5..8 solo, 9 held: a fill, 10: the next bar a fill (after SLOOP 2.4), 14: MIDI
+ *         LEARN on / off (0.9, midi_learn.c), the last white key: tap tempo                                             knobs: the levels of tracks 1..4
  *   SEQ   the 16 steps of the page (Elektron style): an empty step is set at once with the note played
  *         last, a set one is cleared when its key is let go, unless a knob edited it meanwhile; the
  *         first four black keys pick the page (steps 1-16 .. 49-64)
@@ -470,6 +470,8 @@ static void layer_key(uint32_t layer, uint32_t k, uint32_t down, uint32_t now)
         trk[w].p[P_MUTE] = (int16_t)!trk[w].p[P_MUTE];
     } else if (w < 8) {
         song.solo ^= (uint8_t)(1u << (w - 4));
+    } else if (w == 13) {
+        ml_toggle();                                    /* key 14: MIDI LEARN on / off (midi_learn.c) */
     } else if (w == 15) {
         tap_tempo(now);
     }
@@ -875,6 +877,9 @@ static void layer_screen_draw(void)
         tl[9].bg = fill_bar_on ? C_WHITE : C_SURF;
         tl[9].fg = fill_bar_on ? C_BLACK : C_AMB;
         tl[9].top = fill_arm ? C_WHITE : C_DIM;         /* armed: lit until its bar comes */
+        str_cpy(tl[13].lab, "LEARN", 8);               /* MIDI LEARN (midi_learn.c) */
+        tl[13].bg = ml_ui.on ? C_WHITE : C_SURF;
+        tl[13].fg = ml_ui.on ? C_BLACK : C_GRAY;
         str_cpy(tl[14].lab, "TAP>", 8);
         fmt_int(tl[15].lab, song.g[G_BPM]);
         tl[15].bg = song.playing && clk_pos < BEAT_U / 4u ? C_WHITE : C_DIM;   /* the beat */

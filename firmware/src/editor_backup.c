@@ -129,7 +129,7 @@ static uint32_t ed_bk_commit(void)
         persist_t p;
         memset(&p, 0, sizeof p);
         memcpy(&p, raw, n <= sizeof p ? n : sizeof p);
-        if ((n != sizeof p && n != PERSIST_SIZE_V02) || p.magic != PERSIST_MAGIC || p.palette >= NPALETTES ||
+        if ((n != sizeof p && n != PERSIST_SIZE_V08 && n != PERSIST_SIZE_V02) || p.magic != PERSIST_MAGIC || p.palette >= NPALETTES ||
             p.lowcut > 1u || p.zoom > 1u || !panel_valid(&p.panel))
             return 2;
         if (st_save(OBJ_SETTINGS, &p, sizeof p))
@@ -140,6 +140,9 @@ static uint32_t ed_bk_commit(void)
         settings.lowcut = p.lowcut;                  /* (p.zoom: reserved, ignored) */
         panel = p.panel;
         lights_from_word(p.lights);
+        fm1_irq_off();
+        memcpy(ml_tab, p.learn, sizeof ml_tab);     /* (before 0.9: zeros, nothing learned) */
+        fm1_irq_on();
         palette_set(settings.palette);
         fx_lowcut = (uint8_t)(settings.lowcut != 0);
         return 0;
@@ -191,7 +194,8 @@ static uint32_t ed_bk_write(const uint8_t *a, uint32_t na)
         if (na != 12u || id > 11u)
             return 1;
         len = ed_bk_r32(a + 2);
-        if (len > ST_PAYLOAD_MAX || (id <= 1u && !len) || (id == 1u && len != sizeof(persist_t) && len != PERSIST_SIZE_V02) ||
+        if (len > ST_PAYLOAD_MAX || (id <= 1u && !len) || (id == 1u && len != sizeof(persist_t) && len != PERSIST_SIZE_V08 &&
+                                                                    len != PERSIST_SIZE_V02) ||
             ((id == 6u || id == 7u) && len && len != sizeof(up_bank_t) && len != sizeof(up_bank_v2_t) &&
              len != sizeof(up_bank_v1_t)) || (id >= 8u && len && len != sizeof(fm6_half_t)))
             return 1;

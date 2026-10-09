@@ -638,10 +638,13 @@ typedef struct {
     panel_t panel;
     uint32_t lights;                               /* Jangada: menu LIGHTS / KEYS / NOTES / USB AUDIO (panel.c
                                                     * lights_word); appended, so 0.2 still reads its part */
+    uint8_t learn[3u * ML_N];                      /* Jangada 0.9: MIDI LEARN's map (seq.c ml_tab); appended */
 } persist_t;
 #define PERSIST_MAGIC 0x50455232u                  /* "PER2" */
 #define PERSIST_SIZE_V02 __builtin_offsetof(persist_t, lights)   /* as Jangada 0.2 wrote it (no lights) */
-_Static_assert(sizeof(persist_t) == PERSIST_SIZE_V02 + 4u, "lights: the last word, no padding before it");
+#define PERSIST_SIZE_V08 __builtin_offsetof(persist_t, learn)    /* as 0.3 .. 0.8.2 wrote it (no MIDI LEARN) */
+_Static_assert(PERSIST_SIZE_V08 == PERSIST_SIZE_V02 + 4u && sizeof(persist_t) == PERSIST_SIZE_V08 + 3u * ML_N,
+               "lights, learn: appended, no padding");
 #if FELUCCA_FLASH
 static persist_t persist_saved;
 #endif
@@ -666,14 +669,17 @@ static void persist_boot(void)                    /* before settings_init / pane
         int n = st_load(OBJ_SETTINGS, &p, sizeof p);
         if (n == (int)PERSIST_SIZE_V02)
             p.lights = 0;                           /* from 0.2: lights off, USB AUDIO MASTER */
-        if ((n == (int)sizeof p || n == (int)PERSIST_SIZE_V02) && p.magic == PERSIST_MAGIC && p.palette < NPALETTES &&
-            p.lowcut <= 1u) {
+        if (n == (int)PERSIST_SIZE_V02 || n == (int)PERSIST_SIZE_V08)
+            memset(p.learn, 0, sizeof p.learn);     /* from before 0.9: nothing learned */
+        if ((n == (int)sizeof p || n == (int)PERSIST_SIZE_V08 || n == (int)PERSIST_SIZE_V02) && p.magic == PERSIST_MAGIC &&
+            p.palette < NPALETTES && p.lowcut <= 1u) {
             settings.magic = SETTINGS_MAGIC;        /* (each value checked as it is read: after SLOOP 2.3) */
             settings.palette = p.palette;
             settings.lowcut = p.lowcut;             /* (p.zoom: reserved, ignored) */
             if (panel_valid(&p.panel))
                 panel = p.panel;
             lights_from_word(p.lights);
+            memcpy(ml_tab, p.learn, sizeof ml_tab);
             persist_saved = p;
         } else if (n == (int)(8u + sizeof(panel_t)) && p.magic == 0x50455231u) {   /* "PER1": palette, panel */
             const uint32_t *w = (const uint32_t *)&p;
@@ -711,6 +717,7 @@ static void settings_save(void)
     p.zoom = 0;                                    /* (reserved) */
     p.panel = panel;
     p.lights = lights_word();
+    memcpy(p.learn, ml_tab, sizeof p.learn);
     if (!memcmp(&p, &persist_saved, sizeof p))
         return;                                    /* unchanged: no erase cycle */
     if (st_save(OBJ_SETTINGS, &p, sizeof p) == 0)
