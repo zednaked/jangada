@@ -84,17 +84,18 @@ static uint32_t period(uint32_t lo, uint32_t hi)
 
 int main(void)
 {
-    static const int16_t MODES[3][8] = {
+    static const int16_t MODES[4][8] = {
         {RB_VOSIM, 60, 30, 50, 64, 0, 0, 120},
         {RB_GENDY, 40, 50, 40, 0, 0, 0, 120},
         {RB_WALSH, 40, 40, 64, 0, 0, 0, 120},
+        {RB_SCAN, 60, 20, 30, 64, 40, 0, 120},
     };
-    static const char *const NAME[3] = {"VOSIM", "GENDY", "WALSH"};
+    static const char *const NAME[4] = {"VOSIM", "GENDY", "WALSH", "SCAN"};
     char what[96];
     int32_t pk, mn;
     uint32_t md, per;
 
-    for (md = 0; md < 3u; md++) {
+    for (md = 0; md < 4u; md++) {
         setup(MODES[md]);
         render(57, &pk, &mn);                       /* A3, 220 Hz: 200.45 samples */
         snprintf(what, sizeof what, "%s: sounds, bounded, no offset (peak %d, mean %d)", NAME[md], pk, mn);
@@ -143,6 +144,28 @@ int main(void)
         ok(pk > 1000 && pk < 32767 && (mn < 0 ? -mn : mn) < 300, what);
     }
 
+    {                                               /* SCAN: the shape moves (the timbre changes), DAMP 0 rings on */
+        int16_t e[8] = {RB_SCAN, 80, 0, 20, 90, 0, 0, 127};
+        int64_t d1 = 0, d2 = 0, e1 = 0, e2 = 0;
+        uint32_t i, n = NB * CTL, q = 200u;           /* (one period at A3: 200 samples) */
+        setup(e);
+        render(57, &pk, &mn);
+        for (i = n / 2u; i + q < n * 3u / 4u; i++)    /* a period against the next: shape held? */
+            d1 += (int64_t)(buf[i] - buf[i + q]) * (buf[i] - buf[i + q]), e1 += (int64_t)buf[i] * buf[i];
+        for (i = n / 2u; i + 20u * q < n; i++)        /* ... against 20 periods on: moved */
+            d2 += (int64_t)(buf[i] - buf[i + 20u * q]) * (buf[i] - buf[i + 20u * q]), e2 += (int64_t)buf[i] * buf[i];
+        snprintf(what, sizeof what, "SCAN: the shape moves (period to period %.2f, 20 periods %.2f)",
+                 (double)d1 / (double)(e1 | 1), (double)d2 / (double)(e2 | 1));
+        ok(d1 * 4 < e1 && d2 > d1 * 4, what);
+        snprintf(what, sizeof what, "SCAN, DAMP 0: still sounding at the end (peak %d)", pk);
+        {
+            int32_t p2 = 0;
+            for (i = n - 2000u; i < n; i++)
+                p2 = buf[i] > p2 ? buf[i] : -buf[i] > p2 ? -buf[i] : p2;
+            ok(p2 > 2000, what);
+        }
+    }
+
     {                                               /* MODE moved under a held note: nothing blows up */
         uint32_t b, i;
         int32_t p = 0;
@@ -157,6 +180,18 @@ int main(void)
         }
         snprintf(what, sizeof what, "MODE changed under a held note: bounded (peak %d)", p);
         ok(p < 32767, what);
+    }
+
+    {                                               /* SCAN pushed hard with no loss: it settles, bounded */
+        int16_t e[8] = {RB_SCAN, 127, 0, 0, 127, 127, 0, 127};
+        uint32_t b;
+        setup(e);
+        input_on(&trk[0], 45, 100);
+        for (b = 0; b < 20u * NB; b++)              /* 5.8 s */
+            mix_block(out, CTL);
+        render(45, &pk, &mn);
+        snprintf(what, sizeof what, "SCAN, STIF / HIT / DRFT 127, DAMP 0: bounded after 6 s (peak %d)", pk);
+        ok(pk < 32767 && (mn < 0 ? -mn : mn) < 300, what);
     }
 
     if (fails)

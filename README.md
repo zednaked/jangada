@@ -99,7 +99,7 @@ and nothing leaves your browser.
 
 | | |
 |---|---|
-| **Engines** | 13: ANALOG (superwave, Moog-style ladder filter), FM6 (6-operator, Dexed), PHYS (physical models), ROBO (VOSIM, GENDYN, Walsh), NOISE, DIGITAL (4-op FM), PHASE, LOFI, SAMPLE, VOICE, TRIO, WHEEL, GRAIN |
+| **Engines** | 13: ANALOG (superwave, Moog-style ladder filter), FM6 (6-operator, Dexed), PHYS (physical models), ROBO (VOSIM, GENDYN, Walsh, scanned), NOISE, DIGITAL (4-op FM), PHASE, LOFI, SAMPLE, VOICE, TRIO, WHEEL, GRAIN |
 | **Voices and tracks** | 8 voices over 4 tracks (3 synths + drums, or 4 synths) |
 | **Parameters** | 16 per engine, a 4-slot modulation matrix with 13 sources (4 of them macro knobs) |
 | **Presets** | 145 factory (45 dark, drone, industrial and northeastern ones by Jangada), 32 user, 72 FM6 patches (8 + two banks of 32) |
@@ -257,9 +257,12 @@ and it keeps breathing on its own, even while you play the other tracks.
   than the last: vowels, buzzes, a talking chip; FORM, PULS, DCAY, TRK), **GENDY** (Xenakis' dynamic stochastic
   synthesis: the period's breakpoints walk in level and length every cycle while the pitch holds; STEP, PTS,
   TIME, SEED: 0 a new walk each note, 1–127 the same one) and **WALSH** (a sum of ±1 Walsh functions,
-  band-limited; SEQ, TERM, BLND from cal to sal, SWP). DRFT, CRSH and TONE for all three. Presets: **ROBO
-  VOX**, **CORAL MORTO** (a dead choir, a drone), **LATA**, **ABOIO** (the sertão's cowherd call), **XENAKIS**,
-  **ENXAME**, **GERADOR**, **ESTILHACO**, **WALSH BASS**, **TELEX**, **SINAL**, **CHAPA**.
+  band-limited; SEQ, TERM, BLND from cal to sal, SWP) and **SCAN** (scanned synthesis, Lite: a ring of 16
+  masses on springs moving at haptic rates, read round at the note's pitch, so pitch and timbre are apart;
+  STIF, DAMP (0 rings on), CNTR, HIT the starting shape, DRFT pushes it). DRFT, CRSH and TONE for all. Presets:
+  **ROBO VOX**, **CORAL MORTO** (a dead choir, a drone), **LATA**, **ABOIO** (the sertão's cowherd call),
+  **XENAKIS**, **ENXAME**, **GERADOR**, **ESTILHACO**, **WALSH BASS**, **TELEX**, **SINAL**, **CHAPA**,
+  **MARE** (a tide, a drone), **ONDA PRESA**, **ESTACA**, **VIDRO**.
 - And the others: DIGITAL (4-operator FM), PHASE, LOFI, SAMPLE, VOICE, TRIO, WHEEL, GRAIN.
 - **16 parameters per engine** (Felucca has 8).
 - **Modulation matrix** (LFO → MOD 1–4): sources LFO, ENV, VEL, KEY, RND, MODW, AT, EXPR, DRIFT and
