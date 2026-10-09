@@ -99,7 +99,7 @@ and nothing leaves your browser.
 
 | | |
 |---|---|
-| **Engines** | 12: ANALOG (superwave, Moog-style ladder filter), FM6 (6-operator, Dexed), PHYS (physical models), NOISE, DIGITAL (4-op FM), PHASE, LOFI, SAMPLE, VOICE, TRIO, WHEEL, GRAIN |
+| **Engines** | 13: ANALOG (superwave, Moog-style ladder filter), FM6 (6-operator, Dexed), PHYS (physical models), ROBO (VOSIM, GENDYN, Walsh), NOISE, DIGITAL (4-op FM), PHASE, LOFI, SAMPLE, VOICE, TRIO, WHEEL, GRAIN |
 | **Voices and tracks** | 8 voices over 4 tracks (3 synths + drums, or 4 synths) |
 | **Parameters** | 16 per engine, a 4-slot modulation matrix with 13 sources (4 of them macro knobs) |
 | **Presets** | 145 factory (45 dark, drone, industrial and northeastern ones by Jangada), 32 user, 72 FM6 patches (8 + two banks of 32) |
@@ -253,6 +253,13 @@ and it keeps breathing on its own, even while you play the other tracks.
   shift register clocked above the key) and **META** (a short register sequence: a metallic tone); COLR
   from white to pink to brown, a filter from low-pass to a narrow band, DRFT, CRSH. Jangada's presets:
   **FORNALHA** and **CHAMINE** (brown-noise drones), **ESTATICA**, **ENGRENAGEM**, **VAPOR**, **SUCATA NZ**.
+- **ROBO**: machine voices (ideas from issue #4). **VOSIM** (bursts of sin² pulses at a formant, each smaller
+  than the last: vowels, buzzes, a talking chip; FORM, PULS, DCAY, TRK), **GENDY** (Xenakis' dynamic stochastic
+  synthesis: the period's breakpoints walk in level and length every cycle while the pitch holds; STEP, PTS,
+  TIME, SEED: 0 a new walk each note, 1–127 the same one) and **WALSH** (a sum of ±1 Walsh functions,
+  band-limited; SEQ, TERM, BLND from cal to sal, SWP). DRFT, CRSH and TONE for all three. Presets: **ROBO
+  VOX**, **CORAL MORTO** (a dead choir, a drone), **LATA**, **ABOIO** (the sertão's cowherd call), **XENAKIS**,
+  **ENXAME**, **GERADOR**, **ESTILHACO**, **WALSH BASS**, **TELEX**, **SINAL**, **CHAPA**.
 - And the others: DIGITAL (4-operator FM), PHASE, LOFI, SAMPLE, VOICE, TRIO, WHEEL, GRAIN.
 - **16 parameters per engine** (Felucca has 8).
 - **Modulation matrix** (LFO → MOD 1–4): sources LFO, ENV, VEL, KEY, RND, MODW, AT, EXPR, DRIFT and

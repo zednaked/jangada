@@ -17,11 +17,12 @@ enum { V_POLY, V_MONO, V_LEGATO, V_UNISON };   /* P_VOICE */
 #ifndef FELUCCA_SLICE
 #define FELUCCA_SLICE 0          /* the SLICE engine (eng_slice.c): kept in the tree, not built by default */
 #endif
-#define NENGINES (12 + FELUCCA_SLICE)  /* SLICE, when built, comes last: the other engines keep their numbers
+#define NENGINES (13 + FELUCCA_SLICE)  /* SLICE, when built, comes last: the other engines keep their numbers
                                         * (Jangada: FM6 is 9) */
 #define ENGI_GRAIN 8u            /* engines.c ENGINES[]: the ones with state of their own in the engine arena (0.9) */
 #define ENGI_NOISE 10u           /* Jangada 0.9: NOISE and PHYS, appended after FM6 (9): the stores keep the numbers */
 #define ENGI_PHYS 11u
+#define ENGI_ROBO 12u           /* Jangada 0.10: ROBO (VOSIM, GENDY, WALSH; issue #4) */
 #define UP_SLOTS 32u             /* user presets (upreset.c) */
 
 /* ------------------------------------------------------- parameters --- */

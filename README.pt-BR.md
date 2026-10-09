@@ -98,7 +98,7 @@ FM-1, e nada sai do seu navegador.
 
 | | |
 |---|---|
-| **Motores** | 12: ANALOG (superwave, filtro ladder estilo Moog), FM6 (6 operadores, Dexed), PHYS (modelos físicos), NOISE, DIGITAL (FM 4 op), PHASE, LOFI, SAMPLE, VOICE, TRIO, WHEEL, GRAIN |
+| **Motores** | 13: ANALOG (superwave, filtro ladder estilo Moog), FM6 (6 operadores, Dexed), PHYS (modelos físicos), ROBO (VOSIM, GENDYN, Walsh), NOISE, DIGITAL (FM 4 op), PHASE, LOFI, SAMPLE, VOICE, TRIO, WHEEL, GRAIN |
 | **Vozes e trilhas** | 8 vozes por 4 trilhas (3 synths + bateria, ou 4 synths) |
 | **Parâmetros** | 16 por motor, matriz de modulação de 4 slots com 13 origens (4 delas knobs de macro) |
 | **Presets** | 145 de fábrica (45 escuros, drones, industriais e nordestinos da Jangada), 32 de usuário, 72 patches FM6 (8 + dois bancos de 32) |
@@ -256,6 +256,13 @@ solte, e ele continua respirando sozinho, inclusive enquanto você toca outras t
   do branco ao rosa e ao marrom, filtro de passa-baixa a passa-banda estreito, DRFT, CRSH. Presets da
   Jangada: **FORNALHA** e **CHAMINE** (drones de ruído marrom), **ESTATICA**, **ENGRENAGEM**, **VAPOR**,
   **SUCATA NZ**.
+- **ROBO**: vozes de máquina (ideias da issue #4). **VOSIM** (rajadas de pulsos sin² num formante, cada um
+  menor que o anterior: vogais, zumbidos, um chip que fala; FORM, PULS, DCAY, TRK), **GENDY** (a síntese
+  estocástica dinâmica de Xenakis: os pontos do período andam em nível e duração a cada ciclo e a afinação
+  fica; STEP, PTS, TIME, SEED: 0 um caminho novo a cada nota, 1–127 sempre o mesmo) e **WALSH** (uma soma de
+  funções de Walsh ±1, limitada em banda; SEQ, TERM, BLND do cal ao sal, SWP). DRFT, CRSH e TONE nos três.
+  Presets: **ROBO VOX**, **CORAL MORTO** (um coral morto, drone), **LATA**, **ABOIO** (o aboio do sertão),
+  **XENAKIS**, **ENXAME**, **GERADOR**, **ESTILHACO**, **WALSH BASS**, **TELEX**, **SINAL**, **CHAPA**.
 - E os outros: DIGITAL (FM de 4 operadores), PHASE, LOFI, SAMPLE, VOICE, TRIO, WHEEL, GRAIN.
 - **16 parâmetros por motor** (o Felucca tem 8).
 - **Matriz de modulação** (LFO → MOD 1–4): origens LFO, ENV, VEL, KEY, RND, MODW, AT, EXPR, DRIFT e

@@ -1461,7 +1461,7 @@ function makeMockDevice(opt = {}) {
     D("SIZE", F.PCT, 0, 127, 90), D("DAMP", F.PCT, 0, 127, 60), D("CRT", F.LFOHZ, 0, 127, 40), D("CDP", F.PCT, 0, 127, 60),
     D("MIDI", F.ENUM, 0, 0, 0, ["--"]), D("SYNC", F.ENUM, 0, 1, 0, ["OFF", "OUT"]), D("ROUT", F.ENUM, 0, 1, 0, ["CH1-4", "SEL"]), D("CPU", F.INT, 0, 0, 0),
     D("SLOT", F.INT, 1, 4, 1), D("NAME", F.ENUM, 0, 0, 0, ["--"]), D("LOAD", F.ENUM, 0, 1, 0, ["--", "GO"]), D("SAVE", F.ENUM, 0, 1, 0, ["--", "GO"]),
-    D("ENG", F.ENUM, 0, 11, 0, ["ANALOG", "DIGITAL", "PHASE", "LOFI", "SAMPLE", "VOICE", "TRIO", "WHEEL", "GRAIN", "FM6", "NOISE", "PHYS"]), D("SET", F.ENUM, 0, 1, 0, ["--", "GO"]), D("CLRSQ", F.ENUM, 0, 1, 0, ["--", "GO"]), D("INIT", F.ENUM, 0, 1, 0, ["--", "GO"]),
+    D("ENG", F.ENUM, 0, 12, 0, ["ANALOG", "DIGITAL", "PHASE", "LOFI", "SAMPLE", "VOICE", "TRIO", "WHEEL", "GRAIN", "FM6", "NOISE", "PHYS", "ROBO"]), D("SET", F.ENUM, 0, 1, 0, ["--", "GO"]), D("CLRSQ", F.ENUM, 0, 1, 0, ["--", "GO"]), D("INIT", F.ENUM, 0, 1, 0, ["--", "GO"]),
     D("CH", F.INT, 0, 16, 10), D("LVL", F.INT, 0, 127, 100), D("REV", F.INT, 0, 127, 16), D("T4", F.ENUM, 0, 1, 0, ["DRUM", "SYNTH"]),
     D("DUST", F.PCT, 0, 127, 0), D("DUCK", F.PCT, 0, 127, 0), D("FILT", F.BIPCT, -64, 63, 0), D("KIT", F.ENUM, 0, 37, 0, ["GM", "808", "909", "606", "80S", "VINTAGE", "TRAP", "DRILL", "BOOMBAP", "LO-FI", "PHONK", "HOUSE", "D.HOUSE", "TECHNO", "MINIMAL", "ELECTRO", "DISCO", "GARAGE", "JUNGLE", "DUBSTEP", "DEMBOW", "AMAPIANO", "AFRO", "LATIN", "TRIBAL", "SYNTHWV", "CHIP", "ARCADE", "GLITCH", "INDUSTR", "HYPER", "AMBIENT", "JAZZ", "RUST", "FORGE", "PISTON", "HURT", "MANGUE"]),
     D("TYPE", F.ENUM, 0, 2, 0, ["ROOM", "SPRING", "PLATE"]), D("TAPE", F.PCT, 0, 127, 0), D("HUM", F.PCT, 0, 127, 0), D("MAC1", F.PCT, 0, 127, 0),
@@ -1686,6 +1686,24 @@ function makeMockDevice(opt = {}) {
         P("SINO RACHADO", [0, 90, 100, 116, 22, 120, 0, 12, 0, 0, 0, 0, 0, 0, 0, 0], [0, 100, 127, 100], 0, 0),
         P("PIANO PODRE", [1, 112, 26, 70, 26, 80, 10, 18, 0, 0, 0, 0, 0, 0, 0, 0], [0, 100, 127, 50], 0, 0),
         P("FERRO VELHO", [0, 110, 70, 124, 14, 70, 110, 0, 0, 0, 0, 0, 0, 0, 0, 0], [110, 90, 127, 115], 0, 0)] },
+    { name: "ROBO", titles: ["VOICE", "MOVE"], edit: [
+      D("MODE", F.ENUM, 0, 2, 0, ["VOSIM", "GENDY", "WALSH"]), D("FORM", F.PCT, 0, 127, 60), D("PULS", F.INT, 0, 127, 30), D("DCAY", F.PCT, 0, 127, 50),
+      D("TRK", F.PCT, 0, 127, 64), D("DRFT", F.PCT, 0, 127, 0), D("CRSH", F.PCT, 0, 127, 0), D("TONE", F.CUTOFF, 0, 127, 110),
+      NONE, NONE, NONE, NONE,
+      NONE, NONE, NONE, NONE],
+      presets: [
+        P("ROBO VOX", [0, 60, 30, 50, 64, 0, 0, 120, 0, 0, 0, 0, 0, 0, 0, 0], [0, 70, 100, 40], 1, 0),
+        P("CORAL MORTO", [0, 50, 40, 70, 100, 70, 0, 110, 0, 0, 0, 0, 0, 0, 0, 0], [90, 90, 127, 100], 0, 0),
+        P("LATA", [0, 30, 70, 30, 30, 0, 30, 90, 0, 0, 0, 0, 0, 0, 0, 0], [0, 60, 90, 20], 1, 0),
+        P("ABOIO", [0, 72, 20, 60, 90, 50, 0, 120, 0, 0, 0, 0, 0, 0, 0, 0], [40, 90, 120, 80], 1, 0),
+        P("XENAKIS", [1, 40, 50, 40, 0, 30, 0, 110, 0, 0, 0, 0, 0, 0, 0, 0], [80, 90, 127, 100], 0, 0),
+        P("ENXAME", [1, 90, 127, 80, 0, 0, 0, 100, 0, 0, 0, 0, 0, 0, 0, 0], [30, 90, 110, 70], 0, 0),
+        P("GERADOR", [1, 14, 20, 10, 7, 40, 0, 104, 0, 0, 0, 0, 0, 0, 0, 0], [100, 90, 127, 110], 0, 0),
+        P("ESTILHACO", [1, 70, 30, 100, 33, 0, 70, 127, 0, 0, 0, 0, 0, 0, 0, 0], [0, 50, 0, 30], 0, 0),
+        P("WALSH BASS", [2, 8, 20, 100, 0, 0, 0, 100, 0, 0, 0, 0, 0, 0, 0, 0], [0, 70, 100, 20], 1, 0),
+        P("TELEX", [2, 50, 30, 64, 50, 20, 20, 110, 0, 0, 0, 0, 0, 0, 0, 0], [0, 80, 90, 40], 0, 0),
+        P("SINAL", [2, 100, 10, 90, 0, 40, 0, 120, 0, 0, 0, 0, 0, 0, 0, 0], [10, 90, 110, 70], 0, 0),
+        P("CHAPA", [2, 64, 100, 10, 0, 0, 0, 70, 0, 0, 0, 0, 0, 0, 0, 0], [0, 60, 0, 40], 0, 0)] },
   ];
   const P_COUNT = 91, G_COUNT = 39, NSTEP = 64, P_E0 = 64, NEDIT = 16, G_ENGSEL = 20, P_SLCR = 45;
   /* </generated> */

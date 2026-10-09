@@ -82,7 +82,9 @@ $CC -O2 -w -Ibuild/gen -Ifirmware/src -o "$OUT/grit_test" tests/grit_test.c -lm
 run "GRIT: TAPE, HUM, DIST FUZZ / FOLD / CRUSH / RING (Jangada)" "$OUT/grit_test"
 
 $CC -O2 -w -Ibuild/gen -Ifirmware/src -o "$OUT/insert_test" tests/insert_test.c -lm
-run "INSERT: every type, MIX 0 bit for bit, fades (Jangada 0.9)" "$OUT/insert_test"
+run "INSERT: every type (DISP 0.10), MIX 0 bit for bit, fades (Jangada 0.9)" "$OUT/insert_test"
+$CC -O2 -w -Ibuild/gen -Ifirmware/src -o "$OUT/robo_test" tests/robo_test.c -lm
+run "ROBO: VOSIM, GENDY, WALSH sound, bounded, in tune; SEED repeats (Jangada 0.10)" "$OUT/robo_test"
 $CC -O2 -w -Ibuild/gen -Ifirmware/src -o "$OUT/ladder_test" tests/ladder_test.c -lm
 run "ANALOG LADR: the four-pole ladder low-pass (Jangada)" "$OUT/ladder_test"
 $CC -O2 -w -Ibuild/gen -Ifirmware/src -o "$OUT/sat_test" tests/sat_test.c -lm
