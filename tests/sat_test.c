@@ -23,6 +23,8 @@ static void ok(int c, const char *what)
     fails += !c;
 }
 
+static int spos;                             /* ANALOG SPOS for render_n: 0 POST, 1 PRE */
+
 /* held notes (A2 110 Hz, or more) on ANALOG with the filter and SAT set so; no sends, no envelopes */
 static int32_t render_n(int ftyp, int cut, int res, int sat, int sdrv, int wave, const int *notes, int nn)
 {
@@ -43,6 +45,7 @@ static int32_t render_n(int ftyp, int cut, int res, int sat, int sdrv, int wave,
     trk[0].p[P_E12] = (int16_t)ftyp;
     trk[0].p[P_E13] = (int16_t)sat;
     trk[0].p[P_E14] = (int16_t)sdrv;
+    trk[0].p[P_E15] = (int16_t)spos;
     trk[0].p[P_ED_FLT] = 0;
     trk[0].p[P_ATK] = 0;
     trk[0].p[P_SUS] = 127;
@@ -112,6 +115,7 @@ int main(void)
     int32_t worst = 0;
     char what[96];
 
+    for (spos = 0; spos < 2; spos++)
     for (s = 1; s < 4u; s++)
         for (w = 0; w < 5u; w++)
             for (a = 0; a < 3u; a++)
@@ -121,8 +125,29 @@ int main(void)
                             int32_t p = render(FTYPS[f], CUTS[a], RESS[b], (int)s, SDRVS[c], (int)w);
                             worst = p > worst ? p : worst;
                         }
-    snprintf(what, sizeof what, "bounded at every SAT x SDRV x CUT x RES x FTYP x WAVE (peak %d)", (int)worst);
+    spos = 0;
+    snprintf(what, sizeof what, "bounded at every SPOS x SAT x SDRV x CUT x RES x FTYP x WAVE (peak %d)", (int)worst);
     ok(worst < 32767, what);
+
+    /* SPOS PRE (0.9.1): before the filter, the folder's harmonics go through it. A sine folded at SDRV 127:
+     * through an open LP24 PRE adds overtones as POST does; through a closed one PRE's are filtered away, POST's
+     * are not (they come after it) */
+    {
+        double po, pr, pc, qc;
+        render(1, 127, 0, 3, 127, 3);
+        po = overtones();
+        spos = 1;
+        render(1, 127, 0, 3, 127, 3);
+        pr = overtones();
+        render(1, 40, 0, 3, 127, 3);
+        pc = overtones();
+        spos = 0;
+        render(1, 40, 0, 3, 127, 3);
+        qc = overtones();
+        printf("   FOLD 127: open POST %.3f PRE %.3f; LP24 at CUT 40 POST %.3f PRE %.3f\n", po, pr, qc, pc);
+        ok(pr > 0.1 && pr > po * 0.3, "SPOS PRE, filter open: the fold's overtones are there");
+        ok(pc < qc * 0.25, "SPOS PRE, filter closed: the filter takes them (POST keeps them)");
+    }
 
     /* a sine through the open LP24 (FTYP set: the Jangada render, SAT OFF as reference) */
     {

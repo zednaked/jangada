@@ -220,7 +220,9 @@ and it keeps breathing on its own, even while you play the other tracks.
   **SAT** (EDIT 4, knobs 2 and 3): a saturation per voice after the filter, before the VCA
   (OSC → FILTER → SAT → VCA): **WARM** (tube, even harmonics), **HARD** (a wall: buzz) or **FOLD** (a
   wavefolder); **SDRV** how hard. Each voice is shaped alone, so chords stay clean where the track's DIST
-  would smear them. Preset **SUCATA**.
+  would smear them. Preset **SUCATA**. **SPOS** (EDIT 4, knob 4) moves it before the filter: **PRE** is
+  OSC → SAT → FILTER → VCA, so the filter and its envelope sweep through what the folder made (POST, the
+  default, keeps the raw harmonics after the filter); the same cost either way. Preset **DOBRA**.
 - **Modulation into the filter**: the MOD 1–4 matrix reaches every engine parameter, so CUT, RES, DRV and SDRV
   are destinations: LFO → RES, ENV → CUT, VEL → DRV, ENV → SDRV. They move per voice, every block.
 - **FM6**: 6-operator FM (Dexed's msfa core), 32 algorithms, 8 factory patches (PTCH F1–F8) and

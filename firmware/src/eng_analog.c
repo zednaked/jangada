@@ -7,13 +7,15 @@
  * copy k sits k steps of the spread above or below, so one accumulator of the spread phase drives
  * them all); SUB a square an octave below; DRFT a slow random wander of the pitch per voice;
  * FTYP LP12 (Felucca's), LP24, BP, HP or LADR (a four-pole transistor ladder, ladder_*); SAT a
- * saturation per voice after the filter, before the VCA (analog_sat), SDRV how hard. With
+ * saturation per voice after the filter, before the VCA (analog_sat), SDRV how hard; SPOS PRE moves it
+ * before the filter (Jangada 0.9.1, issue #4). With
  * more than 4 voices sounding the superwave keeps
  * fewer copies (the CPU, see analog_render_x). With all of them at their defaults the original
  * render runs, sample for sample (analog_render); otherwise analog_render_x. */
 static const char *const N_ANALOG_WAVE[] = {"SAW", "SQR", "TRI", "SIN", "PWM"};
 static const char *const N_ANALOG_FTYP[] = {"LP12", "LP24", "BP", "HP", "LADR"};
 static const char *const N_ANALOG_SAT[] = {"OFF", "WARM", "HARD", "FOLD"};
+static const char *const N_ANALOG_SPOS[] = {"POST", "PRE"};
 
 /* Jangada: SAT, the filter's output into a shaper of its own, voice by voice (a chord does not
  * intermodulate as it does through the track's DIST), before the envelope: OSC -> FILTER -> SAT -> VCA.
@@ -21,6 +23,9 @@ static const char *const N_ANALOG_SAT[] = {"OFF", "WARM", "HARD", "FOLD"};
  *         quiet parts stay, loud ones thicken;
  *   HARD  1x .. 6x into a hard wall: buzz, square edges;
  *   FOLD  the signal as the phase of a sine (as DIST FOLD): past a quarter turn it folds back.
+ * SPOS (Jangada 0.9.1, an idea from issue #4) picks where: POST as above (the filter's output shaped: the
+ * harmonics come after it, raw), PRE between the oscillators and the filter, OSC -> SAT -> FILTER -> VCA (the
+ * filter and its envelope sweep through what the folder made). The same work in either place: no cost.
  * No state: nothing to clear at note-on, and SDRV can be moved by the matrix (ENV -> SDRV) for free. */
 typedef struct { int32_t g, bias, b0, mk; } asat_t;
 static inline void analog_sat_coef(asat_t *c, uint32_t type, int32_t d)
@@ -130,7 +135,7 @@ __attribute__((noinline)) static void analog_render_x(track_t *t, voice_t *v, in
     static const int8_t COPY_AT[6] = {1, -1, 2, -2, 3, -3};   /* spread steps of copy k */
     const int16_t *p = t->p;
     uint32_t wave = (uint32_t)p[P_E0], i, k, ncopy = (uint32_t)p[P_E8], ftyp = (uint32_t)p[P_E12];
-    uint32_t sat = (uint32_t)p[P_E13];
+    uint32_t sat = (uint32_t)p[P_E13], pre = sat && p[P_E15];
     asat_t sc;
     int32_t det = p[P_E1], mix = p[P_E2], noise = p[P_E3], sub = p[P_E10], drift = p[P_E11];
     int32_t cut = (p[P_E4] << 8) + m->cutoff + (p[P_E7] * (v->pitch16 - 60 * 16) >> 4);
@@ -199,6 +204,8 @@ __attribute__((noinline)) static void analog_render_x(track_t *t, voice_t *v, in
             s += mulq15((int32_t)(noise32(&nst) >> 17) - 16384, nz);
         if (drv)
             s = softclip(((s >> 2) * (drive >> 2)) >> 11);
+        if (pre)                                      /* SPOS PRE: the oscillators shaped, then filtered */
+            s = analog_sat(&sc, sat, s);
         if (ftyp == 4)
             y = ladder_run(&lad, s >> 1, ls, &l4);
         else
@@ -215,7 +222,7 @@ __attribute__((noinline)) static void analog_render_x(track_t *t, voice_t *v, in
             ab = 16000 + (softclip((ab - 16000) * 2) >> 1);
             y = y < 0 ? -ab : ab;
         }
-        if (sat)
+        if (sat && !pre)
             y = analog_sat(&sc, sat, y << 1) >> 1;
         out[i] += mulq15(mulq15(y << 1, amp_at(m, i)), VOICE_FS) << 1;
     }
@@ -360,6 +367,11 @@ static const preset_t ANALOG_PRESETS[] = {
     {"SUCATA", {0, 7, 64, 0, 50, 75, 20, 50}, {0, 65, 45, 30}, 40, 1, FX(0, 0, 30, 15), PAT(2),
      .x = {1, 1, 1, 1, 5, 4, 41},                   /* LADR, SAT FOLD, SDRV 40 */
      SET({P_M1SRC, 2}, {P_M1DST, 17}, {P_M1AMT, 40}), CAT(BASS)},
+    /* Jangada 0.9.1: SAT before the filter (SPOS PRE, OSC -> FOLD -> LADR -> VCA): the saw folded hard, the
+     * ladder's envelope opening and closing over the folds: DOBRA (a fold, a bend in sheet metal) */
+    {"DOBRA", {0, 7, 64, 0, 30, 70, 0, 50}, {0, 70, 50, 40}, 55, 1, FX(10, 0, 30, 20),
+     .x = {1, 1, 1, 1, 5, 4, 91, 2},                /* LADR, SAT FOLD, SDRV 90, SPOS PRE */
+     CAT(LEAD)},
 };
 
 static void analog_render(track_t *t, voice_t *v, int32_t *out, uint32_t n, const vmod_t *m)
@@ -388,6 +400,7 @@ static const engine_t ENG_ANALOG = {
         {"FTYP", F_ENUM, 0, 4, 0, N_ANALOG_FTYP, 0},  /* EDIT 4 (Jangada: LADR 4) */
         {"SAT", F_ENUM, 0, 3, 0, N_ANALOG_SAT, 0},
         {"SDRV", F_PCT, 0, 127, 64, 0, 0},
+        {"SPOS", F_ENUM, 0, 1, 0, N_ANALOG_SPOS, 0},  /* Jangada 0.9.1: SAT after / before the filter */
     },
     ANALOG_PRESETS, sizeof(ANALOG_PRESETS) / sizeof(ANALOG_PRESETS[0]), 1, analog_note_on, analog_render,
     0xF986, {P_E4, P_E5, P_ATK, P_REL},

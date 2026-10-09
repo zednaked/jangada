@@ -220,7 +220,9 @@ solte, e ele continua respirando sozinho, inclusive enquanto você toca outras t
   **SAT** (EDIT 4, knobs 2 e 3): uma saturação por voz depois do filtro, antes do VCA
   (OSC → FILTRO → SAT → VCA): **WARM** (válvula, harmônicos pares), **HARD** (um muro: zumbido) ou **FOLD**
   (um wavefolder); **SDRV** o quanto. Cada voz é moldada sozinha, então os acordes ficam limpos onde o DIST da
-  trilha borraria. Preset **SUCATA**.
+  trilha borraria. Preset **SUCATA**. **SPOS** (EDIT 4, knob 4) põe o SAT antes do filtro: **PRE** é
+  OSC → SAT → FILTRO → VCA, então o filtro e o envelope dele varrem o que o folder criou (POST, o padrão,
+  mantém os harmônicos crus depois do filtro); o custo é o mesmo nos dois. Preset **DOBRA**.
 - **Modulação no filtro**: a matriz MOD 1–4 alcança todo parâmetro do motor, então CUT, RES, DRV e SDRV são
   destinos: LFO → RES, ENV → CUT, VEL → DRV, ENV → SDRV. Mexem por voz, a cada bloco.
 - **FM6**: FM de 6 operadores (o núcleo msfa do Dexed), 32 algoritmos, 8 patches de fábrica (PTCH

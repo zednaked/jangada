@@ -88,7 +88,7 @@ run "ROBO: VOSIM, GENDY, WALSH, SCAN sound, bounded, in tune; SEED repeats; the 
 $CC -O2 -w -Ibuild/gen -Ifirmware/src -o "$OUT/ladder_test" tests/ladder_test.c -lm
 run "ANALOG LADR: the four-pole ladder low-pass (Jangada)" "$OUT/ladder_test"
 $CC -O2 -w -Ibuild/gen -Ifirmware/src -o "$OUT/sat_test" tests/sat_test.c -lm
-run "ANALOG SAT: the shaper per voice after the filter (Jangada)" "$OUT/sat_test"
+run "ANALOG SAT: the shaper per voice after the filter, or before it (SPOS PRE, 0.9.1) (Jangada)" "$OUT/sat_test"
 $CC -O1 -w -Ibuild/gen -Ifirmware/src -o "$OUT/layers_test" tests/layers_test.c -lm
 run "layers: SEQ steps and tools, undo, ENGINE, screens (Jangada)" "$OUT/layers_test"
 $CC -O2 -w -Ibuild/gen -Ifirmware/src -o "$OUT/kit_test" tests/kit_test.c -lm

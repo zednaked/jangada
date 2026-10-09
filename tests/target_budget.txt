@@ -3,7 +3,7 @@
 # Rewritten by BUDGET_UPDATE=1.
 analog_render 5
 analog_render_lp 585
-analog_render_x 1845
+analog_render_x 1916
 digital_render 333
 phase_render 79
 lofi_render 123
