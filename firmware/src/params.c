@@ -38,6 +38,13 @@ static const char *const N_TRAMP[] = {"OFF", "1BAR", "2BAR", "4BAR", "8BAR", "16
 static const char *const N_NOTE[] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
 static const char *const N_DASH[] = {"--"};
 static const char *const N_GO[] = {"--", "GO"};
+/* the INSERT's types (Jangada 0.9, after Felucca 1.5; fx.c IT_*, append-only: stored). A B C mean what the type
+ * says (ins_desc). After DIST, so a FUZZ into a FOLD, a CRUSH into a FLANG */
+static const char *const N_ITYPE[] = {"OFF", "SOFT", "HARD", "FOLD", "FUZZ", "CRUSH", "PHASR", "FLANG", "CHOR"};
+static const char *const N_IBITS[] = {"1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15",
+                                      "16", 0};   /* CRUSH: BITS, RATE over the range in 16 even parts (0-terminated) */
+static const char *const N_IRATE[] = {"689", "919", "1.1k", "1.4k", "1.8k", "2.2k", "2.8k", "3.7k", "4.4k", "5.5k",
+                                      "7.4k", "8.8k", "11k", "15k", "22k", "44k", 0};
 static const char *const N_SLCR[] = {"OFF", "GATE", "STUT"};             /* SL_OFF .. SL_STUT (slicer.c) */
 static const char *const N_SLDIV[] = {"1/8", "1/16", "1/32", "8T", "16T", "32T"};   /* SL_DEN */
 static const char *const N_ENGNAME[] = {"ANALOG", "DIGITAL", "PHASE", "LOFI", "SAMPLE", "VOICE", "TRIO", "WHEEL", "GRAIN",
@@ -115,6 +122,13 @@ static const param_desc_t TP[P_COUNT] = {
     [P_TFLT] = PD("FILT", F_FILT, -64, 63, 0),     /* Jangada 0.7: the track's filter (fx.c) */
     [P_STRUM] = {"STRM", F_INT, -60, 60, 0, 0, "ms"},   /* Jangada 0.7: CHORD+ (seq.c) */
     [P_VLEAD] = PE("VLEAD", N_ONOFF, 0),
+    /* Jangada 0.9: the INSERT (fx.c track_insert), TYPE OFF = as before. A B C as the editor names them; the device
+     * shows the type's own labels (ins_desc) */
+    [P_ITYPE] = PE("INSRT", N_ITYPE, 0),
+    [P_IA] = PD("INS A", F_PCT, 0, 127, 64),
+    [P_IB] = PD("INS B", F_PCT, 0, 127, 96),
+    [P_IC] = PD("INS C", F_PCT, 0, 127, 96),
+    [P_IMIX] = PD("MIX", F_PCT, 0, 127, 127),
 };
 
 static const param_desc_t GP[G_COUNT] = {
@@ -159,6 +173,22 @@ static const param_desc_t GP[G_COUNT] = {
     [G_MAC3] = PD("MAC3", F_PCT, 0, 127, 0), [G_MAC4] = PD("MAC4", F_PCT, 0, 127, 0),
 };
 
+/* the INSERT's A B C as its TYPE means them (TP's ranges and defaults): the drives DRIVE TONE LEVEL, CRUSH BITS RATE
+ * LPF, the swept ones RATE DEPTH FDBK; OFF: TP's own */
+#define PU(l, f, df, n, u) {l, f, 0, 127, df, n, u}
+static const param_desc_t INS_DESC[3][3] = {
+    {PU("DRIVE", F_PCT, 64, 0, 0), PU("TONE", F_CUTOFF, 96, 0, 0), PU("LEVEL", F_DB, 96, 0, 0)},
+    {PU("BITS", F_INT, 64, N_IBITS, 0), PU("RATE", F_INT, 96, N_IRATE, "Hz"), PU("LPF", F_CUTOFF, 96, 0, 0)},
+    {PU("RATE", F_LFOHZ, 64, 0, 0), PU("DEPTH", F_PCT, 96, 0, 0), PU("FDBK", F_PCT, 96, 0, 0)},
+};
+#undef PU
+static const param_desc_t *ins_desc(int32_t type, uint32_t k)
+{
+    if (type <= 0 || type >= (int32_t)(sizeof N_ITYPE / sizeof N_ITYPE[0]))
+        return &TP[P_IA + k];
+    return &INS_DESC[type < 5 ? 0 : type == 5 ? 1 : 2][k];   /* (IT_SOFT .. IT_FUZZ, IT_CRUSH, the swept ones) */
+}
+
 static const param_desc_t *track_desc(const track_t *t, uint32_t id)
 {
     if (id >= P_E0 && id < P_E0 + NEDIT) {            /* the engine asked for (t->engine follows after a fade) */
@@ -173,6 +203,8 @@ static const param_desc_t *track_desc(const track_t *t, uint32_t id)
                                                 PD("CRUSH", F_PCT, 0, 127, 0), PD("RING", F_PCT, 0, 127, 0)};
         return &DIST_AS[(t->p[P_DTYPE] - 1) & 3];
     }
+    if (id >= P_IA && id <= P_IC)                     /* the INSERT's values as its TYPE names them */
+        return ins_desc(t->p[P_ITYPE], id - P_IA);
     return &TP[id];
 }
 
@@ -319,6 +351,8 @@ static const page_t PAGES[] = {
     {"DIST", FAM_FX, SC_TRACK, GR_NONE, {P_DTYPE, P_DIST, P_DRING, P_TFLT}},   /* Jangada GRIT: TYPE, DIST, FREQ (RING); the
                                                                                  * track's FILT (drum track too) */
     {"SLICER", FAM_FX, SC_TRACK, GR_SLCR, {P_SLCR, P_SLPAT, P_SLRATE, P_SLDEPTH}},   /* drum track too */
+    {"INSERT", FAM_FX, SC_TRACK, GR_NONE, {P_ITYPE, P_IA, P_IB, P_IC}},   /* Jangada 0.9 (after Felucca 1.5): */
+    {"INSERT 2", FAM_FX, SC_TRACK, GR_NONE, {P_IMIX, 0xFF, 0xFF, 0xFF}},  /* the track's INSERT, its dry / wet */
     {"DLY", FAM_FX, SC_GLOBAL, GR_NONE, {G_DTIME, G_DFDBK, G_DCOLOR, G_DMIX}},
     {"REV/CHO", FAM_FX, SC_GLOBAL, GR_NONE, {G_RSIZE, G_RDAMP, G_CRATE, G_CDEPTH}},
     {"REVERB", FAM_FX, SC_GLOBAL, GR_NONE, {G_RTYPE, G_RSIZE, G_RDAMP, 0xFF}},   /* Jangada: ROOM SPRING PLATE */

@@ -1452,7 +1452,8 @@ function makeMockDevice(opt = {}) {
     NONE, NONE, NONE, NONE,
     NONE, NONE, NONE, NONE,
     D("EVOL", F.PCT, 0, 127, 0), D("TENS", F.PCT, 0, 127, 0), D("RAMP", F.ENUM, 0, 6, 0, ["OFF", "1BAR", "2BAR", "4BAR", "8BAR", "16BAR", "32BAR"]), D("FILT", F.FILT, -64, 63, 0),
-    D("STRM", F.INT, -60, 60, 0, null, "ms"), D("VLEAD", F.ENUM, 0, 1, 0, ["OFF", "ON"]),
+    D("STRM", F.INT, -60, 60, 0, null, "ms"), D("VLEAD", F.ENUM, 0, 1, 0, ["OFF", "ON"]), D("INSRT", F.ENUM, 0, 8, 0, ["OFF", "SOFT", "HARD", "FOLD", "FUZZ", "CRUSH", "PHASR", "FLANG", "CHOR"]), D("INS A", F.PCT, 0, 127, 64),
+    D("INS B", F.PCT, 0, 127, 96), D("INS C", F.PCT, 0, 127, 96), D("MIX", F.PCT, 0, 127, 127),
   ];
   const GP = [
     D("BPM", F.BPM, 40, 240, 120), D("SWG", F.PCT, 0, 100, 0), D("CLK", F.ENUM, 0, 2, 0, ["INT", "USB", "TRS"]), D("TUNE", F.INT, -50, 50, 0),
@@ -1623,7 +1624,7 @@ function makeMockDevice(opt = {}) {
         P("PLUCK", [0, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 127, 0], 0, 13),
         P("CARVAO", [0, 1, -20, 0, 24, 0, 40, 4, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 127, 0], 0, 0)] },
   ];
-  const P_COUNT = 86, G_COUNT = 39, NSTEP = 64, P_E0 = 64, NEDIT = 16, G_ENGSEL = 20, P_SLCR = 45;
+  const P_COUNT = 91, G_COUNT = 39, NSTEP = 64, P_E0 = 64, NEDIT = 16, G_ENGSEL = 20, P_SLCR = 45;
   /* </generated> */
   /* factory PATTERNS[] (ui.c): absolute notes, 0 rest; flags 1 accent, 2 slide, 4 tie (holds the previous note) */
   const T_ = 4;
@@ -2545,7 +2546,7 @@ function selfLoad() {
 const stepEdit = new Map(); /* index -> time of the last edit */
 
 /* parameter ids (firmware/src/core.h); used only when P_COUNT / G_COUNT match */
-const EXPECT = { pcount: 86, gcount: 39, pe0: 64 };   /* tools/gen_editor_tables.py --check: == the firmware */
+const EXPECT = { pcount: 91, gcount: 39, pe0: 64 };   /* tools/gen_editor_tables.py --check: == the firmware */
 const P = { LEVEL: 0, SLEN: 29 };
 const LAYOUT = (pe0) => [
   { t: "ENV", pages: [["ENV", 0, [1, 2, 3, 4]], ["ENV DEST", 0, [5, 6, 7, 8]]] },
@@ -2554,7 +2555,7 @@ const LAYOUT = (pe0) => [
   { t: "EDIT", engine: true, pages: [["EDIT 1", 0, [pe0, pe0 + 1, pe0 + 2, pe0 + 3]], ["EDIT 2", 0, [pe0 + 4, pe0 + 5, pe0 + 6, pe0 + 7]],
     ["EDIT 3", 0, [pe0 + 8, pe0 + 9, pe0 + 10, pe0 + 11]], ["EDIT 4", 0, [pe0 + 12, pe0 + 13, pe0 + 14, pe0 + 15]]] },
   { t: "VOICE", pages: [["LEVEL", 0, [0]], ["VOICE", 0, [37, 38, 41, 42]], ["VOICE 2", 0, [43, 44, 39, 40]]] },
-  { t: "FX", pages: [["FX", 0, [33, 34, 35, 36]], ["DIST", 0, [62, 33, 63]], ["SLICER", 0, [45, 46, 47, 48]], ["DLY", 1, [4, 5, 6, 7]], ["REV/CHO", 1, [8, 9, 10, 11]], ["REVERB", 1, [32, 8, 9]]] },   /* Jangada: TYPE; GRIT: DIST TYPE DIST FREQ */
+  { t: "FX", pages: [["FX", 0, [33, 34, 35, 36]], ["DIST", 0, [62, 33, 63]], ["SLICER", 0, [45, 46, 47, 48]], ["INSERT", 0, [pe0 + 22, pe0 + 23, pe0 + 24, pe0 + 25]], ["INSERT 2", 0, [pe0 + 26]], ["DLY", 1, [4, 5, 6, 7]], ["REV/CHO", 1, [8, 9, 10, 11]], ["REVERB", 1, [32, 8, 9]]] },   /* Jangada: TYPE; GRIT: DIST TYPE DIST FREQ; 0.9: the INSERT */
   { t: "SCL", pages: [["SCL", 0, [25, 26, 27, 28]], ["CHORD", 0, [61]]] },   /* Jangada: CHORD */
   { t: "ARP", pages: [["ARP", 0, [17, 18, 19, 20]], ["ARP 2", 0, [21, 22, 23, 24]], ["DRONE", 0, [23, pe0 + 16, pe0 + 17, pe0 + 18]]] },   /* Jangada DRONES: HOLD EVOL TENS RAMP */
   { t: "SEQ PATTERN", tab: "seqgroups", pages: [["PATTERN", 0, [29, 30, 31, 32]]] },

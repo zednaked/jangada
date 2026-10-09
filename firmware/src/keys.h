@@ -35,6 +35,8 @@ static const uint8_t P_KEY[P_COUNT] = {
     /* Jangada DRONES (keys from 100: 80.. stay free for parameters made at the same time elsewhere) */
     [P_EVOL] = 100, [P_TENS] = 101, [P_TRAMP] = 102,
     [P_TFLT] = 103, [P_STRUM] = 104, [P_VLEAD] = 105,
+    /* Jangada 0.9 */
+    [P_ITYPE] = 106, [P_IA] = 107, [P_IB] = 108, [P_IC] = 109, [P_IMIX] = 110,
 };
 
 /* the P_* index of a key, P_COUNT when this firmware does not know it */

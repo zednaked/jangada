@@ -80,6 +80,9 @@ $CC -O2 -w -Ibuild/gen -Ifirmware/src -o "$OUT/reverb_test" tests/reverb_test.c 
 run "reverbs: ROOM, SPRING, PLATE (Jangada)" "$OUT/reverb_test"
 $CC -O2 -w -Ibuild/gen -Ifirmware/src -o "$OUT/grit_test" tests/grit_test.c -lm
 run "GRIT: TAPE, HUM, DIST FUZZ / FOLD / CRUSH / RING (Jangada)" "$OUT/grit_test"
+
+$CC -O2 -w -Ibuild/gen -Ifirmware/src -o "$OUT/insert_test" tests/insert_test.c -lm
+run "INSERT: every type, MIX 0 bit for bit, fades (Jangada 0.9)" "$OUT/insert_test"
 $CC -O2 -w -Ibuild/gen -Ifirmware/src -o "$OUT/ladder_test" tests/ladder_test.c -lm
 run "ANALOG LADR: the four-pole ladder low-pass (Jangada)" "$OUT/ladder_test"
 $CC -O2 -w -Ibuild/gen -Ifirmware/src -o "$OUT/sat_test" tests/sat_test.c -lm
@@ -106,7 +109,7 @@ run "DSP render (ANALOG preset 0)" "$OUT/hostsim" 0 0 1 "$OUT/render.wav"
 mkdir -p build/tracks_demo
 run "TRACKS: 4-track pattern, live recording (lengths, swing), voice budget, engine switch, cost" env TRACKS=build/tracks_demo "$OUT/hostsim" 0 0 1 "$OUT/tracks.wav"
 $CC -w -Ibuild/gen -Ifirmware/src -o "$OUT/project_test" tests/project_test.c -lm
-run "project formats (JNG1 keyed; Felucca FUN3 / FUN2 / FUN1 read)" "$OUT/project_test"
+run "project formats (JNG2 keyed, JNG1 read; Felucca FUN3 / FUN2 / FUN1 read)" "$OUT/project_test"
 $CC -O2 -w -Ibuild/gen -Ifirmware/src -o "$OUT/slicer_test" tests/slicer_test.c -lm
 mkdir -p build/slicer_demo
 run "SLICER: no clicks, timing, sync with the sequencer, STUT, cost, demos" "$OUT/slicer_test" build/slicer_demo

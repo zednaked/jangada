@@ -69,6 +69,8 @@ enum {                          /* per-track parameters */
                                                 * other, ms each (> 0 low to high, < 0 high to low; seq.c) */
     P_VLEAD,                                   /* Jangada 0.7 (after SLOOP 2.4): CHORD, each chord voiced nearest
                                                 * the last (seq.c chord_vlead) */
+    P_ITYPE, P_IA, P_IB, P_IC, P_IMIX,         /* Jangada 0.9 (after Felucca 1.5): the INSERT after DIST, its TYPE,
+                                                * three values and MIX (fx.c track_insert) */
     P_COUNT
 };
 #define NEDIT 16                 /* engine parameters P_E0.. */
@@ -271,7 +273,8 @@ typedef struct track {
     int32_t dist_x1, dist_x2;    /* Jangada GRIT: the other DIST types' state (FUZZ FOLD CRUSH), */
     uint32_t dist_ph;            /* the RING carrier's phase, */
     uint8_t dist_mode;           /* the type the ISR ran last (0 off, 1 + P_DTYPE): a change crossfades */
-    uint8_t tail;                /* blocks to mix after the last voice (the DIST tail) */
+    uint8_t tail;                /* blocks to mix after the last voice (the DIST / INSERT tail) */
+    uint8_t ins_run;             /* the INSERT still sounds (fx.c track_insert: its wet share above 0) */
     int16_t armp, aholdp;        /* P_AMODE / P_AHOLD as last seen by the ISR */
     /* Jangada: MIDI controllers of the track's channel (seq.c midi_cc): pitch bend in 1/16 semitones
      * (+-2 st), MOD WHEEL / AFTERTOUCH / EXPRESSION 0..127 (mod.c sources), the sustain pedal and the
