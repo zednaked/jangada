@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
-/* Jangada 0.10: ROBO, engine 12. Four small machine voices from the ideas in issue #4 (gospodindilly-ops):
+/* Jangada 0.9.1: ROBO, engine 12. Four small machine voices from the ideas in issue #4 (gospodindilly-ops):
  * the speech chips' vowels, Xenakis' stochastic waveform, Walsh's square steps and a scanned ring of masses.
  * Written for the FM-1 in fixed point after the published algorithms (Kaegi and Tempelaars' VOSIM, 1978;
  * Xenakis' GENDYN, 1991; Walsh functions in sequency order; Verplank, Mathews and Shaw's scanned synthesis,

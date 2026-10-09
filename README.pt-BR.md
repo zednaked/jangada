@@ -112,7 +112,7 @@ FM-1, e nada sai do seu navegador.
 
 ## Instalar
 
-Versão atual: **[Jangada 0.9](https://github.com/zednaked/jangada/releases/tag/v0.9)** (alfa).
+Versão atual: **[Jangada 0.9.1](https://github.com/zednaked/jangada/releases/tag/v0.9.1)** (alfa).
 Conecte o FM-1 direto no computador por um cabo USB **de dados**.
 
 **Mac / Windows / Linux, pelo navegador**: abra o
@@ -123,7 +123,7 @@ Conecte o FM-1 direto no computador por um cabo USB **de dados**.
 
 ```
 ./instalar-linux.sh                    # baixa e instala a última versão publicada
-./instalar-linux.sh jangada-0.9.fwsc     # instala um arquivo baixado das releases
+./instalar-linux.sh jangada-0.9.1.fwsc     # instala um arquivo baixado das releases
 ./instalar-linux.sh --original         # volta ao firmware oficial da M-VAVE (V15)
 ./instalar-linux.sh --info             # o que o FM-1 está rodando
 ./instalar-linux.sh --console          # acesso ao console serial (regra udev, pede sudo)

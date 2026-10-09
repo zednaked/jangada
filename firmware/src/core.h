@@ -22,7 +22,7 @@ enum { V_POLY, V_MONO, V_LEGATO, V_UNISON };   /* P_VOICE */
 #define ENGI_GRAIN 8u            /* engines.c ENGINES[]: the ones with state of their own in the engine arena (0.9) */
 #define ENGI_NOISE 10u           /* Jangada 0.9: NOISE and PHYS, appended after FM6 (9): the stores keep the numbers */
 #define ENGI_PHYS 11u
-#define ENGI_ROBO 12u           /* Jangada 0.10: ROBO (VOSIM, GENDY, WALSH; issue #4) */
+#define ENGI_ROBO 12u           /* Jangada 0.9.1: ROBO (VOSIM, GENDY, WALSH; issue #4) */
 #define UP_SLOTS 32u             /* user presets (upreset.c) */
 
 /* ------------------------------------------------------- parameters --- */

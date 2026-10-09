@@ -18,7 +18,7 @@ static void *eng_arena_of(const track_t *t, uint32_t eng);
 #include "eng_fm6.c"          /* Jangada: 6-operator FM (msfa, after Felucca 1.0) */
 #include "eng_noise.c"        /* Jangada 0.9: NOISE (after Felucca 1.0 / SLOOP 2.5) */
 #include "eng_phys.c"         /* Jangada 0.9: PHYS (after Felucca 1.0 / SLOOP 2.5; DaisySP, Rings: MIT) */
-#include "eng_robo.c"         /* Jangada 0.10: ROBO, the machine voices (issue #4) */
+#include "eng_robo.c"         /* Jangada 0.9.1: ROBO, the machine voices (issue #4) */
 
 typedef union {
     gr_part_t grain;

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
-/* Jangada 0.10: the ROBO engine (eng_robo.c) on the host. Each mode sounds, stays bounded, has no offset and
+/* Jangada 0.9.1: the ROBO engine (eng_robo.c) on the host. Each mode sounds, stays bounded, has no offset and
  * plays the key's pitch (GENDY too, its wave walking); a fixed SEED walks the same way twice, SEED 0 not; a
  * high WALSH note and a MODE change under a held note stay bounded.
  * Build with the same generated headers and flags as hostsim.c. */

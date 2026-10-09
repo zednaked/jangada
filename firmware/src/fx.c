@@ -495,7 +495,7 @@ static void djf_run(djf_t *f, const tsvf_t *c, int32_t *b, uint32_t n, uint32_t 
  *   PHASR                RATE, DEPTH (the sweep around ~850 Hz), FDBK (0 .. 0.7): four all-pass stages, mono;
  *   FLANG CHOR           RATE, DEPTH, FDBK: a 256-sample line per track; FLANG swept 0.25 .. 5 ms (feedback
  *                        0 .. 0.85), CHOR a sine around 3.2 ms (+-2.3 ms, feedback 0 .. 0.4);
- *   DISP                 AMNT, STRCH (1 .. 16), FDBK: dispersion (Jangada 0.10, an idea from issue #4): eight
+ *   DISP                 AMNT, STRCH (1 .. 16), FDBK: dispersion (Jangada 0.9.1, an idea from issue #4): eight
  *                        stretched all-passes, (a + z^-M) / (1 + a z^-M) as the SPRING's, a = -0.85 .. 0 with AMNT,
  *                        M = STRCH samples; the phases of the partials pull apart, the spectrum stays: a stiff
  *                        string's chirp at M 1, a metal sheet's at 8 and up. FDBK (0 .. 0.8) around the chain rings
