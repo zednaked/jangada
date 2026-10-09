@@ -63,7 +63,7 @@ $CC -O2 -w -Ibuild/gen -Ifirmware/src -o "$OUT/hostsim" tests/hostsim.c -lm
 $CC -O2 -w -Ibuild/gen -Ifirmware/src -o "$OUT/scale_test" tests/scale_test.c -lm
 run "scales: white-key mapping and note lifecycle" "$OUT/scale_test"
 $CC -O2 -w -Ibuild/gen -Ifirmware/src -o "$OUT/arp_test" tests/arp_test.c -lm
-run "arp: UPDN / UDI / RPT, long divisions (Jangada)" "$OUT/arp_test"
+run "arp: UPDN / UDI / RPT, long divisions, keys follow TRN / SCALE (Jangada)" "$OUT/arp_test"
 $CC -O2 -w -Ibuild/gen -Ifirmware/src -o "$OUT/step_test" tests/step_test.c -lm
 run "steps: RTCH ratchet and CHNC chance (Jangada)" "$OUT/step_test"
 $CC -O2 -w -Ibuild/gen -Ifirmware/src -o "$OUT/seqx_test" tests/seqx_test.c -lm

@@ -317,6 +317,18 @@ int main(void)
         midi(0x80, 64, 0);
         run(1);
     }
+    {   /* GLO > SYSTEM ROUT (#192): CH1-4, channel 1 plays track 1; SEL, it plays the selected track */
+        song.sel = 1;
+        song.g[G_ROUTE] = 0;
+        ok(midi_track(0) == &trk[0], "ROUT CH1-4: channel 1 plays track 1");
+        song.g[G_ROUTE] = 1;
+        ok(midi_track(0) == &trk[1] && midi_track(2) == &trk[1], "ROUT SEL: every channel plays the selected track");
+        ok(midi_route(0, 70, 1) == &trk[1], "ROUT SEL: the note goes to it");
+        song.sel = 2;
+        ok(midi_route(0, 70, 0) == &trk[1], "ROUT SEL: its note-off follows it after a new SEL");
+        song.g[G_ROUTE] = 0;
+        song.sel = 0;
+    }
     if (fails)
         printf("MIDI: %u FAILED\n", fails);
     return fails != 0;

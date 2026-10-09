@@ -1232,12 +1232,19 @@ static void seq_tick(track_t *t, uint32_t n, uint32_t adv)
     }
 }
 
+/* MIDI in: a channel of a part's own (GLO > SYSTEM ROUT CH1-4: 1..4 play tracks 1..4); SEL: none, every channel
+ * plays the selected track, so a keyboard on channel 1 plays what the PRESETS page browses (after Felucca, #192) */
+static int midi_own(uint32_t ch)
+{
+    return ch < NTRK && trk_synth(ch) && song.g[G_ROUTE] != 1;
+}
+
 /* MIDI in: the track a channel plays (0..15) */
 static track_t *midi_track(uint32_t ch)
 {
     if (song.g[G_DRCH] && ch + 1u == (uint32_t)song.g[G_DRCH] && is_drum(TDRUM))
         return TDRUM;
-    return ch < NTRK && trk_synth(ch) ? &trk[ch] : TSEL;
+    return midi_own(ch) ? &trk[ch] : TSEL;
 }
 
 /* a channel that plays the selected track: its note-off goes to the track its note-on went to,
@@ -1246,7 +1253,7 @@ static uint8_t midi_sel_on[16][128];                  /* per channel and note: t
 static track_t *midi_route(uint32_t ch, uint32_t note, int on)
 {
     track_t *t = midi_track(ch);
-    if ((ch < NTRK && trk_synth(ch)) || (song.g[G_DRCH] && ch + 1u == (uint32_t)song.g[G_DRCH] && is_drum(TDRUM)))
+    if (midi_own(ch) || (song.g[G_DRCH] && ch + 1u == (uint32_t)song.g[G_DRCH] && is_drum(TDRUM)))
         return t;                                     /* a part's own channel, or the drum channel */
     if (on)
         midi_sel_on[ch & 15u][note & 127u] = (uint8_t)(song.sel + 1u);
