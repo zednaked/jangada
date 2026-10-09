@@ -518,7 +518,7 @@ static void ed_handle(const uint8_t *f, uint32_t n)   /* f: the bytes between F0
             int16_t v[P_COUNT];
             up_values(&r, v);                              /* each value inside its range */
             for (i = 0; i < P_COUNT; i++)
-                r.p[i] = v[i];
+                r.p[i] = up_v8(v[i]);
             rc = up_put(slot, &r) ? 2u : 0u;
         }
         ed_b(a[0]);

@@ -136,12 +136,13 @@ name. SELECT and the SAVE > PRESETS browser continue past the factory presets in
 presets.
 
 **Flash** (`firmware/src/upreset.c`): two storage objects (`OBJ_UPRESET0/1`, A/B sector pairs at
-0xDC000..0xDFFFF), 16 records of 192 bytes each, behind a bank header (magic "UPB1", record size,
-slot count; a mismatch reads as an empty bank). A record keeps its layout version (mismatch: empty)
-and the P_COUNT it was stored with; another count is mapped by count (last 8 values = P_E0..P_E7, the
-first ones = P_LEVEL.. in order, missing ones = defaults). P_COUNT was 53 (P_E0 45) until the SLICER
-parameters (SLCR, PAT, RATE, DEPTH: ids 45..48) went in just before P_E0: P_COUNT 57, P_E0 49. An
-editor takes both from `INFO`; records stored with 53 load with the SLICER off.
+0xDC000..0xDFFFF), 16 records each behind a bank header (magic "UPB3", record size, slot count, the stable
+key of each value: `keys.h`). A record (176 bytes) keeps its layout version, engine, name, its values one
+signed byte each in the bank's key order (-128: not stored, the engine's default) and a 16-step pattern.
+Older banks are converted when read: Jangada 0.1 .. 0.8.2's "UPB2" (224-byte records, two bytes a value)
+and Felucca's "UPB1" (192-byte records, mapped by count: the last 8 values P_E0..P_E7). Anything else
+reads as an empty bank and is not written over. The protocol (`UP_GET` / `UP_PUT`) is the same whatever
+the stored form.
 
 ## v2: live sync
 
@@ -203,7 +204,7 @@ Requests name **objects**, never flash addresses:
 | 0 | the working project (as it is now) | "JNG2" (`project.c` `proj_to_jng`, as the autosave stores it; "JNG1" up to Jangada 0.8.2) |
 | 1 | the settings | `persist_t` "PER2": palette, low cut, zoom (reserved since Jangada: written 0, 0 / 1 accepted), the panel calibration (`panel_t`), the lights word (LIGHTS / KEYS / NOTES / USB AUDIO); one without the lights word (Jangada 0.2) is restored too, with the lights off |
 | 2..5 | the projects 1..4 | "JNG2"; length 0 = empty slot |
-| 6..7 | the user preset banks (presets 1..16, 17..32) | `up_bank_t` "UPB2" (`upreset.c`, keyed); length 0 = empty |
+| 6..7 | the user preset banks (presets 1..16, 17..32) | `up_bank_t` "UPB3" (`upreset.c`, keyed, a byte a value; "UPB2" of 0.8.2 and Felucca's "UPB1" are read and converted); length 0 = empty |
 | 8..9 | (v6) the FM6 patch bank 1, B1..B16 and B17..B32 | `fm6_half_t` "FM6B" (`fm6_bank.c`): magic, version 1, 16 slots, the used bits, the half (0 / 1), 16 packed 128-byte records; 2064 bytes, length 0 = empty |
 | 10..11 | (v7) the FM6 patch bank 2, B33..B48 and B49..B64 | the same `fm6_half_t`, the half 2 / 3 |
 | 32..34 | the user sample slots USR1..3 | header + ADPCM data as in flash (512 + data length); 0 = empty |
@@ -223,7 +224,7 @@ object), a sample slot at most 80 KiB.
   the CRC of `BK_LIST`; a mismatch means it changed during the backup: start again.
 - **Writing.** `BK_PUT` stages one object in RAM; the commit checks the CRC, then the object as a load
   checks it — projects: "JNG2" or "JNG1" (or Felucca's FUN3 / FUN2 / FUN1, converted) with its size and sum, stored
-  as "JNG2"; banks: magic, record size, slot count, key count (other keys are mapped as at boot);
+  as "JNG2"; banks ("UPB3", or an older "UPB2" / "UPB1", converted): magic, record size, slot count, key count (other keys are mapped as at boot);
   settings: its size (with or without the lights word), magic, palette, low cut, a permutation of the
   buttons and knobs; an FM6 bank half: its size, magic, version, slot count, which half it is, every byte
   7-bit — and writes it through the

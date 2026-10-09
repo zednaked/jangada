@@ -169,16 +169,11 @@ static uint32_t ed_bk_commit(void)
     }
     if (id <= 7u) {                                  /* a user preset bank, read as up_boot reads it */
         uint32_t b = id - 6u;
-        const up_bank_t *bk = (const up_bank_t *)(const void *)raw;
-        if (n && (n != sizeof *bk || bk->magic != UP_BANK_MAGIC || bk->rsize != sizeof(up_rec_t) ||
-                  bk->nslot != UP_PER_BANK || !bk->np || bk->np > UP_PMAX))
+        if (n && !up_bank_kind(raw, (int)n))         /* (UPB3, or an older one: converted as up_boot does) */
             return 2;
         if (st_save(OBJ_UPRESET0 + b, raw, n))
             return 4;
-        memset(&up_bank[b], 0, sizeof up_bank[b]);
-        if (n)
-            memcpy(&up_bank[b], raw, n);
-        up_bank_check(b, (int)n);
+        up_bank_load(b, raw, (int)n);
         for (i = 0; i < NTRK; i++)                   /* (a track showing a user preset of this bank) */
             if (trk[i].user && (trk[i].user - 1u) / UP_PER_BANK == b)
                 trk[i].user = 0;
@@ -197,7 +192,8 @@ static uint32_t ed_bk_write(const uint8_t *a, uint32_t na)
             return 1;
         len = ed_bk_r32(a + 2);
         if (len > ST_PAYLOAD_MAX || (id <= 1u && !len) || (id == 1u && len != sizeof(persist_t) && len != PERSIST_SIZE_V02) ||
-            ((id == 6u || id == 7u) && len && len != sizeof(up_bank_t)) || (id >= 8u && len && len != sizeof(fm6_half_t)))
+            ((id == 6u || id == 7u) && len && len != sizeof(up_bank_t) && len != sizeof(up_bank_v2_t) &&
+             len != sizeof(up_bank_v1_t)) || (id >= 8u && len && len != sizeof(fm6_half_t)))
             return 1;
         ed_bk_put = 1;
         ed_bk_cur = ED_BK_STAGE;                     /* (the snapshot of LIST is gone) */

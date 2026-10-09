@@ -5,25 +5,27 @@
  * records each, mirrored in RAM so browsing never reads flash. A record:
  * engine, name, the instrument parameters, a 16-step pattern.
  *
- * Jangada: a bank ("UPB2") stores the stable keys of its values (keys.h) once, and each
- * record its values in that order, so parameters can be added or moved. In RAM every
- * record is in today's P_* order (np = P_COUNT); values the stored data did not have are
- * UP_DEF until used (up_values: the default for the record's engine). Felucca's banks
- * ("UPB1", 192-byte records mapped by count: the last 8 values P_E0..P_E7, the first
- * np - 8 P_LEVEL.. in order) are converted when loaded. Any other shape reads as empty.
+ * Jangada: a bank ("UPB3", Jangada 0.9) stores the stable keys of its values (keys.h) once, and
+ * each record its values in that order, one signed byte each (every track parameter is
+ * -128..127, project.c JNG2), so parameters can be added or moved. In RAM every record is in
+ * today's P_* order (np = P_COUNT); values the stored data did not have are UP_DEF until used
+ * (up_values: the default for the record's engine). Older banks are converted when loaded
+ * (up_bank_load): "UPB2" (Jangada 0.1 .. 0.8.2, two bytes a value, room for 88: full at 0.9)
+ * and Felucca's "UPB1" (192-byte records mapped by count: the last 8 values P_E0..P_E7, the
+ * first np - 8 P_LEVEL.. in order). Any other shape reads as empty.
  *
  * With -DUP_HOST (host test) only the part above #ifndef UP_HOST is built;
  * it needs nothing but core.h. */
 #define UP_PER_BANK 16u
-#define UP_PMAX 88u                              /* room for P_COUNT to grow */
+#define UP_PMAX 128u                             /* KEY_MAX: room for every key */
 #define UP_USED 0xA5u
-#define UP_VER 2u
-#define UP_BANK_MAGIC 0x32425055u                /* "UPB2" */
-#define UP_DEF ((int16_t)-32768)                 /* not stored: the engine's / TP default */
+#define UP_VER 3u
+#define UP_BANK_MAGIC 0x33425055u                /* "UPB3" */
+#define UP_DEF ((int8_t)-128)                    /* not stored: the engine's / TP default (a value is -127..127) */
 typedef struct {
     uint8_t used, ver, engine, np;               /* UP_USED, UP_VER, engine, values stored */
     char name[12];                               /* ASCII 32..126, 0-padded (no 0 when 12 long) */
-    int16_t p[UP_PMAX];                          /* in the bank's key order (RAM: P_* order) */
+    int8_t p[UP_PMAX];                           /* in the bank's key order (RAM: P_* order) */
     uint8_t note[16], flags[16];                 /* note 0 = rest; flags 1 accent, 2 slide, 4 tie */
 } up_rec_t;
 typedef struct {
@@ -33,10 +35,30 @@ typedef struct {
     uint8_t key[UP_PMAX];                        /* the stable key of each value of a record */
     up_rec_t r[UP_PER_BANK];
 } up_bank_t;
-_Static_assert(sizeof(up_rec_t) == 224, "user preset record layout");
+_Static_assert(sizeof(up_rec_t) == 176, "user preset record layout");
 _Static_assert(P_COUNT <= UP_PMAX && P_COUNT < KEY_MAX, "user preset record: P_COUNT");
+static int8_t up_v8(int32_t v) { return (int8_t)(v < -127 ? -127 : v > 127 ? 127 : v); }   /* a value into a record (never UP_DEF) */
 
-/* Felucca's bank, read and converted (up_bank_check) */
+/* Jangada 0.1 .. 0.8.2's bank ("UPB2"), read and converted (up_bank_load) */
+#define UP_V2_MAGIC 0x32425055u                  /* "UPB2" */
+#define UP_V2_PMAX 88u
+#define UP_V2_DEF ((int16_t)-32768)
+typedef struct {
+    uint8_t used, ver, engine, np;
+    char name[12];
+    int16_t p[UP_V2_PMAX];
+    uint8_t note[16], flags[16];
+} up_rec_v2_t;
+typedef struct {
+    uint32_t magic;
+    uint16_t rsize, nslot;
+    uint8_t np, rsv[3];
+    uint8_t key[UP_V2_PMAX];
+    up_rec_v2_t r[UP_PER_BANK];
+} up_bank_v2_t;
+_Static_assert(sizeof(up_rec_v2_t) == 224 && sizeof(up_bank_v2_t) == 3684, "Jangada 0.8.2's user preset bank");
+
+/* Felucca's bank, read and converted (up_bank_load) */
 #define UP_V1_MAGIC 0x31425055u                  /* "UPB1" */
 #define UP_V1_PMAX 72u
 typedef struct {
@@ -88,84 +110,119 @@ static void up_bank_fresh(up_bank_t *bk)        /* the header of a bank in today
         bk->key[i] = P_KEY[i];
 }
 
-/* a Felucca record (mapped by count, see the top) -> today's, in place: d may overlap the bytes
- * of s, so s is copied first */
-static void up_from_v1(up_rec_t *d, const up_rec_v1_t *s)
+/* a Felucca record (mapped by count, see the top) -> today's */
+static void up_from_v1(up_rec_t *d, const up_rec_v1_t *c)
 {
-    up_rec_v1_t c = *s;
     uint32_t i, nc;
     memset(d, 0, sizeof *d);
-    if (c.used != UP_USED || c.ver != 1u || c.np < 8u || c.np > UP_V1_PMAX || !c.name[0])
+    if (c->used != UP_USED || c->ver != 1u || c->np < 8u || c->np > UP_V1_PMAX || !c->name[0])
         return;                                  /* empty or not readable: an empty slot */
-    nc = c.np - 8u;
+    nc = c->np - 8u;
     d->used = UP_USED;
     d->ver = UP_VER;
-    d->engine = c.engine;
+    d->engine = c->engine;
     d->np = P_COUNT;
-    memcpy(d->name, c.name, sizeof d->name);
+    memcpy(d->name, c->name, sizeof d->name);
     for (i = 0; i < P_COUNT; i++)
         d->p[i] = UP_DEF;
     for (i = 0; i < nc; i++)                     /* P_LEVEL..: keys 0.. as they were */
-        d->p[key_param(i)] = c.p[i];
+        if (key_param(i) < P_COUNT)
+            d->p[key_param(i)] = up_v8(c->p[i]);
     for (i = 0; i < 8u; i++)
-        d->p[P_E0 + i] = c.p[nc + i];
-    memcpy(d->note, c.note, sizeof d->note);
-    memcpy(d->flags, c.flags, sizeof d->flags);
+        d->p[P_E0 + i] = up_v8(c->p[nc + i]);
+    memcpy(d->note, c->note, sizeof d->note);
+    memcpy(d->flags, c->flags, sizeof d->flags);
 }
 
-/* after loading bank b (len bytes, -1 = none): a Felucca bank is converted, a bank with other
- * keys is mapped to today's P_* order, any other shape -> empty */
+/* values vals[n] (two bytes, UP_V2_DEF: not stored) under keys[n] -> d->p in today's P_* order */
+static void up_keyed(up_rec_t *d, const uint8_t *keys, const int16_t *vals, uint32_t n)
+{
+    int16_t v[P_COUNT];
+    uint32_t i;
+    key_map(keys, vals, n, v, UP_V2_DEF);
+    for (i = 0; i < P_COUNT; i++)
+        d->p[i] = v[i] == UP_V2_DEF ? UP_DEF : up_v8(v[i]);
+    for (; i < UP_PMAX; i++)
+        d->p[i] = 0;
+    d->np = P_COUNT;
+}
+
+/* bank b from its stored bytes raw (len, -1 = none; not up_bank[b] itself): today's "UPB3" as it is (mapped
+ * to today's keys when stored with others), Jangada 0.8.2's "UPB2" and Felucca's "UPB1" converted; any other
+ * shape -> empty (up_foreign: a save would wipe its 16). 1 = a bank this build reads (or none) */
 static void up_pat_norm(uint8_t *note, uint8_t *flags);
-static void up_bank_check(uint32_t b, int len)
+static int up_bank_kind(const void *raw, int len)  /* 3 UPB3, 2 UPB2, 1 UPB1, 0 not a bank */
+{
+    const up_bank_t *b3 = (const up_bank_t *)raw;
+    const up_bank_v2_t *b2 = (const up_bank_v2_t *)raw;
+    const up_bank_v1_t *b1 = (const up_bank_v1_t *)raw;
+    if (len == (int)sizeof *b3 && b3->magic == UP_BANK_MAGIC && b3->rsize == sizeof(up_rec_t) &&
+        b3->nslot == UP_PER_BANK && b3->np && b3->np <= UP_PMAX)
+        return 3;
+    if (len == (int)sizeof *b2 && b2->magic == UP_V2_MAGIC && b2->rsize == sizeof(up_rec_v2_t) &&
+        b2->nslot == UP_PER_BANK && b2->np && b2->np <= UP_V2_PMAX)
+        return 2;
+    if (len == (int)sizeof *b1 && b1->magic == UP_V1_MAGIC && b1->rsize == sizeof(up_rec_v1_t) &&
+        b1->nslot == UP_PER_BANK)
+        return 1;
+    return 0;
+}
+static int up_bank_load(uint32_t b, const void *raw, int len)
 {
     up_bank_t *bk = &up_bank[b];
-    up_bank_v1_t *v1 = (up_bank_v1_t *)(void *)bk;
-    uint32_t i;
-    if (len == (int)sizeof *v1 && v1->magic == UP_V1_MAGIC && v1->rsize == sizeof(up_rec_v1_t) &&
-        v1->nslot == UP_PER_BANK) {
-        /* in place, last record first: record i moves up (8 + 192 i -> 100 + 224 i), never onto
-         * a record not yet converted */
-        for (i = UP_PER_BANK; i-- > 0;) {
-            uint32_t k;
-            up_from_v1(&bk->r[i], &v1->r[i]);
-            for (k = 0; k < 16u; k++)
-                up_pat_norm(&bk->r[i].note[k], &bk->r[i].flags[k]);
-        }
-        up_foreign[b] = 0;
-        up_bank_fresh(bk);
-        return;
-    }
-    if (len != (int)sizeof *bk || bk->magic != UP_BANK_MAGIC || bk->rsize != sizeof(up_rec_t) ||
-        bk->nslot != UP_PER_BANK || !bk->np || bk->np > UP_PMAX) {
-        up_foreign[b] = len > 0;                     /* (another build's bank: a save would wipe its 16) */
-        memset(bk, 0, sizeof *bk);
-        return;
-    }
+    uint32_t i, k, kind = len > 0 ? (uint32_t)up_bank_kind(raw, len) : 0u;
+    memset(bk, 0, sizeof *bk);
     up_foreign[b] = 0;
-    for (i = 0; i < UP_PER_BANK; i++) {              /* the patterns as the parser leaves them */
-        uint32_t k;
+    if (len <= 0)
+        return 1;
+    if (!kind) {
+        up_foreign[b] = 1;
+        return 0;
+    }
+    if (kind == 1u) {
+        const up_bank_v1_t *v1 = (const up_bank_v1_t *)raw;
+        for (i = 0; i < UP_PER_BANK; i++)
+            up_from_v1(&bk->r[i], &v1->r[i]);
+    } else if (kind == 2u) {
+        const up_bank_v2_t *v2 = (const up_bank_v2_t *)raw;
+        for (i = 0; i < UP_PER_BANK; i++) {
+            const up_rec_v2_t *o = &v2->r[i];
+            up_rec_t *r = &bk->r[i];
+            if (o->used != UP_USED || o->ver != 2u || o->np != v2->np)
+                continue;                            /* empty or not readable: an empty slot */
+            r->used = UP_USED;
+            r->ver = UP_VER;
+            r->engine = o->engine;
+            memcpy(r->name, o->name, sizeof r->name);
+            up_keyed(r, v2->key, o->p, v2->np);
+            memcpy(r->note, o->note, sizeof r->note);
+            memcpy(r->flags, o->flags, sizeof r->flags);
+        }
+    } else {
+        uint32_t np, same;
+        memcpy(bk, raw, sizeof *bk);
+        np = bk->np;
+        for (i = 0, same = np == P_COUNT; same && i < np; i++)
+            same = bk->key[i] == P_KEY[i];
+        if (!same) {                                 /* stored with other keys (another version): to today's order */
+            uint8_t key[UP_PMAX];
+            memcpy(key, bk->key, sizeof key);
+            for (i = 0; i < UP_PER_BANK; i++) {
+                up_rec_t *r = &bk->r[i];
+                int16_t v[UP_PMAX];
+                if (r->used != UP_USED || r->ver != UP_VER || r->np != np)
+                    continue;
+                for (k = 0; k < np; k++)
+                    v[k] = r->p[k] == UP_DEF ? UP_V2_DEF : r->p[k];
+                up_keyed(r, key, v, np);
+            }
+        }
+    }
+    for (i = 0; i < UP_PER_BANK; i++)                /* the patterns as the parser leaves them */
         for (k = 0; k < 16u; k++)
             up_pat_norm(&bk->r[i].note[k], &bk->r[i].flags[k]);
-    }
-    {   /* stored with other keys (another version): to today's order */
-        uint8_t key[UP_PMAX];
-        uint32_t np = bk->np, same = np == P_COUNT;
-        for (i = 0; same && i < np; i++)
-            same = bk->key[i] == P_KEY[i];
-        if (same)
-            return;
-        memcpy(key, bk->key, sizeof key);
-        for (i = 0; i < UP_PER_BANK; i++) {
-            up_rec_t *r = &bk->r[i];
-            int16_t v[P_COUNT];
-            if (r->used != UP_USED || r->ver != UP_VER || r->np != np)
-                continue;
-            key_map(key, r->p, np, v, UP_DEF);
-            memcpy(r->p, v, sizeof v);
-            r->np = P_COUNT;
-        }
-        up_bank_fresh(bk);
-    }
+    up_bank_fresh(bk);
+    return 1;
 }
 
 /* the record's values in today's P_* order; def = the defaults for what it does not hold */
@@ -248,7 +305,7 @@ static int up_parse(const uint8_t *a, uint32_t na, up_rec_t *r, uint32_t *slot)
     for (i = 0; i < n; i++)
         r->name[i] = (char)a[2 + i];
     for (i = 0; i < P_COUNT; i++, k += 2u)
-        r->p[i] = (int16_t)((int32_t)((a[k] & 127u) | (a[k + 1] & 127u) << 7) - 8192);
+        r->p[i] = up_v8((int32_t)((a[k] & 127u) | (a[k + 1] & 127u) << 7) - 8192);
     for (i = 0; i < 16u; i++, k += 2u) {
         r->note[i] = a[k];
         r->flags[i] = a[k + 1];
@@ -279,7 +336,11 @@ static void up_boot(void)                      /* persist_boot: the banks from f
 #if FELUCCA_FLASH
     uint32_t b;
     for (b = 0; b < UP_SLOTS / UP_PER_BANK; b++)
-        up_bank_check(b, flash_ok ? st_load(OBJ_UPRESET0 + b, &up_bank[b], sizeof up_bank[b]) : -1);
+    {
+        uint32_t len = 0;
+        const uint8_t *raw = flash_ok ? st_view(OBJ_UPRESET0 + b, &len) : 0;   /* (in place: an old bank is larger) */
+        up_bank_load(b, raw, raw ? (int)len : -1);
+    }
 #endif
 }
 
@@ -342,7 +403,7 @@ static int up_store(uint32_t k, const char *name)
             r.name[i] = b[i];
     }
     for (i = 0; i < P_COUNT; i++)
-        r.p[i] = TSEL->p[i];
+        r.p[i] = up_v8(TSEL->p[i]);
     up_pat_from(&r, TSEL->step);
     return up_put(k, &r);
 }

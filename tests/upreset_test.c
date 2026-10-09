@@ -24,6 +24,14 @@ static int st_prog(uint32_t off, const void *src, uint32_t n)
 #include "../firmware/src/storage.c"
 #include "../firmware/src/upreset.c"
 
+static int load_bank(uint32_t b)                 /* as up_boot: the stored bytes in place */
+{
+    uint32_t n = 0;
+    const uint8_t *raw = st_view(OBJ_UPRESET0 + b, &n);
+    up_bank_load(b, raw, raw ? (int)n : -1);
+    return raw ? (int)n : -1;
+}
+
 static int check(const char *what, int ok)
 {
     printf("%-46s %s\n", what, ok ? "ok" : "FAIL");
@@ -109,20 +117,22 @@ int main(void)
     bad += check("bank fits one object", sizeof(up_bank_t) <= ST_PAYLOAD_MAX);
     bad += check("bank save", st_save(OBJ_UPRESET0 + 1, &up_bank[1], sizeof up_bank[1]) == 0);
     memset(up_bank, 0, sizeof up_bank);
-    len = st_load(OBJ_UPRESET0 + 1, &up_bank[1], sizeof up_bank[1]);
-    up_bank_check(1, len);
+    len = load_bank(1);
     got = *up_rec(17);
     bad += check("bank load: the record is back", up_used(17) && !memcmp(&got, &r, sizeof r));
     bad += check("other slots empty", !up_used(16) && !up_used(18) && !up_used(0));
-    len = st_load(OBJ_UPRESET0, &up_bank[0], sizeof up_bank[0]);
-    up_bank_check(0, len);
+    len = load_bank(0);
     bad += check("bank 0 never written -> empty", len < 0 && !up_used(0) && up_bank[0].magic == 0);
     bad += check("banks in 0xDC000..0xDFFFF", st_sector(OBJ_UPRESET0, 0) == 0xDC000u &&
                                                    st_sector(OBJ_UPRESET0 + 1, 1) == 0xDF000u &&
                                                    st_sector(OBJ_PROJECT0 + 3, 1) + 4096u <= 0xA0000u);
-    up_bank[1].rsize = 190;                                 /* another record layout */
-    up_bank_check(1, (int)sizeof up_bank[1]);
-    bad += check("bank with another record size -> empty", !up_used(17));
+    {
+        static up_bank_t c;
+        c = up_bank[1];
+        c.rsize = 190;                                      /* another record layout */
+        up_bank_load(1, &c, (int)sizeof c);
+        bad += check("bank with another record size -> empty, kept (foreign)", !up_used(17) && up_foreign[1]);
+    }
     up_bank_fresh(&up_bank[1]);
     *up_rec(17) = r;
     up_rec(17)->ver = UP_VER + 1u;
@@ -148,13 +158,13 @@ int main(void)
                 o->np = (uint8_t)np;
                 memcpy(o->name, "OLD", 3);
                 for (i = 0; i < np; i++)
-                    o->p[i] = (int16_t)(2000 + 10 * k + i);
+                    o->p[i] = (int16_t)(k + i - 60);
                 o->note[0] = 60;
                 o->flags[0] = SF_ACCENT;
             }
             memset(up_bank, 0, sizeof up_bank);
             st_save(OBJ_UPRESET0, &f, sizeof f);
-            up_bank_check(0, st_load(OBJ_UPRESET0, &up_bank[0], sizeof up_bank[0]));
+            load_bank(0);
             ok = up_bank[0].magic == UP_BANK_MAGIC && up_bank[0].np == P_COUNT;
             for (k = 0; k < UP_PER_BANK; k++) {
                 if (k % 5u) {
@@ -165,15 +175,15 @@ int main(void)
                       up_rec(k)->note[0] == 60 && up_rec(k)->flags[0] == SF_ACCENT;
                 up_params(up_rec(k), v, def);
                 for (i = 0; i < nc; i++)                 /* P_LEVEL.. in order */
-                    ok &= v[i] == (int16_t)(2000 + 10 * k + i);
+                    ok &= v[i] == (int16_t)(k + i - 60);
                 for (i = nc; i < P_E0; i++)              /* added since (SLICER, the matrix): defaults */
                     ok &= v[i] == def[i];
                 for (i = 0; i < 8u; i++)                 /* the engine's 8 */
-                    ok &= v[P_E0 + i] == (int16_t)(2000 + 10 * k + nc + i);
+                    ok &= v[P_E0 + i] == (int16_t)(k + nc + i - 60);
                 for (i = 8u; i < NEDIT; i++)             /* E9..: defaults */
                     ok &= v[P_E0 + i] == def[P_E0 + i];
             }
-            bad += check(t ? "Felucca bank (np 53): converted, SLICER defaults" : "Felucca bank (np 57): converted, in place", ok);
+            bad += check(t ? "Felucca bank (np 53): converted, SLICER defaults" : "Felucca bank (np 57): converted", ok);
         }
     }
     {   /* a bank stored with other keys (a later build): mapped by key */
@@ -191,7 +201,11 @@ int main(void)
         up_rec(2)->p[0] = 7;
         up_rec(2)->p[1] = 8;
         up_rec(2)->p[2] = 9;
-        up_bank_check(0, (int)sizeof up_bank[0]);
+        {
+            static up_bank_t c;
+            c = up_bank[0];
+            up_bank_load(0, &c, (int)sizeof c);
+        }
         up_params(up_rec(2), v, def);
         ok = up_used(2) && up_bank[0].np == P_COUNT && v[P_E0] == 7 && v[P_LEVEL] == 8;
         for (i = 0; i < P_COUNT; i++)
@@ -199,9 +213,44 @@ int main(void)
                 ok &= v[i] == def[i];
         bad += check("other keys: mapped by key, unknown skipped", ok);
     }
+    {   /* Jangada 0.8.2's bank ("UPB2", two bytes a value, keyed): converted when loaded, from flash as it is */
+        static up_bank_v2_t o;
+        memset(&o, 0, sizeof o);
+        o.magic = UP_V2_MAGIC;
+        o.rsize = sizeof(up_rec_v2_t);
+        o.nslot = UP_PER_BANK;
+        o.np = 86;                                       /* 0.8.2: P_LEVEL .. P_VLEAD, keys in that order */
+        for (i = 0; i < 86u; i++)
+            o.key[i] = P_KEY[i];
+        o.r[4].used = UP_USED;
+        o.r[4].ver = 2;
+        o.r[4].engine = 2;
+        o.r[4].np = 86;
+        memcpy(o.r[4].name, "RUST BASS", 9);
+        for (i = 0; i < 86u; i++)
+            o.r[4].p[i] = (int16_t)((int32_t)i - 43);
+        o.r[4].p[3] = UP_V2_DEF;                         /* not stored there: the default */
+        o.r[4].p[5] = 300;                               /* out of a byte: kept at its end */
+        o.r[4].note[0] = 48;
+        memset(up_bank, 0, sizeof up_bank);
+        bad += check("UPB2 is a bank this build reads", st_save(OBJ_UPRESET0, &o, sizeof o) == 0 &&
+                                                            up_bank_kind(&o, (int)sizeof o) == 2);
+        load_bank(0);
+        up_params(up_rec(4), v, def);
+        ok = up_used(4) && up_bank[0].magic == UP_BANK_MAGIC && !memcmp(up_rec(4)->name, "RUST BASS", 10) &&
+             up_rec(4)->engine == 2 && up_rec(4)->note[0] == 48 && v[3] == def[3] && v[5] == 127;
+        for (i = 0; i < 86u; i++)
+            if (i != 3u && i != 5u)
+                ok &= v[i] == (int16_t)((int32_t)i - 43);
+        for (i = 86; i < P_COUNT; i++)                   /* added since (the INSERT): defaults */
+            ok &= v[i] == def[i];
+        for (k = 0; k < UP_PER_BANK; k++)
+            ok &= k == 4u || !up_used(k);
+        bad += check("UPB2 (Jangada 0.8.2): converted, every value, new ones default", ok);
+    }
     r.np = P_COUNT;
     for (i = 0; i < P_COUNT; i++)
-        r.p[i] = (int16_t)i;
+        r.p[i] = (int8_t)i;
     up_params(&r, v, def);
     ok = 1;
     for (i = 0; i < P_COUNT; i++)
