@@ -98,15 +98,15 @@ FM-1, e nada sai do seu navegador.
 
 | | |
 |---|---|
-| **Motores** | 10: ANALOG (superwave, filtro ladder estilo Moog), FM6 (6 operadores, Dexed), DIGITAL (FM 4 op), PHASE, LOFI, SAMPLE, VOICE, TRIO, WHEEL, GRAIN |
+| **Motores** | 12: ANALOG (superwave, filtro ladder estilo Moog), FM6 (6 operadores, Dexed), PHYS (modelos físicos), NOISE, DIGITAL (FM 4 op), PHASE, LOFI, SAMPLE, VOICE, TRIO, WHEEL, GRAIN |
 | **Vozes e trilhas** | 8 vozes por 4 trilhas (3 synths + bateria, ou 4 synths) |
 | **Parâmetros** | 16 por motor, matriz de modulação de 4 slots com 13 origens (4 delas knobs de macro) |
-| **Presets** | 93 de fábrica (31 escuros, drones e nordestinos da Jangada), 32 de usuário, 72 patches FM6 (8 + dois bancos de 32) |
+| **Presets** | 145 de fábrica (45 escuros, drones, industriais e nordestinos da Jangada), 32 de usuário, 72 patches FM6 (8 + dois bancos de 32) |
 | **Bateria** | 5 kits da Jangada + 32 sintetizados + GM; 7 batidas de fábrica |
 | **Sequencer** | 64 passos por trilha, acordes, ratchet, chance, acento, slide, swing; arp UDI / RPT até 4 compassos |
-| **Efeitos** | distorção por trilha (5 tipos), SLICER, chorus, delay, 3 reverbs, DUST / DUCK / FILT / TAPE / HUM no master, 16 punch-ins |
+| **Efeitos** | distorção (5 tipos) e INSERT (8 tipos) por trilha, SLICER, chorus, delay, 3 reverbs, DUST / DUCK / FILT / TAPE / HUM no master, 16 punch-ins |
 | **Ao vivo** | 5 camadas (segurar um botão), drones com HOLD, EVOL, TENS, RAMP |
-| **Conexões** | USB MIDI + áudio (entrada estéreo 44,1 kHz) + console, MIDI TRS, clock in (USB / TRS) e out |
+| **Conexões** | USB MIDI + áudio (entrada estéreo 44,1 kHz) + console, MIDI TRS, clock in (USB / TRS) e out, MIDI LEARN (16 CCs) |
 | **Memória** | 4 projetos, autosave, backup completo pelo editor, projetos e presets com chaves estáveis |
 | **Hardware** | o FM-1 de fábrica: nada a soldar, a área de boot nunca é tocada |
 
@@ -196,6 +196,10 @@ solte, e ele continua respirando sozinho, inclusive enquanto você toca outras t
   sweeps LP / HP, phone, crush, alias, gate, echo e wobble no mix inteiro, enquanto a tecla está
   apertada.
 - **Reverbs** (FX → REVERB, TYPE): **ROOM**, **SPRING** (mola) e **PLATE** (rede de atrasos estéreo).
+- **INSERT por trilha** (FX → INSERT, depois do DIST; o MIX no INSERT 2): **SOFT**, **HARD**, **FOLD**,
+  **FUZZ** (DRIVE TONE LEVEL), **CRUSH** (BITS, um sample-and-hold RATE de 689 Hz a 44 kHz, LPF), **PHASR**,
+  **FLANG** e **CHOR** (RATE DEPTH FDBK). Depois do DIST, o grit empilha: um FUZZ num FOLD, um CRUSH num
+  FLANG. OFF (o padrão) deixa a trilha como era, bit a bit.
 
 ### Bateria
 - Kits da Jangada, os primeiros da lista (PRESETS na trilha de bateria, ou GLO → KIT):
@@ -233,12 +237,24 @@ solte, e ele continua respirando sozinho, inclusive enquanto você toca outras t
   categoria). **ALL** é a lista inteira. As vozes dos bancos FM6 e os presets de usuário aparecem no ALL.
 - **A página PRESETS**: toque **SAVE** (de novo: USER, PROJECT, TOOLS) com uma trilha de synth
   selecionada. KNOB 1 **No.** um preset de cada vez, KNOB 2 **CAT** a categoria, KNOB 3 **KIND** um grupo
-  de cada vez (com o ícone do motor). Para trocar só o motor, use a camada EDIT (teclas 1–10).
+  de cada vez (com o ícone do motor); o KNOB 4 mostra quantos são. Para trocar só o motor, use a camada EDIT
+  (teclas 1–12).
 - **O Dexed edita a Jangada ao vivo**: com o MIDI do Dexed (ou outro editor DX7) apontado para o FM-1,
   girar um knob lá muda a trilha FM6 na hora; mande uma voz para a trilha ou um cartucho de 32 para um
   banco, e peça de volta. O cartucho vai para o banco em que está o PTCH da trilha FM6 (B33–B64: banco
   2); com o PTCH num patch de fábrica a tela pergunta **FM6 BANK 1? SAVE=YES**: OCT- / OCT+ escolhem o
   banco 1 ou 2, SAVE grava, qualquer outro botão cancela.
+- **PHYS**: modelos físicos (DaisySP e Rings, em ponto fixo). **MODAL** (sinos, barras, placas), **STRNG**
+  (uma corda pinçada: cavalete curvo que zumbe, ou corda dura), **MEMB** (uma pele de tambor que cai de
+  afinação depois da batida) e **SYMP** (uma corda com três cordas simpáticas soando junto); BRIT, DAMP,
+  POS, ACC, **BOW** (sustenta) e EXC. Presets da Jangada: **BERIMBAU**, **VIOLA CAIPIRA**, **ALFAIA**,
+  **BIGORNA**, **TRILHO** (um trilho golpeado), **SINO RACHADO**, **PIANO PODRE** e **FERRO VELHO** (sucata
+  friccionada, um drone).
+- **NOISE**: **ANLG** (ruído branco e impulsos), **DUST** (só os impulsos: estalos, gotas), **LFSR** (um
+  registrador com clock acima da nota) e **META** (uma sequência curta de registrador: um tom metálico); COLR
+  do branco ao rosa e ao marrom, filtro de passa-baixa a passa-banda estreito, DRFT, CRSH. Presets da
+  Jangada: **FORNALHA** e **CHAMINE** (drones de ruído marrom), **ESTATICA**, **ENGRENAGEM**, **VAPOR**,
+  **SUCATA NZ**.
 - E os outros: DIGITAL (FM de 4 operadores), PHASE, LOFI, SAMPLE, VOICE, TRIO, WHEEL, GRAIN.
 - **16 parâmetros por motor** (o Felucca tem 8).
 - **Matriz de modulação** (LFO → MOD 1–4): origens LFO, ENV, VEL, KEY, RND, MODW, AT, EXPR, DRIFT e
@@ -258,7 +274,7 @@ segurada a **trava** aberta. PLAY, REC e OCT continuam valendo dentro dela.
 | Segure | Teclas | Knobs 1 · 2 · 3 · 4 |
 |---|---|---|
 | **FX** | os 16 efeitos punch-in | FILT · DUST · DUCK · TAPE |
-| **GLO** | 1–4 mute, 5–8 solo, 9 segurada = virada (fill), 10 = o próximo compasso é virada, a última tap tempo | nível das trilhas 1–4 |
+| **GLO** | 1–4 mute, 5–8 solo, 9 segurada = virada (fill), 10 = o próximo compasso é virada, 14 = MIDI LEARN, a última tap tempo | nível das trilhas 1–4 |
 | **SEQ** | os 16 passos da página (vazio = cria, cheio = apertar e soltar apaga); pretas: página, deslocar, metade / dobro, transpor, **F#5 segurada apaga** o que o playhead passa | NOTE · DIV · SWG · LEN; com passos segurados: NOTE · RTCH · CHNC · FLAG |
 | **SCL** | qualquer tecla = o tom da música | CHRD · SCL · QNT · TRN |
 | **EDIT** | o motor da trilha; a última = trilha 4 DRUM / SYNTH | PRST · VOICE · GLIDE · LVL |
@@ -276,6 +292,8 @@ gravar abre a tela **TRACKS**: BPM, compasso.beat, uma linha por trilha com pass
 ### Sequencer e arpejador
 - 64 passos por trilha, acordes, ties, acento, slide; gravação ao vivo.
 - **RTCH** ratchet x1–x4 e **CHNC** chance 100/75/50/25 % por passo (STEP 2).
+- O **arp** segue TRN, ROOT, SCALE e QNT nas teclas que segura (com HOLD também): mude o tom e o arpejo
+  vai junto.
 - **CHORD+**: com um modo de acorde ligado (SCL → CHORD), as teclas pretas mudam o acorde, seguradas
   antes da branca ou apertadas com o acorde soando: **F#** maior ↔ menor, **G#** + sétima, **A#** sus4,
   **C#** + nona, **D#** inversão (combinam; sétima e nona vêm da escala). Na mesma página, **STRM**
@@ -291,7 +309,13 @@ gravar abre a tela **TRACKS**: BPM, compasso.beat, uma linha por trilha com pass
 
 ### MIDI e USB
 - **Entrada MIDI pelo conector TRS** (3,5 mm) e pelo USB: canais 1–3 as trilhas de synth, o 4 a trilha
-  4 quando é SYNTH, o canal de bateria (padrão 10) a bateria, os outros a trilha selecionada.
+  4 quando é SYNTH, o canal de bateria (padrão 10) a bateria, os outros a trilha selecionada. **GLO →
+  SYSTEM ROUT = SEL**: todo canal toca a trilha selecionada (um teclado no canal 1 toca o que o PRESETS
+  está navegando).
+- **MIDI LEARN** (segure **GLO** + tecla 14): gire um knob, mexa num controlador, e aquele CC passa a mover
+  aquele parâmetro daquela trilha, em qualquer canal; depois o próximo knob. **OCT−** tira o CC do
+  escolhido; GLO + 14 de novo encerra. Até 16, guardados com as settings; HOME → MIDI LEARN mostra quantos e
+  apaga todos.
 - Pitch bend, sustain, all notes off, mod wheel, aftertouch e expressão (como origens da matriz).
 - **Clock** (GLO → GLOBAL CLK): INT, **USB** ou **TRS**, pulso a pulso, sem deriva; **SYNC OUT** manda
   clock pelo USB.
@@ -329,7 +353,8 @@ gravar abre a tela **TRACKS**: BPM, compasso.beat, uma linha por trilha com pass
 - **Autosave**: parado e sem mexer por alguns segundos, o projeto vai para a flash e volta ao ligar.
   **OCT+** segurado ao ligar começa vazio; **HOME → NEW PROJECT** zera tudo.
 - Projetos e presets guardam cada valor com uma **chave estável**: versões novas abrem o que as velhas
-  salvaram. Projetos e presets do Felucca são lidos e convertidos.
+  salvaram. Projetos e presets do Felucca são lidos e convertidos. Desde a 0.9 cada valor ocupa um byte
+  (projetos "JNG2", presets de usuário "UPB3"): o que a 0.8.2 salvou abre, e sobra espaço para o que vier.
 - **Atualização segura**: o instalador recusa pacote danificado; o loader confere o CRC antes de
   liberar o firmware novo; **OCT−** ao ligar (ou dois boots que falham) abre o **resgate por USB**,
   testado numa gravação interrompida de verdade. A área de boot nunca é escrita, então um FM-1 com a
@@ -371,7 +396,7 @@ python3 tools/build_studio.py --get-zig   # o Studio (WebAssembly), uma vez
 ## Próximos passos
 
 - MIDI mais fino (faixa do bend por canal, vibrato no CC1) e o nome do acorde no HOME.
-- Pianos quebrados (*Hurt*, *The Social Network*).
+- Mais pianos quebrados (*The Social Network*), depois do PIANO PODRE do PHYS.
 - Paletas RUST, ASH e MANGUE; a jangada na tela de boot.
 
 Ideias, sons e bugs: abra uma [issue](https://github.com/zednaked/jangada/issues).
