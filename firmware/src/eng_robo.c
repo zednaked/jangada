@@ -35,6 +35,7 @@ enum { RB_VOSIM, RB_GENDY, RB_WALSH, RB_SCAN, RB_COUNT };
 #define GD_MAX 16                    /* GENDY: breakpoints at most */
 #define WL_N 32                      /* WALSH: points (and functions) */
 #define SC_N 16                      /* SCAN: masses */
+#define SC_TOP (629146)              /* SCAN: the ring's ceiling, 0.6 in Q20 */
 
 static const char *const N_ROBO_PULS[] = {"1", "2", "3", "4", "5", "6", "7", "8", 0};
 static const char *const N_ROBO_PTS[] = {"4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", 0};
@@ -160,10 +161,24 @@ static void scan_step(robo_voice_t *R, voice_t *v, int32_t k, int32_t c, int32_t
         int32_t l = x[(i - 1u) & (SC_N - 1u)] + x[(i + 1u) & (SC_N - 1u)] - 2 * x[i];
         u[i] += ((l >> 2) * k >> 16) - ((x[i] >> 2) * c >> 16) - ((u[i] >> 2) * d >> 12);
     }
-    for (i = 0; i < SC_N; i++) {
-        x[i] = clamp(x[i] + u[i], -(2 << 20), 2 << 20);
-        R->u.s.w0[i] = R->u.s.w1[i];
-        R->u.s.w1[i] = (int16_t)clamp(x[i] >> 5, -32767, 32767);
+    {
+        int32_t top = 0, a;
+        for (i = 0; i < SC_N; i++) {
+            x[i] = clamp(x[i] + u[i], -(2 << 20), 2 << 20);
+            a = x[i] < 0 ? -x[i] : x[i];
+            top = a > top ? a : top;
+        }
+        if (top > SC_TOP) {                           /* (0.9.2) past the ceiling the whole ring shrinks, speeds
+                                                       * too: the shape stays, its level is held (pushed with
+                                                       * little loss it grew into the clamp) */
+            int32_t g = (int32_t)(((uint32_t)SC_TOP << 4) / (uint32_t)(top >> 8));   /* Q12 */
+            for (i = 0; i < SC_N; i++)
+                x[i] = (x[i] >> 4) * g >> 8, u[i] = (u[i] >> 4) * g >> 8;
+        }
+        for (i = 0; i < SC_N; i++) {
+            R->u.s.w0[i] = R->u.s.w1[i];
+            R->u.s.w1[i] = (int16_t)clamp(x[i] >> 5, -32767, 32767);
+        }
     }
 }
 
@@ -297,7 +312,9 @@ static void robo_render(track_t *t, voice_t *v, int32_t *out, uint32_t n, const 
                 k0 = 0, a0 = 32767, ph1 = 0;
             if ((uint32_t)k0 < np) {
                 o = ph1;
-                y = mulq15(32767 - osc_sine(ph1 + 0x40000000u), a0);   /* 2 sin^2 (the DC blocker centres it) */
+                y = mulq15(32767 - osc_sine(ph1 + 0x40000000u), a0) >> 1;   /* sin^2, 0 .. a0 (the DC blocker
+                                                                               * centres it; 0.9.2: x1, the pulses are
+                                                                               * one-sided: x2 clipped them) */
                 ph1 += fi;
                 if (ph1 < o)
                     k0++, a0 = mulq15(a0, b);
@@ -308,15 +325,17 @@ static void robo_render(track_t *t, voice_t *v, int32_t *out, uint32_t n, const 
                     cnt = hold, held = y >> sh << sh;
                 y = held;
             }
-            dc += ((y << 8) - dc) >> 8;
+            dc += ((y << 8) - dc) >> 9;               /* (~14 Hz: the low notes keep their bass) */
             y -= dc >> 8;
-            out[i] += voice_amp(clamp(y, -32767, 32767), m, i);
+            out[i] += voice_amp(soft_knee(y, 16384), m, i);   /* a knee, not a wall: at most 32767 */
         }
         break;
     }
     case RB_GENDY: {
         uint32_t np = 4u + (uint32_t)clamp(p[P_E2], 0, 127) * 13u / 128u, seg = (uint32_t)k0, sinc;
-        int32_t st = clamp(p[P_E1] * p[P_E1] / 4 + ((dr * 40) >> 8), 0, 8192);   /* STEP: up to 1/4 of the range */
+        int32_t st = p[P_E1] * p[P_E1] / 4;          /* STEP: up to 1/8 of the range a period */
+        st = clamp(st + ((st * (dr >> 4)) >> 11) * 3 / 4, 0, 8192);   /* the drift: 1/4 .. 7/4 of it (0.9.2: it
+                                                                      * added, and STEP stopped at 0) */
         int32_t tm = p[P_E3] / 16;                    /* TIME: 0 .. 7 */
         if (R->lay != 1u + RB_GENDY || R->u.g.n != np) {   /* PTS moved, or another mode's state is there */
             gendy_lay(R, np);
@@ -360,11 +379,19 @@ static void robo_render(track_t *t, voice_t *v, int32_t *out, uint32_t n, const 
             scan_lay(R, v, clamp(p[P_E4], 0, 127));
         scan_step(R, v, k, c, d + push / 8, push);
         for (i = 0; i < n; i++, ia += da) {
-            uint32_t j = ph0 >> 28, j1 = (j + 1u) & (SC_N - 1u), fr = (ph0 >> 13) & 0x7FFFu;
-            int32_t a = R->u.s.w0[j] + (((R->u.s.w0[j1] - R->u.s.w0[j]) * (int32_t)fr) >> 15);
-            int32_t b = R->u.s.w1[j] + (((R->u.s.w1[j1] - R->u.s.w1[j]) * (int32_t)fr) >> 15);
-            int32_t y = clamp((a + (((b - a) * ia) >> 15)) * 2, -32767, 32767);   /* last block's shape into this
-                                                                                * one's: no zipper; x2: a bump is thin */
+            /* four masses around the phase, each last block's place into this one's (no zipper), then a
+             * Catmull-Rom curve through them (0.9.2: lines left images at 16 x the note, loud in the bass) */
+            uint32_t j = ph0 >> 28, k;
+            int32_t q[4], t12 = (int32_t)((ph0 >> 16) & 0xFFFu), ca, cb, cc, y;
+            for (k = 0; k < 4u; k++) {
+                uint32_t jj = (j + k - 1u) & (SC_N - 1u);
+                q[k] = R->u.s.w0[jj] + (((R->u.s.w1[jj] - R->u.s.w0[jj]) * ia) >> 15);
+            }
+            ca = (3 * (q[1] - q[2]) + q[3] - q[0]) >> 1;
+            cb = (2 * q[0] - 5 * q[1] + 4 * q[2] - q[3]) >> 1;
+            cc = (q[2] - q[0]) >> 1;
+            y = q[1] + (((((((ca * t12) >> 12) + cb) * t12) >> 12) + cc) * t12 >> 12);
+            y += y >> 1;                              /* x1.5: a bump is thin (the knee below holds it) */
             ph0 += inc;
             y = robo_lp(&lp, y, lk);
             if (crsh) {
@@ -374,7 +401,7 @@ static void robo_render(track_t *t, voice_t *v, int32_t *out, uint32_t n, const 
             }
             dc += ((y << 8) - dc) >> 9;
             y -= dc >> 8;
-            out[i] += voice_amp(y, m, i);
+            out[i] += voice_amp(soft_knee(y, 16384), m, i);
         }
         break;
     }
