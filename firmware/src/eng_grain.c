@@ -97,9 +97,8 @@ typedef struct {
     uint8_t src;                 /* SRC + 1 the index holds, 0 = none */
     uint8_t nz;
 } gr_part_t;
-static gr_part_t gr_p[NTRK] __attribute__((section(".pool")));   /* Jangada: NTRK (G_T4) */
+/* (its state: the track's engine arena, engines.c eng_arena_of; Jangada 0.9) */
 
-static uint32_t gr_part(const track_t *t) { return (uint32_t)(t - trk) % NTRK; }
 static uint32_t gr_nz(uint32_t src) { return src < SMP_NSETS ? SMP_SETS[src].nz : usr_nz[(src - SMP_NSETS) % SMP_USER_SLOTS]; }
 static const smp_zone_t *gr_zone(uint32_t src, uint32_t zl)
 {
@@ -348,7 +347,7 @@ static int gr_run(gr_part_t *P, gr_grain_t *g, int32_t *acc, uint32_t n)
 
 static void grain_note_on(track_t *t, voice_t *v)
 {
-    gr_part_t *P = &gr_p[gr_part(t)];
+    gr_part_t *P = (gr_part_t *)eng_arena_of(t, ENGI_GRAIN);
     uint32_t vi = (uint32_t)(v - t->v) % NVOICE, i;
     v->s[0] = gr_find((uint32_t)t->p[P_E0] % SMP_NALL, v->note);
     v->s[1] = 0;                                    /* the first grain at once */
@@ -364,7 +363,7 @@ static void grain_note_on(track_t *t, voice_t *v)
  * one index entry is built */
 static void grain_block(track_t *t)
 {
-    gr_part_t *P = &gr_p[gr_part(t)];
+    gr_part_t *P = (gr_part_t *)eng_arena_of(t, ENGI_GRAIN);
     uint32_t src = (uint32_t)t->p[P_E0] % SMP_NALL, st = gr_stamp(src), i;
     if (!P->rng)
         P->rng = 0x2545F491;
@@ -382,7 +381,7 @@ static void grain_block(track_t *t)
 
 static void grain_render(track_t *t, voice_t *v, int32_t *out, uint32_t n, const vmod_t *m)
 {
-    gr_part_t *P = &gr_p[gr_part(t)];
+    gr_part_t *P = (gr_part_t *)eng_arena_of(t, ENGI_GRAIN);
     const int16_t *p = t->p;
     uint32_t vi = (uint32_t)(v - t->v) % NVOICE, i, mine = 0, nact = 0, iv;
     int32_t zl = v->s[0], acc[CTL], lp, y = v->s[2];

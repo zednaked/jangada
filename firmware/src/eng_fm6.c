@@ -52,7 +52,7 @@ static struct {                                  /* the patch through the macros
 } fm6_eff[NTRK];
 static fm6_lfo_t fm6_lfo[NTRK];
 static int32_t fm6_lfo_v[NTRK], fm6_lfo_d[NTRK]; /* this block's LFO value and delay (Q24) */
-static fm6_note_t fm6_note[NTRK][FM6_POLY];
+/* the voices' fm6_note_t: the track's engine arena (engines.c eng_arena_of; Jangada 0.9) */
 /* Jangada: which bank slots hold a patch (bit k of word b: B(32 b + k + 1)) and their names, kept by fm6_bank.c
  * (from flash at power-on, after every bank write; all empty without flash). The PRESETS list (ui.c) browses the
  * used ones by name without reading the flash */
@@ -294,7 +294,7 @@ static fm6_note_t *fm6_note_of(track_t *t, voice_t *v)
     if (t < &trk[0] || t >= &trk[NTRK])              /* (Jangada: track 4 can be a synth) */
         return 0;
     i = (uint32_t)(v - t->v);
-    return i < FM6_POLY ? &fm6_note[t - trk][i] : 0;
+    return i < FM6_POLY ? &((fm6_note_t *)eng_arena_of(t, ENGI_FM6))[i] : 0;
 }
 
 static void fm6_note_on(track_t *t, voice_t *v)

@@ -27,16 +27,6 @@ static const param_desc_t NOISE_LONG = {"LEN", F_INT, 0, 127, 0, N_NOISE_LONG, 0
 static const param_desc_t NOISE_META = {"LEN", F_INT, 0, 127, 0, N_NOISE_META, 0};
 static const param_desc_t NOISE_CLK = {"CLK", F_INT, 0, 127, 0, 0, "st"};           /* = edit[7]: above the key */
 
-static inline int32_t voice_amp(int32_t s, const vmod_t *m, uint32_t i) { return mulq15(mulq15(s, amp_at(m, i)), VOICE_FS); }
-static inline int32_t soft_knee(int32_t y, int32_t k)   /* linear up to k, then only the peaks saturate (SLOOP 2.5) */
-{
-    int32_t a = y < 0 ? -y : y;
-    if (a <= k)
-        return y;
-    a = k + (softclip((a - k) * 2) >> 1);
-    return y < 0 ? -a : a;
-}
-
 /* Galois taps of the long registers (maximal length: 2^n - 1 clocks) */
 static const uint32_t NOISE_TAPS[8] = {0x420000u, 0x90000u, 1u << 16 | 1u << 13, 0x6000u, 0x100Du, 0x500u, 0x110u, 0x60u};
 

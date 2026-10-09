@@ -921,13 +921,12 @@ static void draw_columns(void)
         if (!ui.pcat)
             r = cur, shown = total;                       /* (ALL: the place in the whole list) */
         fmt_int(val, preset_in(cur) ? (int32_t)r + 1 : 0);
-        str_cpy(u, "/", 8);
-        fmt_int(u + 1, (int32_t)shown);
-        draw_column(0, "No.", val, u, VAL(0u), -1, ICON_NONE);
+        fmt_int(u, (int32_t)shown);                       /* (0.9: the count in its own column: "/145" no longer fit) */
+        draw_column(0, "No.", val, "", VAL(0u), -1, ICON_NONE);
         draw_column(1, "CAT", is_drum(TSEL) ? "" : PC_NAMES[ui.pcat], "", VAL(1u), -1, ICON_AUTO);   /* (0.8.1; 0.8.2: KNOB 2) */
         draw_column(2, "KIND", is_drum(TSEL) || !total ? "" : preset_kind(cur), "", VAL(2u), -1,   /* (Jangada 0.6) */
                     !is_drum(TSEL) && total && preset_group(cur) < NENGINES ? engine_icon(ENGINES[preset_group(cur)]->name) : ICON_AUTO);
-        draw_column(3, "", "", "", C_HI, -1, ICON_AUTO);
+        draw_column(3, "TOTAL", is_drum(TSEL) ? "" : u, "", C_DIM, -1, ICON_AUTO);
         return;
     }
     if (cur_page()->graph == GR_USER) {                  /* SLOT, then three GO buttons */

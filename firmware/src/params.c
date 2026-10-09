@@ -48,7 +48,7 @@ static const char *const N_IRATE[] = {"689", "919", "1.1k", "1.4k", "1.8k", "2.2
 static const char *const N_SLCR[] = {"OFF", "GATE", "STUT"};             /* SL_OFF .. SL_STUT (slicer.c) */
 static const char *const N_SLDIV[] = {"1/8", "1/16", "1/32", "8T", "16T", "32T"};   /* SL_DEN */
 static const char *const N_ENGNAME[] = {"ANALOG", "DIGITAL", "PHASE", "LOFI", "SAMPLE", "VOICE", "TRIO", "WHEEL", "GRAIN",
-                                             "FM6", "NOISE",   /* (FM6 was missing: SLICE took its number) */
+                                             "FM6", "NOISE", "PHYS",   /* (FM6 was missing: SLICE took its number) */
 #if FELUCCA_SLICE
                                              "SLICE",
 #endif

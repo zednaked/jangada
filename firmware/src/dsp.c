@@ -130,3 +130,14 @@ static inline int32_t amp_at(const vmod_t *m, uint32_t i)
     int32_t x = (m->amp1 - m->amp0) * (int32_t)i;
     return m->amp0 + ((x + ((x >> 31) & (CTL - 1))) >> CTL_LOG2);
 }
+/* Jangada 0.9 (after SLOOP 2.5): a voice's sample s at its amplitude (NOISE, PHYS); a soft knee, linear up to k,
+ * then only the peaks saturate */
+static inline int32_t voice_amp(int32_t s, const vmod_t *m, uint32_t i) { return mulq15(mulq15(s, amp_at(m, i)), VOICE_FS); }
+static inline int32_t soft_knee(int32_t y, int32_t k)
+{
+    int32_t a = y < 0 ? -y : y;
+    if (a <= k)
+        return y;
+    a = k + (softclip((a - k) * 2) >> 1);
+    return y < 0 ? -a : a;
+}
