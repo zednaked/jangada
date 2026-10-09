@@ -2,10 +2,10 @@
  * Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments */
 /* Jangada (after SLOOP 2.3 and Felucca 1.0.1): the editor's backup and restore, editor protocol v5,
  * cmds 34-36 (web/EDITOR_PROTOCOL.md). Requests name objects, never flash addresses:
- *   0      the working project (stored as the autosave stores it: "JNG1", project.c)
+ *   0      the working project (stored as the autosave stores it: "JNG2", project.c)
  *   1      the settings (persist_t "PER2": palette, low cut, the panel calibration, the lights word;
  *          a backup of Jangada 0.2, without the lights word, restores too)
- *   2..5   the projects 1..4 ("JNG1"; length 0 = empty)
+ *   2..5   the projects 1..4 ("JNG2"; length 0 = empty)
  *   6..7   the user preset banks (up_bank_t "UPB2", upreset.c; length 0 = empty)
  *   8..9   the FM6 patch bank 1, B1..B16 and B17..B32 (fm6_half_t "FM6B", fm6_bank.c; length 0 = empty;
  *          after Felucca 1.0's id 8. A backup without them, Jangada 0.3 / 0.4's, restores and keeps the bank)
@@ -144,7 +144,7 @@ static uint32_t ed_bk_commit(void)
         fx_lowcut = (uint8_t)(settings.lowcut != 0);
         return 0;
     }
-    if (id <= 5u) {                                  /* a project: any stored format in, "JNG1" out */
+    if (id <= 5u) {                                  /* a project: any stored format in, "JNG2" out */
         uint32_t k = id - 2u;
         if (n) {
             if (!proj_import(&autosave_buf, raw, (int)n))

@@ -200,9 +200,9 @@ Requests name **objects**, never flash addresses:
 
 | id | object | bytes |
 | --- | --- | --- |
-| 0 | the working project (as it is now) | "JNG1" (`project.c` `proj_to_jng`, as the autosave stores it) |
+| 0 | the working project (as it is now) | "JNG2" (`project.c` `proj_to_jng`, as the autosave stores it; "JNG1" up to Jangada 0.8.2) |
 | 1 | the settings | `persist_t` "PER2": palette, low cut, zoom (reserved since Jangada: written 0, 0 / 1 accepted), the panel calibration (`panel_t`), the lights word (LIGHTS / KEYS / NOTES / USB AUDIO); one without the lights word (Jangada 0.2) is restored too, with the lights off |
-| 2..5 | the projects 1..4 | "JNG1"; length 0 = empty slot |
+| 2..5 | the projects 1..4 | "JNG2"; length 0 = empty slot |
 | 6..7 | the user preset banks (presets 1..16, 17..32) | `up_bank_t` "UPB2" (`upreset.c`, keyed); length 0 = empty |
 | 8..9 | (v6) the FM6 patch bank 1, B1..B16 and B17..B32 | `fm6_half_t` "FM6B" (`fm6_bank.c`): magic, version 1, 16 slots, the used bits, the half (0 / 1), 16 packed 128-byte records; 2064 bytes, length 0 = empty |
 | 10..11 | (v7) the FM6 patch bank 2, B33..B48 and B49..B64 | the same `fm6_half_t`, the half 2 / 3 |
@@ -222,8 +222,8 @@ object), a sample slot at most 80 KiB.
   save / load on the panel, replaces it: `BK_GET` of object 0 then answers 5). Check each object against
   the CRC of `BK_LIST`; a mismatch means it changed during the backup: start again.
 - **Writing.** `BK_PUT` stages one object in RAM; the commit checks the CRC, then the object as a load
-  checks it — projects: "JNG1" (or Felucca's FUN3 / FUN2 / FUN1, converted) with its size and sum, stored
-  as "JNG1"; banks: magic, record size, slot count, key count (other keys are mapped as at boot);
+  checks it — projects: "JNG2" or "JNG1" (or Felucca's FUN3 / FUN2 / FUN1, converted) with its size and sum, stored
+  as "JNG2"; banks: magic, record size, slot count, key count (other keys are mapped as at boot);
   settings: its size (with or without the lights word), magic, palette, low cut, a permutation of the
   buttons and knobs; an FM6 bank half: its size, magic, version, slot count, which half it is, every byte
   7-bit — and writes it through the
@@ -243,6 +243,9 @@ object), a sample slot at most 80 KiB.
 - **Projects** carry each track's FM6 patch since Jangada 0.5: "JNG1" byte 11 counts tagged sections after the
   tracks (tag, length u16 LE, data), section 1 = NTRK × the 128-byte packed FM6 record; an unknown section is
   skipped. A project without it (byte 11 = 0, Jangada 0.4) loads with each track's PTCH patch.
+- **"JNG2"** (Jangada 0.9) is "JNG1" with each track's values one signed byte each (every track parameter is
+  -128..127; the globals stay two bytes): the worst-case project left room for new parameters. The firmware reads
+  both and writes "JNG2"; a backup taken with 0.8.2 restores on 0.9 (its projects are "JNG1"), not the other way.
 
 ## FM6 patches (68-71, Jangada 0.5; after Felucca 1.0)
 

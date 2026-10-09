@@ -24,7 +24,8 @@
  * follow, core.h seqx_t sx; bits 0..4: its locks), then the step bytes, then each lock as step, key, value.
  * A project without it has none, as before. */
 #define PROJ_MAGIC 0x52474E4Au                 /* "JNGR": a RAM slot, today's layout */
-#define PROJ_MAGIC_JNG 0x31474E4Au             /* "JNG1": stored, keyed (proj_to_jng / proj_from_jng) */
+#define PROJ_MAGIC_JNG 0x31474E4Au             /* "JNG1": stored, keyed (proj_from_jng; written up to Jangada 0.8.2) */
+#define PROJ_MAGIC_JNG2 0x32474E4Au            /* "JNG2" (Jangada 0.9): as JNG1, a track's values one byte each */
 #define PROJ_MAGIC_V3 0x46554E33u              /* "FUN3": Felucca 0.9, 57 values a track = keys 0..56 */
 #define PROJ_NP_V3 57u
 #define PROJ_DEF ((int16_t)-32768)             /* a value the stored data has not: its default (proj_fill) */
@@ -210,8 +211,13 @@ static int proj_from_v3(project_t *q, const project_v3_t *v3, int n)
 /* "JNG1": magic, size, np, ng, sel, nsec, key[np] (+ a pad byte to even), g[ng],
  * NTRK x (p[np], engine, preset, step[NSTEP]), nsec x (tag, length u16, data[length]), FNV-1a of all
  * before. Little-endian, unaligned. nsec was 0 (Jangada 0.4 wrote no sections) */
+/* "JNG2" (Jangada 0.9): the same, p[np] one signed byte each (every track parameter is -128..127: tests/project_test.c
+ * checks the ranges); the globals stay two bytes (BPM). The worst-case JNG1 filled its flash object to 2 bytes; JNG2
+ * leaves room for the parameters to come. Both are read, JNG2 is written */
 #define JNG_HDR 12u
-#define JNG_SIZE(np, ng) (JNG_HDR + (((np) + 1u) & ~1u) + 2u * (ng) + NTRK * (2u * (np) + 2u + sizeof(step_t) * NSTEP) + 4u)
+#define JNG_SIZEW(np, ng, w) (JNG_HDR + (((np) + 1u) & ~1u) + 2u * (ng) + NTRK * ((w) * (np) + 2u + sizeof(step_t) * NSTEP) + 4u)
+#define JNG_SIZE(np, ng) JNG_SIZEW(np, ng, 1u)          /* JNG2, as written */
+#define JNG1_SIZE(np, ng) JNG_SIZEW(np, ng, 2u)
 #define JNG_SEC_FM6 1u                         /* section 1: NTRK x FM6_PACKED, the tracks' FM6 patches */
 #define JNG_FM6_SIZE (3u + NTRK * FM6_PACKED)
 #define JNG_SEC_SEQX 2u                        /* section 2: nudges, conditions, locks (see the top) */
@@ -241,13 +247,13 @@ static uint32_t jng_seqx_len(const project_t *q)   /* section 2's data length, 0
     }
     return any ? n : 0u;
 }
-static uint32_t jng_size(uint32_t np, uint32_t ng) { return JNG_SIZE(np, ng); }
+static uint32_t jng_size(uint32_t np, uint32_t ng, uint32_t w) { return JNG_SIZEW(np, ng, w); }
 
 static uint32_t proj_to_jng(const project_t *q, uint8_t *b)   /* -> bytes written */
 {
     uint32_t xl = jng_seqx_len(q);
-    uint32_t n = jng_size(P_COUNT, G_STORED) + (q->has_fm6 ? JNG_FM6_SIZE : 0u) + (xl ? 3u + xl : 0u), o = JNG_HDR, i, k, sum;
-    uint32_t m = PROJ_MAGIC_JNG;
+    uint32_t n = jng_size(P_COUNT, G_STORED, 1u) + (q->has_fm6 ? JNG_FM6_SIZE : 0u) + (xl ? 3u + xl : 0u), o = JNG_HDR, i, k, sum;
+    uint32_t m = PROJ_MAGIC_JNG2;
     memset(b, 0, n);
     memcpy(b, &m, 4);
     memcpy(b + 4, &n, 4);
@@ -261,8 +267,8 @@ static uint32_t proj_to_jng(const project_t *q, uint8_t *b)   /* -> bytes writte
     memcpy(b + o, q->g, 2u * G_STORED);
     o += 2u * G_STORED;
     for (i = 0; i < NTRK; i++) {
-        memcpy(b + o, q->t[i].p, 2u * P_COUNT);
-        o += 2u * P_COUNT;
+        for (k = 0; k < P_COUNT; k++)
+            b[o++] = (uint8_t)(int8_t)clamp(q->t[i].p[k], -128, 127);
         b[o++] = q->t[i].engine;
         b[o++] = q->t[i].preset;
         memcpy(b + o, q->t[i].step, sizeof q->t[i].step);
@@ -302,7 +308,7 @@ static uint32_t proj_to_jng(const project_t *q, uint8_t *b)   /* -> bytes writte
 
 static int proj_from_jng(project_t *q, const uint8_t *b, int n)
 {
-    uint32_t m, size, np, ng, o = JNG_HDR, i, sum, nsec, end;
+    uint32_t m, size, np, ng, o = JNG_HDR, i, sum, nsec, end, w;
     int16_t vals[KEY_MAX];
     if (n < (int)JNG_HDR + 4)
         return 0;
@@ -311,11 +317,12 @@ static int proj_from_jng(project_t *q, const uint8_t *b, int n)
     np = b[8];
     ng = b[9];
     nsec = b[11];
-    if (m != PROJ_MAGIC_JNG || size != (uint32_t)n || np > KEY_MAX || !np || jng_size(np, ng) > size ||
-        (!nsec && jng_size(np, ng) != size))
+    w = m == PROJ_MAGIC_JNG2 ? 1u : 2u;                 /* JNG2: a value a byte; JNG1: two */
+    if ((m != PROJ_MAGIC_JNG && m != PROJ_MAGIC_JNG2) || size != (uint32_t)n || np > KEY_MAX || !np ||
+        jng_size(np, ng, w) > size || (!nsec && jng_size(np, ng, w) != size))
         return 0;
     {   /* the sections fill the rest exactly */
-        uint32_t k, at = jng_size(np, ng) - 4u;
+        uint32_t k, at = jng_size(np, ng, w) - 4u;
         for (k = 0; k < nsec; k++) {
             if (at + 3u > size - 4u)
                 return 0;
@@ -341,8 +348,14 @@ static int proj_from_jng(project_t *q, const uint8_t *b, int n)
                 q->g[i] = GP[i].def;
         o += 2u * ng;
         for (i = 0; i < NTRK; i++) {
-            memcpy(vals, b + o, 2u * np);
-            o += 2u * np;
+            if (w == 1u) {
+                uint32_t k;
+                for (k = 0; k < np; k++)
+                    vals[k] = (int8_t)b[o + k];
+            } else {
+                memcpy(vals, b + o, 2u * np);
+            }
+            o += w * np;
             key_map(keys, vals, np, q->t[i].p, PROJ_DEF);
             q->t[i].engine = b[o++];
             q->t[i].preset = b[o++];

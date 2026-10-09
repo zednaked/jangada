@@ -348,9 +348,9 @@ int main(void)
     }
     rc = capture();
     check("capture: every object read back, each matching its CRC from LIST", !rc);
-    check("capture: projects 2 and 4 stored as JNG1, 1 and 3 empty",
+    check("capture: projects 2 and 4 stored as JNG2, 1 and 3 empty",
           obj(3)->len == JNG_SIZE(P_COUNT, G_STORED) + JNG_FM6_SIZE && obj(5)->len == obj(3)->len && !obj(2)->len && !obj(4)->len &&
-          !memcmp(obj(3)->data, "JNG1", 4));
+          !memcmp(obj(3)->data, "JNG2", 4));
     check("capture: project 2 is what the flash holds", !memcmp(obj(3)->data, nor + 0x97000 + 2u * 4096u + 256u, obj(3)->len) ||
                                                        !memcmp(obj(3)->data, nor + 0x97000 + 3u * 4096u + 256u, obj(3)->len));
     check("capture: the user preset bank 2 and the sample slot USR2",

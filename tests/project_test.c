@@ -81,7 +81,7 @@ int main(void)
 
     bad += check("keys: Felucca's format-3 positions are keys 0..56",
                  P_KEY[P_LEVEL] == 0 && P_KEY[P_SLDEPTH] == 48 && P_KEY[P_E0] == 49 && P_KEY[P_E7] == 56);
-    bad += check("JNG1 fits one flash object", JNG_SIZE(P_COUNT, G_STORED) <= 4096u - 256u &&
+    bad += check("JNG2 fits one flash object", JNG_SIZE(P_COUNT, G_STORED) <= 4096u - 256u &&
                                                    sizeof(project_v3_t) <= 4096u - 256u);
 
     /* format 2, as written before the SLICER */
@@ -136,6 +136,49 @@ int main(void)
     bad += check("FUN3 (Felucca 0.9) -> today: every value (engine 8 too)",
                  proj_import(&q2, &buf, (int)sizeof v3) && !memcmp(&q, &q2, sizeof q) && q2.t[1].engine == 8);
 
+    {   /* JNG2 (Jangada 0.9): every track parameter fits a signed byte, the stored form */
+        uint32_t e, k;
+        int fits = 1;
+        for (i = 0; i < P_COUNT; i++)
+            fits &= TP[i].min >= -128 && TP[i].max <= 127;
+        for (e = 0; e < NENGINES; e++)
+            for (k = 0; k < NEDIT; k++)
+                fits &= ENGINES[e]->edit[k].min >= -128 && ENGINES[e]->edit[k].max <= 127;
+        bad += check("JNG2: every track parameter (each engine's too) fits a byte", fits);
+        for (t = 0; t < NTRK; t++)                     /* (the converted test values: into a byte, as real ones are) */
+            for (i = 0; i < P_COUNT; i++)
+                q.t[t].p[i] = (int16_t)((int8_t)(q.t[t].p[i] & 0xFF));
+        q.sum = proj_sum(&q);
+    }
+    {   /* JNG1 as Jangada 0.4 .. 0.8.2 wrote it (two bytes a value): read as it was */
+        uint32_t o = JNG_HDR, k, n = JNG1_SIZE(P_COUNT, G_STORED), m = PROJ_MAGIC_JNG, sum;
+        memset(buf.jng, 0, n);
+        memcpy(buf.jng, &m, 4);
+        memcpy(buf.jng + 4, &n, 4);
+        buf.jng[8] = P_COUNT;
+        buf.jng[9] = G_STORED;
+        buf.jng[10] = q.sel;
+        for (k = 0; k < P_COUNT; k++)
+            buf.jng[o + k] = P_KEY[k];
+        o += (P_COUNT + 1u) & ~1u;
+        memcpy(buf.jng + o, q.g, 2u * G_STORED);
+        o += 2u * G_STORED;
+        for (t = 0; t < NTRK; t++) {
+            memcpy(buf.jng + o, q.t[t].p, 2u * P_COUNT);
+            o += 2u * P_COUNT;
+            buf.jng[o++] = q.t[t].engine;
+            buf.jng[o++] = q.t[t].preset;
+            memcpy(buf.jng + o, q.t[t].step, sizeof q.t[t].step);
+            o += sizeof q.t[t].step;
+        }
+        sum = proj_hash(buf.jng, o);
+        memcpy(buf.jng + o, &sum, 4);
+        bad += check("JNG1 (0.4 .. 0.8.2) -> today: every value", proj_import(&q2, buf.jng, (int)n) && !memcmp(&q, &q2, sizeof q));
+        n = proj_to_jng(&q2, buf.jng);
+        bad += check("JNG1 saved again: JNG2, smaller, the same project",
+                     !memcmp(buf.jng, "JNG2", 4) && n == JNG_SIZE(P_COUNT, G_STORED) && n < JNG1_SIZE(P_COUNT, G_STORED) &&
+                         proj_import(&q2, buf.jng, (int)n) && !memcmp(&q, &q2, sizeof q));
+    }
     {   /* JNG1: the stored form, keyed */
         uint32_t n;
         q.t[2].p[P_M2SRC] = 3;                         /* values only Jangada has */
