@@ -37,6 +37,13 @@ static const uint16_t SCALE_MASK[] = {
 static uint32_t kb_prev;
 static uint8_t kb_note[27], kb_trk[27];  /* per key: the note it started and on which track */
 static uint8_t kb_nt[27][4], kb_n[27];    /* Jangada: per key, the chord it started (CHORD on), 0 = none */
+static uint8_t in_key;                   /* the key (+ 1) whose notes go into input_on now (keyboard_block), 0: none */
+/* (after Felucca 1.5, #191) where each track's held[i] came from, so the arp maps it again as it plays: TRN, ROOT,
+ * SCALE and QNT as they are now. held_key: the key + 1 (bits 0..4) and the octave buttons then + 3 (bits 5..7);
+ * 0: not a scale key (MIDI IN, DRUM, the GM KIT, SLICE), held[i] plays as it is. held_dt: held[i] above the key's
+ * note (a CHORD's other notes). Out of track_t: its size stays as the audio ISR's trk[] indexing wants it */
+static uint8_t held_key[NTRK][16];
+static int8_t held_dt[NTRK][16];
 static uint8_t last_note = 60;
 static volatile uint8_t transport_req;   /* 1 start, 2 stop (from the UI) */
 static volatile uint8_t panic_req;       /* bit per track: release every sounding note (preset / engine change) */
@@ -65,22 +72,30 @@ static uint32_t scale_mask(const track_t *t)
     return SCALE_MASK[clamp(t->p[P_SCALE], 0, sizeof SCALE_MASK / sizeof SCALE_MASK[0] - 1)];
 }
 
-static uint32_t kb_map(const track_t *t, uint32_t k)
+/* key k on a track whose keys are not a scale keyboard (DRUM, the GM KIT, SLICE): its note, -1 a scale key */
+static int32_t kb_fixed(const track_t *t, uint32_t k)
 {
-    static const int8_t DEGREE[12] = {0, -1, 1, -1, 2, 3, -1, 4, -1, 5, -1, 6};
-    int32_t n = 53 + (int32_t)k;
     if (is_drum(t))
         return DRUM_KEYS[k % 27u];
     if (ENGINES[t->eng_req % NENGINES] == &ENG_SAMPLE && drum_set() >= 0 &&   /* (the engine it switches to) */
         (uint32_t)t->p[P_E0] % SMP_NSETS == (uint32_t)drum_set())   /* GM KIT: lowest key = kick (C2), no scale */
-        return (uint32_t)clamp(36 + 12 * song.octave + (int32_t)k, 0, 127);
+        return clamp(36 + 12 * song.octave + (int32_t)k, 0, 127);
 #if FELUCCA_SLICE
     if (ENGINES[t->eng_req % NENGINES] == &ENG_SLICE)   /* SLICE: lowest key = slice 0 (C4 + ROOT), no scale */
-        return (uint32_t)clamp(SLC_BASE + t->p[P_ROOT] + 12 * song.octave + (int32_t)k, 0, 127);
+        return clamp(SLC_BASE + t->p[P_ROOT] + 12 * song.octave + (int32_t)k, 0, 127);
 #endif
+    return -1;
+}
+
+/* scale key k with the octave buttons at oct: QNT, ROOT, SCALE, TRN (KB_SILENT: a black key under WHITE).
+ * The keys (kb_map) and the arp's held keys (arp_tick: as the keys play now, after Felucca 1.5, #191) */
+static uint32_t kb_pitch(const track_t *t, uint32_t k, int32_t octave)
+{
+    static const int8_t DEGREE[12] = {0, -1, 1, -1, 2, 3, -1, 4, -1, 5, -1, 6};
+    int32_t n = 53 + (int32_t)k;
     if (t->p[P_QUANT] == 1 && !t->p[P_CHORD]) {  /* SNAP: every key, rounded down to the scale (the old ON) */
         uint32_t mask = scale_mask(t), guard = 12;
-        n += 12 * song.octave + t->p[P_TRANS];
+        n += 12 * octave + t->p[P_TRANS];
         while (guard-- && !((mask >> (uint32_t)((n - t->p[P_ROOT] + 120) % 12)) & 1u))
             n--;
         return (uint32_t)clamp(n, 0, 127);
@@ -109,7 +124,13 @@ static uint32_t kb_map(const track_t *t, uint32_t k)
             }
         n = 60 + t->p[P_ROOT] + 12 * oct + (int32_t)i;
     }
-    return (uint32_t)clamp(n + 12 * song.octave + t->p[P_TRANS], 0, 127);
+    return (uint32_t)clamp(n + 12 * octave + t->p[P_TRANS], 0, 127);
+}
+
+static uint32_t kb_map(const track_t *t, uint32_t k)
+{
+    int32_t n = kb_fixed(t, k);
+    return n >= 0 ? (uint32_t)n : kb_pitch(t, k, song.octave);
 }
 
 /* Jangada (after SLOOP): CHORD mode, the chord of the scale built on note n (in the scale; CHR: the
@@ -294,8 +315,13 @@ static void arp_add(track_t *t, uint32_t note)
     for (i = 0; i < t->nheld; i++)
         if (t->held[i] == note)
             return;                                 /* repeated note-on: not a new note */
-    if (t->nheld < 16u)
+    if (t->nheld < 16u) {
+        uint32_t k = in_key - 1u;
+        uint8_t *hk = held_key[trk_index(t)];
+        hk[t->nheld] = in_key && kb_fixed(t, k) < 0 ? (uint8_t)(in_key | (uint32_t)(song.octave + 3) << 5) : 0u;
+        held_dt[trk_index(t)][t->nheld] = (int8_t)(hk[t->nheld] ? (int32_t)note - kb_note[k] : 0);
         t->held[t->nheld++] = (uint8_t)note;
+    }
     if (t->nheld == 1u) {
         t->arp_pos = 0xFFFFFFF;                     /* fire on this block */
         t->arp_idx = 0xFFFFFFFFu;
@@ -310,8 +336,11 @@ static void arp_remove(track_t *t, uint32_t note)
     if (t->p[P_AHOLD])
         return;
     for (i = 0; i < t->nheld; i++)
-        if (t->held[i] != note)
+        if (t->held[i] != note) {
+            held_key[trk_index(t)][k] = held_key[trk_index(t)][i];
+            held_dt[trk_index(t)][k] = held_dt[trk_index(t)][i];
             t->held[k++] = t->held[i];
+        }
     t->nheld = (uint8_t)k;
 }
 
@@ -408,9 +437,25 @@ static void arp_tick(track_t *t, uint32_t n, uint32_t adv)
         t->arp_pos = t->arp_pos == 0xFFFFFFF + adv || t->arp_pos - len >= len ? 0 : t->arp_pos - len;
     }
     /* build the note list: held notes (sorted or as played) over OCT octaves */
-    for (i = 0; i < t->nheld; i++)
-        list[i] = t->held[i];
-    cnt = t->nheld;
+    /* (#191) a held key as it plays now (TRN, ROOT, SCALE, QNT; the octave it was pressed in, a chord's note as far
+     * above it), the rest (MIDI IN) as it came; each note once, a key silent now (QNT WHITE's black keys) left out */
+    cnt = 0;
+    for (i = 0; i < t->nheld; i++) {
+        uint32_t x = t->held[i], s = held_key[trk_index(t)][i], c;
+        if (s) {
+            if ((x = kb_pitch(t, (s & 31u) - 1u, (int32_t)(s >> 5) - 3)) == KB_SILENT)
+                continue;
+            x = (uint32_t)clamp((int32_t)x + held_dt[trk_index(t)][i], 0, 127);
+        }
+        for (c = 0; c < cnt && list[c] != x; c++)
+            ;
+        if (c == cnt)
+            list[cnt++] = x;
+    }
+    if (!cnt) {
+        arp_silence(t);
+        return;
+    }
     if (!t->p[P_AORDER])
         for (i = 1; i < cnt; i++)
             for (j = i; j > 0 && list[j - 1] > list[j]; j--) {
@@ -670,7 +715,9 @@ static void chord_retune(void)
             for (i = 0; i < kb_n[k] && kb_nt[k][i] != nn[j]; i++)
                 ;
             if (i == kb_n[k]) {
+                in_key = (uint8_t)(k + 1u);
                 input_on(t, nn[j], 100);
+                in_key = 0;
                 midi_out_event(0x09u | (0x90u | mc) << 8 | (uint32_t)nn[j] << 16 | 100u << 24);
             }
         }
@@ -724,13 +771,17 @@ static void keyboard_block(void)
                 kb_n[k] = (uint8_t)chord_notes(t, kb_note[k], kb_mods(), kb_nt[k]);
                 chord_vlead(t, kb_nt[k], kb_n[k]);
                 per = strum_order(t, kb_nt[k], kb_n[k], o);
+                in_key = (uint8_t)(k + 1u);       /* (the arp keeps them as this key, #191) */
                 for (i = 0; i < kb_n[k]; i++) {
                     input_on_at(t, o[i], 100, i * per);
                     midi_out_event(0x09u | (0x90u | mc) << 8 | (uint32_t)o[i] << 16 | 100u << 24);
                 }
+                in_key = 0;
                 continue;
             }
+            in_key = (uint8_t)(k + 1u);
             input_on(&trk[kb_trk[k]], kb_note[k], 100);
+            in_key = 0;
             midi_out_event(0x09u | (0x90u | mc) << 8 | (uint32_t)kb_note[k] << 16 | 100u << 24);
         } else {
             if (punch.keybit == 1u << k) {        /* the punch-in key is up: the mix comes back */

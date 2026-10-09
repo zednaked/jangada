@@ -137,6 +137,46 @@ int main(void)
         assert(on == 0);
         printf("%-46s ok\n", "DRONE OFF (ARP held), SILENCE (held again)");
     }
+    {   /* #191 (after Felucca 1.5): held keys follow TRN, ROOT, SCALE and QNT as they change; MIDI IN as it came */
+        static const uint8_t keys[] = {7, 11, 14};                /* C4 E4 G4 */
+        static const uint8_t want1[] = {60, 64, 67, 60};
+        static const uint8_t want2[] = {62, 65, 69, 72};         /* TRN +2 on C MAJ SNAP: D, F (F# snapped), A + MIDI 72 */
+        static const uint8_t want3[] = {60, 63, 67, 72};         /* WHITE on C MIN: the E key is the 3rd degree, Eb */
+        uint32_t i;
+        memset(trk, 0, sizeof trk);
+        memset(&song, 0, sizeof song);
+        host_tracks_init();
+        song.g[G_BPM] = 120;
+        t = &trk[0];
+        t->p[P_AMODE] = 1;
+        t->p[P_AOCT] = 1;
+        t->p[P_APROB] = 127;
+        t->p[P_ASWING] = 0;
+        t->p[P_SCALE] = 1;                                       /* MAJ */
+        t->p[P_QUANT] = 1;                                       /* SNAP */
+        song.sel = 0;
+        for (i = 0; i < sizeof keys; i++) {
+            kb_note[keys[i]] = (uint8_t)kb_map(t, keys[i]);
+            in_key = (uint8_t)(keys[i] + 1u);
+            input_on(t, kb_note[keys[i]], 100);
+            in_key = 0;
+        }
+        arp_run(t, sizeof want1, got);
+        expect("ARP: held keys as pressed", got, want1, sizeof want1);
+        input_on(t, 72, 100);                                    /* a MIDI note: no key */
+        t->p[P_TRANS] = 2;
+        t->arp_idx = 0xFFFFFFFFu;
+        t->arp_pos = 0xFFFFFFF;                                  /* (from the top: fire now) */
+        arp_run(t, sizeof want2, got);
+        expect("ARP: TRN moves the held keys (#191)", got, want2, sizeof want2);
+        t->p[P_TRANS] = 0;
+        t->p[P_SCALE] = 2;                                       /* MIN */
+        t->p[P_QUANT] = 2;                                       /* WHITE */
+        t->arp_idx = 0xFFFFFFFFu;
+        t->arp_pos = 0xFFFFFFF;
+        arp_run(t, sizeof want3, got);
+        expect("ARP: QNT / SCALE reach the held keys (#191)", got, want3, sizeof want3);
+    }
     puts("arp: all ok");
     return 0;
 }
