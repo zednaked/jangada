@@ -123,7 +123,7 @@ static uint32_t engine_icon(const char *name)
         {"ANALOG", ICON_WAVE}, {"DIGITAL", ICON_ALGORITHM}, {"PHASE", ICON_PHASE}, {"LOFI", ICON_BITS},
         {"SAMPLE", ICON_SAMPLE}, {"VOICE", ICON_MOUTH}, {"TRIO", ICON_TRIO}, {"WHEEL", ICON_DRAWBAR},
         {"SLICE", ICON_SLICE},
-        {"GRAIN", ICON_GRAIN},
+        {"GRAIN", ICON_GRAIN}, {"NOISE", ICON_NOISE},
         {"DRUM", ICON_DRUM},
     };
     uint32_t i;

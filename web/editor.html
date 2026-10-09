@@ -1461,7 +1461,7 @@ function makeMockDevice(opt = {}) {
     D("SIZE", F.PCT, 0, 127, 90), D("DAMP", F.PCT, 0, 127, 60), D("CRT", F.LFOHZ, 0, 127, 40), D("CDP", F.PCT, 0, 127, 60),
     D("MIDI", F.ENUM, 0, 0, 0, ["--"]), D("SYNC", F.ENUM, 0, 1, 0, ["OFF", "OUT"]), D("ROUT", F.ENUM, 0, 1, 0, ["CH1-4", "SEL"]), D("CPU", F.INT, 0, 0, 0),
     D("SLOT", F.INT, 1, 4, 1), D("NAME", F.ENUM, 0, 0, 0, ["--"]), D("LOAD", F.ENUM, 0, 1, 0, ["--", "GO"]), D("SAVE", F.ENUM, 0, 1, 0, ["--", "GO"]),
-    D("ENG", F.ENUM, 0, 8, 0, ["ANALOG", "DIGITAL", "PHASE", "LOFI", "SAMPLE", "VOICE", "TRIO", "WHEEL", "GRAIN"]), D("SET", F.ENUM, 0, 1, 0, ["--", "GO"]), D("CLRSQ", F.ENUM, 0, 1, 0, ["--", "GO"]), D("INIT", F.ENUM, 0, 1, 0, ["--", "GO"]),
+    D("ENG", F.ENUM, 0, 10, 0, ["ANALOG", "DIGITAL", "PHASE", "LOFI", "SAMPLE", "VOICE", "TRIO", "WHEEL", "GRAIN", "FM6", "NOISE"]), D("SET", F.ENUM, 0, 1, 0, ["--", "GO"]), D("CLRSQ", F.ENUM, 0, 1, 0, ["--", "GO"]), D("INIT", F.ENUM, 0, 1, 0, ["--", "GO"]),
     D("CH", F.INT, 0, 16, 10), D("LVL", F.INT, 0, 127, 100), D("REV", F.INT, 0, 127, 16), D("T4", F.ENUM, 0, 1, 0, ["DRUM", "SYNTH"]),
     D("DUST", F.PCT, 0, 127, 0), D("DUCK", F.PCT, 0, 127, 0), D("FILT", F.BIPCT, -64, 63, 0), D("KIT", F.ENUM, 0, 37, 0, ["GM", "808", "909", "606", "80S", "VINTAGE", "TRAP", "DRILL", "BOOMBAP", "LO-FI", "PHONK", "HOUSE", "D.HOUSE", "TECHNO", "MINIMAL", "ELECTRO", "DISCO", "GARAGE", "JUNGLE", "DUBSTEP", "DEMBOW", "AMAPIANO", "AFRO", "LATIN", "TRIBAL", "SYNTHWV", "CHIP", "ARCADE", "GLITCH", "INDUSTR", "HYPER", "AMBIENT", "JAZZ", "RUST", "FORGE", "PISTON", "HURT", "MANGUE"]),
     D("TYPE", F.ENUM, 0, 2, 0, ["ROOM", "SPRING", "PLATE"]), D("TAPE", F.PCT, 0, 127, 0), D("HUM", F.PCT, 0, 127, 0), D("MAC1", F.PCT, 0, 127, 0),
@@ -1623,6 +1623,29 @@ function makeMockDevice(opt = {}) {
         P("ORGAN", [0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 127, 0], 0, 6),
         P("PLUCK", [0, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 127, 0], 0, 13),
         P("CARVAO", [0, 1, -20, 0, 24, 0, 40, 4, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 127, 0], 0, 0)] },
+    { name: "NOISE", titles: ["SRC", "MOVE"], edit: [
+      D("MODE", F.ENUM, 0, 3, 0, ["ANLG", "DUST", "LFSR", "META"]), D("COLR", F.PCT, 0, 127, 64), D("FREQ", F.CUTOFF, 0, 127, 80), D("RES", F.PCT, 0, 127, 30),
+      D("TRK", F.PCT, 0, 127, 64), D("DENS", F.PCT, 0, 127, 0), D("DRFT", F.PCT, 0, 127, 0), D("CRSH", F.PCT, 0, 127, 0),
+      NONE, NONE, NONE, NONE,
+      NONE, NONE, NONE, NONE],
+      presets: [
+        P("WIND", [0, 64, 70, 100, 127, 0, 70, 0, 0, 0, 0, 0, 0, 0, 0, 0], [90, 90, 110, 90], 0, 0),
+        P("RAIN", [1, 30, 88, 80, 64, 105, 40, 0, 0, 0, 0, 0, 0, 0, 0, 0], [10, 90, 127, 70], 0, 0),
+        P("NZ ARCADE", [2, 0, 127, 0, 127, 112, 0, 84, 0, 0, 0, 0, 0, 0, 0, 0], [0, 80, 0, 50], 0, 0),
+        P("NZ METAL", [3, 0, 100, 40, 100, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 75, 40, 60], 0, 0),
+        P("OCEAN", [0, 100, 50, 20, 0, 0, 110, 0, 0, 0, 0, 0, 0, 0, 0, 0], [100, 90, 127, 100], 0, 0),
+        P("VINYL", [1, 0, 110, 10, 0, 70, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 64, 127, 40], 0, 0),
+        P("HISS", [0, 0, 115, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [20, 64, 127, 40], 0, 0),
+        P("RISER", [0, 30, 60, 110, 127, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [100, 90, 127, 60], 0, 0),
+        P("NZ SNARE", [0, 20, 90, 30, 64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 60, 0, 44], 0, 0),
+        P("BITCRUSH", [0, 40, 90, 40, 64, 0, 0, 100, 0, 0, 0, 0, 0, 0, 0, 0], [0, 70, 110, 40], 0, 0),
+        P("RADIO", [2, 20, 70, 90, 64, 0, 60, 48, 0, 0, 0, 0, 0, 0, 0, 0], [10, 70, 120, 50], 0, 0),
+        P("FORNALHA", [0, 127, 45, 70, 0, 12, 95, 0, 0, 0, 0, 0, 0, 0, 0, 0], [110, 90, 127, 110], 0, 0),
+        P("ESTATICA", [1, 10, 96, 110, 0, 118, 80, 40, 0, 0, 0, 0, 0, 0, 0, 0], [5, 90, 127, 60], 0, 0),
+        P("ENGRENAGEM", [3, 0, 92, 60, 110, 96, 30, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 80, 60, 50], 0, 0),
+        P("VAPOR", [0, 20, 40, 95, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [60, 100, 0, 70], 0, 0),
+        P("SUCATA NZ", [2, 0, 110, 50, 127, 64, 20, 60, 0, 0, 0, 0, 0, 0, 0, 0], [0, 50, 0, 30], 0, 0),
+        P("CHAMINE", [0, 110, 30, 120, 127, 0, 50, 0, 0, 0, 0, 0, 0, 0, 0, 0], [120, 90, 127, 118], 0, 0)] },
   ];
   const P_COUNT = 91, G_COUNT = 39, NSTEP = 64, P_E0 = 64, NEDIT = 16, G_ENGSEL = 20, P_SLCR = 45;
   /* </generated> */

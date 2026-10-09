@@ -20,6 +20,7 @@ drums_mix 3194
 mix_block 13141
 fm6_op_run 72
 fm6_render 372
+noise_render 264
 dist_soft 51
 dist_grit 163
 tape_process 147
