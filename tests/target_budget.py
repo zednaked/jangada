@@ -16,7 +16,7 @@ import sys
 
 FUNCS = ["analog_render", "analog_render_lp", "analog_render_x", "digital_render", "phase_render", "lofi_render", "sample_render", "formant_render",
          "trio_render", "trio_pass", "drawbar_render", "drawbar_block",
-         "grain_render", "grain_block", "slicer_track", "drums_mix", "mix_block", "fm6_op_run", "fm6_render", "noise_render",
+         "grain_render", "grain_block", "slicer_track", "drums_mix", "mix_block", "fm6_op_run", "fm6_render", "noise_render", "ins_disp",
          "phys_render", "px_modal_run", "px_string_excite", "px_string_run", "px_symp_run", "px_modal_block", "px_memb_block",
          "dist_soft", "dist_grit", "tape_process", "hum_process",
          "fm1_alnk0_irq"]

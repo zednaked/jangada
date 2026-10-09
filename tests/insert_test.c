@@ -80,7 +80,7 @@ static uint32_t differ(void)
 
 int main(void)
 {
-    static const char *const NAME[] = {"", "SOFT", "HARD", "FOLD", "FUZZ", "CRUSH", "PHASR", "FLANG", "CHOR"};
+    static const char *const NAME[] = {"", "SOFT", "HARD", "FOLD", "FUZZ", "CRUSH", "PHASR", "FLANG", "CHOR", "DISP"};
     int32_t s0, p0, m0, s, p, m;
     uint32_t ty, b;
     char what[80];
@@ -103,6 +103,23 @@ int main(void)
         render(cur, &s, &p, &m);
         snprintf(what, sizeof what, "%-5s: changes the sound, bounded, no offset", NAME[ty]);
         ok(differ() > NB * CTL / 4u && p < 32767 && (m < 0 ? -m : m) < 300, what);
+    }
+
+    {                                        /* DISP is all-pass: the phases move, the level stays */
+        int64_t e0 = 0, e1 = 0;
+        uint32_t i;
+        setup();
+        render(ref, &s, &p, &m);
+        setup();
+        trk[0].p[P_ITYPE] = IT_DISP;
+        trk[0].p[P_IA] = 110;
+        trk[0].p[P_IB] = 40;
+        trk[0].p[P_IC] = 0;
+        trk[0].p[P_IMIX] = 127;
+        render(cur, &s, &p, &m);
+        for (i = NB * CTL / 4u; i < NB * CTL; i++)
+            e0 += (int64_t)ref[i] * ref[i], e1 += (int64_t)cur[i] * cur[i];
+        ok(e1 * 10 > e0 * 7 && e1 * 10 < e0 * 13, "DISP, FDBK 0: the track's level within 30 %");
     }
 
     setup();                                 /* a TYPE change fades: no step past the dry ones' size */

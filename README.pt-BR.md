@@ -198,8 +198,9 @@ solte, e ele continua respirando sozinho, inclusive enquanto você toca outras t
 - **Reverbs** (FX → REVERB, TYPE): **ROOM**, **SPRING** (mola) e **PLATE** (rede de atrasos estéreo).
 - **INSERT por trilha** (FX → INSERT, depois do DIST; o MIX no INSERT 2): **SOFT**, **HARD**, **FOLD**,
   **FUZZ** (DRIVE TONE LEVEL), **CRUSH** (BITS, um sample-and-hold RATE de 689 Hz a 44 kHz, LPF), **PHASR**,
-  **FLANG** e **CHOR** (RATE DEPTH FDBK). Depois do DIST, o grit empilha: um FUZZ num FOLD, um CRUSH num
-  FLANG. OFF (o padrão) deixa a trilha como era, bit a bit.
+  **FLANG** e **CHOR** (RATE DEPTH FDBK), **DISP** (AMNT STRCH FDBK: uma cadeia de all-pass que separa as
+  fases dos parciais, do chirp de uma corda dura a uma chapa de metal, que ressoa com o FDBK). Depois do
+  DIST, o grit empilha: um FUZZ num FOLD, um CRUSH num FLANG, um FM6 num FOLD num DISP. OFF (o padrão) deixa a trilha como era, bit a bit.
 
 ### Bateria
 - Kits da Jangada, os primeiros da lista (PRESETS na trilha de bateria, ou GLO → KIT):

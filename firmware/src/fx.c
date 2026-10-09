@@ -494,13 +494,20 @@ static void djf_run(djf_t *f, const tsvf_t *c, int32_t *b, uint32_t n, uint32_t 
  *   CRUSH                BITS (1 .. 16), RATE (a held sample, 689 Hz .. 44.1 kHz: the old samplers' aliasing), LPF;
  *   PHASR                RATE, DEPTH (the sweep around ~850 Hz), FDBK (0 .. 0.7): four all-pass stages, mono;
  *   FLANG CHOR           RATE, DEPTH, FDBK: a 256-sample line per track; FLANG swept 0.25 .. 5 ms (feedback
- *                        0 .. 0.85), CHOR a sine around 3.2 ms (+-2.3 ms, feedback 0 .. 0.4).
+ *                        0 .. 0.85), CHOR a sine around 3.2 ms (+-2.3 ms, feedback 0 .. 0.4);
+ *   DISP                 AMNT, STRCH (1 .. 16), FDBK: dispersion (Jangada 0.10, an idea from issue #4): eight
+ *                        stretched all-passes, (a + z^-M) / (1 + a z^-M) as the SPRING's, a = -0.85 .. 0 with AMNT,
+ *                        M = STRCH samples; the phases of the partials pull apart, the spectrum stays: a stiff
+ *                        string's chirp at M 1, a metal sheet's at 8 and up. FDBK (0 .. 0.8) around the chain rings
+ *                        it at inharmonic frequencies. Fully wet the track's level stays.
  * After DIST, so the GRIT types stack: a FUZZ into a FOLD, a CRUSH into a FLANG. The swept ones are the pedals': their
  * wet is (dry + swept) / 2. MIX 0 or TYPE OFF: the track bit for bit as before (nothing runs). MIX glides; a TYPE
  * change fades the old one out, clears the state, fades the new one in. State in the pool (ins[], ~580 B a track) */
-enum { IT_OFF, IT_SOFT, IT_HARD, IT_FOLD, IT_FUZZ, IT_CRUSH, IT_PHASER, IT_FLANGER, IT_CHORUS, IT_N };
+enum { IT_OFF, IT_SOFT, IT_HARD, IT_FOLD, IT_FUZZ, IT_CRUSH, IT_PHASER, IT_FLANGER, IT_CHORUS, IT_DISP, IT_N };
 #define IL_LEN 256u                     /* FLANG / CHOR: the line, samples (a power of 2: masked) */
 #define PH_ST 4u                        /* PHASR: all-pass stages (two notches, the classic pedal's) */
+#define DS_ST 8u                        /* DISP: all-pass stages, */
+#define DS_LEN 16u                      /* each one's line (a power of 2: masked; STRCH up to it) */
 #define INS_SLOPE (32768 / 128)         /* MIX glides over 128 samples (2.9 ms) */
 static const uint8_t INS_HOLD[16] = {64, 48, 40, 32, 24, 20, 16, 12, 10, 8, 6, 5, 4, 3, 2, 1};   /* CRUSH RATE */
 /* PHASR: the stages' coefficient over the sweep (Q14), 150 Hz .. 4.8 kHz (Felucca perform.c) */
@@ -517,8 +524,12 @@ typedef struct {
     uint32_t ph;                        /* the sweep's phase */
     int32_t hp, lp1, lp2, dc, hold;     /* low cut (Q8), the two low-passes, DC blocker (Q8), CRUSH's held sample */
     int32_t px[PH_ST], py[PH_ST], fb;   /* PHASR: each stage's last input and output, the fed back */
-    int16_t line[IL_LEN];               /* FLANG / CHOR, at a quarter (headroom) */
+    union {
+        int16_t line[IL_LEN];           /* FLANG / CHOR, at a quarter (headroom) */
+        int32_t dw[DS_ST * DS_LEN];     /* DISP: each stage's w[n] (direct form II) */
+    } u;
 } ins_t;
+_Static_assert(DS_ST * DS_LEN * 4u <= IL_LEN * 2u, "DISP's lines share the FLANG's");
 static ins_t ins[NTRK] __attribute__((section(".pool")));
 
 static inline int32_t ins_mix(int32_t x, int32_t y, int32_t w) { return w == 32768 ? y : x + mulq16(y - x, (uint32_t)w << 1); }
@@ -633,13 +644,37 @@ static __attribute__((noinline)) void ins_swept(ins_t *s, const track_t *t, int3
             r0 = (int32_t)(s->wp - (d >> 16)) & (int32_t)(IL_LEN - 1u);
             r1 = (r0 - 1) & (int32_t)(IL_LEN - 1u);
             fr = (int32_t)((d >> 1) & 0x7FFFu);
-            v = s->line[r0] + (((s->line[r1] - s->line[r0]) * fr) >> 15);
-            s->line[s->wp] = (int16_t)clamp((x >> 2) + softclip(mulq15(v, fbk)), -32767, 32767);
+            v = s->u.line[r0] + (((s->u.line[r1] - s->u.line[r0]) * fr) >> 15);
+            s->u.line[s->wp] = (int16_t)clamp((x >> 2) + softclip(mulq15(v, fbk)), -32767, 32767);
             s->wp = (uint16_t)((s->wp + 1u) & (IL_LEN - 1u));
             v <<= 1;
             s->dc += ((v << 8) - s->dc) >> 9;
             b[i] = ins_mix(x, (x >> 1) + v - (s->dc >> 8), s->w);   /* (dry + delayed) / 2 */
         }
+    }
+}
+
+/* DISP: AMNT the stages' coefficient, STRCH their delay, FDBK around the chain. Each stage
+ * w[n] = u - a w[n-M], y = a w[n] + w[n-M] (Q15 a); its lines hold the track at an eighth (+-65535: no
+ * product past 31 bits) */
+static __attribute__((noinline)) void ins_disp(ins_t *s, const track_t *t, int32_t *b, uint32_t n, int32_t tw)
+{
+    uint32_t i, st, m = (uint32_t)clamp(t->p[P_IB], 0, 127) >> 3;   /* STRCH - 1 */
+    int32_t a = -clamp(t->p[P_IA], 0, 127) * 219, fbk = clamp(t->p[P_IC], 0, 127) * 206;   /* -0.85 .. 0, 0 .. 0.8 */
+    for (i = 0; i < n; i++) {
+        int32_t x = b[i], u = clamp((x + 4) >> 3, -32767, 32767) + mulq15(s->fb, fbk), y;
+        uint32_t wr = s->wp, rd = (wr - m - 1u) & (DS_LEN - 1u);
+        s->w += clamp(tw - s->w, -INS_SLOPE, INS_SLOPE);
+        for (st = 0; st < DS_ST; st++) {
+            int32_t *w = &s->u.dw[st * DS_LEN], wm = w[rd], wn = clamp(u - mulq15(wm, a), -65535, 65535);
+            w[wr] = wn;
+            u = mulq15(wn, a) + wm;
+        }
+        s->wp = (uint16_t)((wr + 1u) & (DS_LEN - 1u));
+        s->fb = softclip(clamp(u, -65535, 65535));
+        y = u << 3;
+        s->dc += ((y << 8) - s->dc) >> 9;
+        b[i] = ins_mix(x, y - (s->dc >> 8), s->w);
     }
 }
 
@@ -666,7 +701,9 @@ static __attribute__((noinline)) void track_insert(track_t *t, int32_t *b, uint3
         memset(s, 0, sizeof *s);                        /* starting: no stale line or filter */
         s->type = (uint8_t)ty;
     }
-    if (s->type >= IT_PHASER)
+    if (s->type == IT_DISP)
+        ins_disp(s, t, b, n, tw);
+    else if (s->type >= IT_PHASER)
         ins_swept(s, t, b, n, tw);
     else
         ins_drive(s, t, b, n, tw);

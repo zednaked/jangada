@@ -199,8 +199,9 @@ and it keeps breathing on its own, even while you play the other tracks.
 - **Reverbs** (FX → REVERB, TYPE): **ROOM**, **SPRING** and **PLATE** (a stereo feedback delay network).
 - **INSERT per track** (FX → INSERT, after DIST; MIX on INSERT 2): **SOFT**, **HARD**, **FOLD**, **FUZZ**
   (DRIVE TONE LEVEL), **CRUSH** (BITS, a sample-and-hold RATE from 689 Hz to 44 kHz, LPF), **PHASR**,
-  **FLANG** and **CHOR** (RATE DEPTH FDBK). After the DIST, so the grit stacks: a FUZZ into a FOLD, a CRUSH
-  into a FLANG. OFF (the default) leaves the track as it was, bit for bit.
+  **FLANG** and **CHOR** (RATE DEPTH FDBK), **DISP** (AMNT STRCH FDBK: a chain of all-passes that pulls the
+  partials' phases apart, from a stiff string's chirp to a metal sheet, ringing with FDBK). After the DIST,
+  so the grit stacks: a FUZZ into a FOLD, a CRUSH into a FLANG, an FM6 into a FOLD into a DISP. OFF (the default) leaves the track as it was, bit for bit.
 
 ### Drums
 - Jangada's kits, first in the list (PRESETS on the drum track, or GLO → KIT): **RUST** (dry

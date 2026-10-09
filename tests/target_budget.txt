@@ -21,6 +21,7 @@ mix_block 13141
 fm6_op_run 72
 fm6_render 372
 noise_render 264
+ins_disp 131
 phys_render 62
 px_modal_run 192
 px_string_excite 171
