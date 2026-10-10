@@ -7,6 +7,9 @@
 #include "fm1_irq.h"
 #include "fm1_guard.h"
 #include "fm1_cpu1.h"        /* Jangada 1.0: the second core (fx.c mix_block) */
+#ifndef FELUCCA_CPU2
+#define FELUCCA_CPU2 0           /* start the second core at power-on (main.c); off until it is stable on the FM-1 */
+#endif
 #include "fm1_input.h"
 #include "fm1_timer.h"
 #include "fm1_audio.h"

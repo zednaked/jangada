@@ -907,6 +907,10 @@ static __attribute__((noinline)) void usb_full_block(uint32_t n)
 #define C1_SPLIT() mix_split()
 #endif
 
+#ifndef C1_SPLIT_ON
+#define C1_SPLIT_ON 1
+#endif
+static uint8_t c1_split = C1_SPLIT_ON;                  /* hand it parts at all (console: cpu2 on / off) */
 static uint32_t c1_blocks;                              /* blocks the second core took parts of (console) */
 
 static void c1_parts(uint32_t arg)                      /* arg: the parts (bit k = part k) | n << 8 */
@@ -957,7 +961,7 @@ static void mix_block(int32_t *out, uint32_t n)
     events_block(n);
     duck_block(clk_adv);                                /* (n x BPM, or the MIDI clock's units: seq.c) */
     analog_nv = (uint8_t)voices_busy();                 /* the superwave's voice count (eng_analog.c) */
-    m = C1_ON() ? C1_SPLIT() & (((1u << NPART) - 1u) | (song.t4 ? 1u << TRK_DRUM : 0u)) : 0;   /* synth parts */
+    m = C1_ON() && c1_split ? C1_SPLIT() & (((1u << NPART) - 1u) | (song.t4 ? 1u << TRK_DRUM : 0u)) : 0;   /* synth parts */
     if (m && !C1_RUN(c1_parts, m | n << 8))
         m = 0;
     c1_blocks += m != 0;

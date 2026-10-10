@@ -43,6 +43,7 @@ typedef struct {
     uint32_t magic, count, vec, pc, rets, emu, dbg, sp, psr, icfg, uptime_ms;
     uint32_t etm[4];
     uint32_t early;                          /* consecutive crashes < 3 s after boot */
+    uint32_t core;                           /* Jangada 1.0: 1 = the second core's (its sp on its stacks) */
 } fm1_crash_t;
 /* Not static: .noinit holds whatever the last run (or power-on) left, and a
  * file-local object would let the compiler assume its zero initial value and
@@ -90,9 +91,28 @@ static void fm1_irq_enable_all(void)
 /* called from fm1_fatal_common (fm1_vec.S) with the saved frame:
  * f[0..15] r0..r15, f[16] reti, f[17] rete, f[18] retx, f[19] stub+6,
  * f[20] psr, f[21] icfg, f[22] usp, f[23] ssp, f[24] sp, f[25] interrupted rets */
+extern uint32_t _c1_ustack[], _c1_sstack_top[];  /* fm1_cpu1.S */
 void fm1_fault_c(uint32_t *f)
 {
     static volatile uint32_t in_fault;
+    if (f[24] >= (uint32_t)(uintptr_t)_c1_ustack && f[24] <= (uint32_t)(uintptr_t)_c1_sstack_top) {
+        /* the second core (fm1_cpu1.h) faulted: this runs on it. Its record only, no screen, no reset: it stops
+         * here, and core 0 gives it up when a job does not come back (fm1_cpu1_wait) and runs on one core */
+        fm1_crash.magic = FM1_CRASH_MAGIC;
+        fm1_crash.count++;
+        fm1_crash.core = 1;
+        fm1_crash.vec = (f[19] - (uint32_t)(uintptr_t)fm1_fatal_stubs) / 6u - 1u;
+        fm1_crash.pc = f[16];
+        fm1_crash.rets = f[25];
+        fm1_crash.sp = f[24];
+        fm1_crash.psr = f[20];
+        fm1_crash.dbg = FM1_DBG_MSG;
+        fm1_crash.emu = 0;
+        fm1_crash.uptime_ms = *(volatile uint32_t *)0x10804u / 24000u;
+        __asm__ volatile("csync" ::: "memory");
+        for (;;)
+            ;
+    }
     uint32_t i, count = fm1_crash.magic == FM1_CRASH_MAGIC ? fm1_crash.count : 0;
     uint32_t early = fm1_crash.magic == FM1_CRASH_MAGIC ? fm1_crash.early : 0;
     fm1_irq_off();
@@ -112,6 +132,7 @@ void fm1_fault_c(uint32_t *f)
     for (i = 0; i < 4u; i++)
         fm1_crash.etm[i] = FM1_ETM_PC(i);
     fm1_crash.early = fm1_crash.uptime_ms < 3000u ? early + 1u : 0u;
+    fm1_crash.core = 0;
     fm1_fault(&fm1_crash);
     for (;;)
         ;

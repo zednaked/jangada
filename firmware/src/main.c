@@ -190,7 +190,7 @@ static void fm1_main(void)
     fm1_adc_init();
     panel_init();
     felucca_init();
-    if (!bootguard.failed) {                  /* Jangada 1.0 (after X0X, Melodee): the second core, at power-on,
+    if (FELUCCA_CPU2 && !bootguard.failed) {  /* Jangada 1.0 (after X0X, Melodee): the second core, at power-on,
                                                * before the audio and the timers (started later, it never reaches
                                                * its entry). It starts in the chip's ROM: the PC limits open
                                                * meanwhile. Not answering, or a crash in the last boot's first
@@ -321,6 +321,8 @@ static void fm1_main(void)
 void fm1_cstart(void)
 {
     uint32_t *s, *d, p3, src, wdt, boot_mode;
+    fm1_cpu1_halt();                           /* Jangada 1.0: a second core still running from before this reset
+                                                * (a watchdog, a fault) would read the RAM being cleared below */
     fm1_time_init();
     fm1_reset_reason();
     p3 = fm1_boot.p3_rst;

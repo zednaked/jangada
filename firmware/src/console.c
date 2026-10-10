@@ -196,9 +196,18 @@ static void con_status(void)
     con_kv("uptime_ms", (int32_t)fm1_ms);
     con_kv("cpu_pct", (int32_t)(song.cpu_q8 * 100u / 256u));
     con_kv("cpu2", fm1_c1_on);                        /* Jangada 1.0: the second core answers (fx.c mix_block) */
+    con_kv("cpu2_split", c1_split);                   /* parts handed to it (cpu2 on / off) */
     con_kv("cpu2_blocks", (int32_t)c1_blocks);        /* blocks it rendered parts of */
+    con_kv("cpu2_wait_max_us", (int32_t)(fm1_c1_wait_max / FM1_TICKS_PER_US));   /* the longest wait for it */
+    con_kv("cpu2_timeouts", (int32_t)fm1_c1_timeouts);   /* jobs it did not finish (then held) */
     con_kv("cpu2_stack", (int32_t)fm1_cpu1_stack_used());   /* bytes of its 4096 ever used */
-    con_kx("cpu2_trace", fm1_c1_trace);               /* C1000001 its entry, C1000002 its loop */
+    con_kx("cpu2_trace", fm1_c1_trace);
+    con_kv("cpu2_bad", (int32_t)fm1_c1_mb.bad);      /* jobs it would not run (no function, out of sequence) */
+    con_kx("cpu2_bad_job", fm1_c1_mb.bad_job);
+    con_kx("cpu2_bad_done", fm1_c1_mb.bad_done);
+    con_kx("cpu2_bad_fn", fm1_c1_mb.bad_fn);
+    con_kx("cpu2_job", fm1_c1_mb.job);
+    con_kx("cpu2_done", fm1_c1_mb.done);               /* C1000001 its entry, C1000002 its loop */
     con_kv("audio_max_us", (int32_t)felucca_dbg.max_us);
     con_kv("voices_shed", (int32_t)shed_count);
     con_kv("voices_given_up", (int32_t)voice_kills);
@@ -267,6 +276,10 @@ static void con_crash(void)
     con_kx("psr", fm1_crash.psr);
     con_kv("uptime_ms", (int32_t)fm1_crash.uptime_ms);
     con_kv("early", (int32_t)fm1_crash.early);
+    con_kv("core", (int32_t)fm1_crash.core);
+    con_kx("dbg", fm1_crash.dbg);
+    con_kx("etm0", fm1_crash.etm[0]);
+    con_kx("etm1", fm1_crash.etm[1]);
 }
 
 static void con_params(void)
@@ -420,10 +433,17 @@ static void con_voices(void)
 static void con_exec(const char *p)
 {
     if (con_word(&p, "help") || con_word(&p, "?"))
-        con_puts("status  dbg  crash  params  color [N|NAME]  preset E I [T]  t4 [drum|synth]  g ID [VAL]  punch N|off  voices  droneoff  memr ADDR [LEN]  flr OFF [LEN]  uboot yes\r\n");
+        con_puts("status  dbg  crash  params  color [N|NAME]  preset E I [T]  t4 [drum|synth]  g ID [VAL]  punch N|off  voices  droneoff  cpu2 [on|off]  memr ADDR [LEN]  flr OFF [LEN]  uboot yes\r\n");
     else if (con_word(&p, "status"))
         con_status();
-    else if (con_word(&p, "dbg"))
+    else if (con_word(&p, "cpu2")) {                   /* Jangada 1.0: the second core's split on / off */
+        if (con_word(&p, "on"))
+            c1_split = 1;
+        else if (con_word(&p, "off"))
+            c1_split = 0;
+        con_kv("cpu2", fm1_c1_on);
+        con_kv("cpu2_split", c1_split);
+    } else if (con_word(&p, "dbg"))
         con_dbg();
     else if (con_word(&p, "crash"))
         con_crash();
