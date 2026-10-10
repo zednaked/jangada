@@ -112,7 +112,7 @@ FM-1, e nada sai do seu navegador.
 
 ## Instalar
 
-Versão atual: **[Jangada 0.9.4](https://github.com/zednaked/jangada/releases/tag/v0.9.4)** (alfa).
+Versão atual: **[Jangada 0.9.5](https://github.com/zednaked/jangada/releases/tag/v0.9.5)** (alfa).
 Conecte o FM-1 direto no computador por um cabo USB **de dados**.
 
 **Mac / Windows / Linux, pelo navegador**: abra o
@@ -123,7 +123,7 @@ Conecte o FM-1 direto no computador por um cabo USB **de dados**.
 
 ```
 ./instalar-linux.sh                    # baixa e instala a última versão publicada
-./instalar-linux.sh jangada-0.9.4.fwsc     # instala um arquivo baixado das releases
+./instalar-linux.sh jangada-0.9.5.fwsc     # instala um arquivo baixado das releases
 ./instalar-linux.sh --original         # volta ao firmware oficial da M-VAVE (V15)
 ./instalar-linux.sh --info             # o que o FM-1 está rodando
 ./instalar-linux.sh --console          # acesso ao console serial (regra udev, pede sudo)
@@ -428,7 +428,7 @@ Hügelton Instruments**. Partes vêm de outros forks, com nossos agradecimentos:
 - [Melodee](https://github.com/keremimo/melodee) (Kerem Kilic / Ellic Studio): o SysEx do DX7, e como
   ligar o segundo núcleo do FM-1.
 - [X0X](https://github.com/charlesvestal/fm1-x0x) (Charles Vestal): o segundo núcleo, a partir do trabalho do Melodee
-  (no código, desligado por padrão: veja o [BUILDING.md](BUILDING.md#the-second-core-off-a-limitation-found-on-the-hardware)).
+  (ligado desde a 0.9.5, com a tensão elevada: veja o [BUILDING.md](BUILDING.md#the-second-core-on-with-a-raised-supply)).
 - msfa / Dexed (Google, Pascal Gauthier): o núcleo do FM6 (Apache-2.0).
 
 Veja [README.felucca.md](README.felucca.md) e [LICENSING.md](LICENSING.md) para os créditos completos

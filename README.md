@@ -113,7 +113,7 @@ and nothing leaves your browser.
 
 ## Install
 
-Current version: **[Jangada 0.9.4](https://github.com/zednaked/jangada/releases/tag/v0.9.4)** (alpha).
+Current version: **[Jangada 0.9.5](https://github.com/zednaked/jangada/releases/tag/v0.9.5)** (alpha).
 Plug the FM-1 straight into the computer with a USB **data** cable.
 
 **Mac / Windows / Linux, in the browser**: open the
@@ -124,7 +124,7 @@ Plug the FM-1 straight into the computer with a USB **data** cable.
 
 ```
 ./instalar-linux.sh                    # downloads and installs the latest release
-./instalar-linux.sh jangada-0.9.4.fwsc     # installs a file downloaded from the releases
+./instalar-linux.sh jangada-0.9.5.fwsc     # installs a file downloaded from the releases
 ./instalar-linux.sh --original         # back to M-VAVE's official firmware (V15)
 ./instalar-linux.sh --info             # what the FM-1 is running
 ./instalar-linux.sh --console          # serial console access (a udev rule, asks for sudo)
@@ -422,7 +422,7 @@ Hügelton Instruments**. Parts come from other forks, with our thanks:
 - [Melodee](https://github.com/keremimo/melodee) (Kerem Kilic / Ellic Studio): DX7 SysEx, and how to
   start the FM-1's second core.
 - [X0X](https://github.com/charlesvestal/fm1-x0x) (Charles Vestal): the second core, from Melodee's work
-  (in the tree, off by default: see [BUILDING.md](BUILDING.md#the-second-core-off-a-limitation-found-on-the-hardware)).
+  (on since 0.9.5, with a raised supply: see [BUILDING.md](BUILDING.md#the-second-core-on-with-a-raised-supply)).
 - msfa / Dexed (Google, Pascal Gauthier): the FM6 core (Apache-2.0).
 
 Going the other way: the ratchets went upstream and ship in
