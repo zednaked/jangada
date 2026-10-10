@@ -23,7 +23,7 @@
 #define FM1_C1_SYNC() __asm__ volatile("csync" ::: "memory")
 
 extern void fm1_c1_entry(void);
-extern uint32_t _c1_ustack[];
+extern uint32_t _c1_ustack[], _c1_sstack_top[];
 #define FM1_C1_STACK_WORDS (4096u / 4u)          /* fm1_cpu1.S; a part's render: ~1.6 KB at the deepest (PHYS SYMP) */
 #define FM1_C1_MARK 0x43314D4Bu                  /* "C1MK": how deep core 1's stack has gone */
 /* the mailbox: what core 0 writes and what core 1 writes on cache lines of their own, nothing else on them */
@@ -44,6 +44,16 @@ static uint32_t fm1_c1_wait_max, fm1_c1_timeouts; /* the longest wait for a job 
 void fm1_c1_main(void);
 void __attribute__((section(".c1_text"), noreturn, used)) fm1_c1_main(void)
 {
+    /* its own guards, as Melodee sets them (its fm1_core1_main): core 1's EMU bank (core 0's is at 0x1EEF0D0)
+     * gets a stack limit over both of its stacks, less the 256 lowest bytes (an overflow traps before it
+     * reaches anything else), and EMU_CON: bit 2 and bits 16..20 off, bit 3 (the stack limit) on. What the
+     * chip's ROM left there otherwise stays */
+    uint32_t lo = (uint32_t)(uintptr_t)_c1_ustack + 256u, hi = (uint32_t)(uintptr_t)_c1_sstack_top - 1u;
+    *(volatile uint32_t *)0x1EEF2D8u = hi;
+    *(volatile uint32_t *)0x1EEF2DCu = lo;
+    *(volatile uint32_t *)0x1EEF2E0u = hi;
+    *(volatile uint32_t *)0x1EEF2E4u = lo;
+    *(volatile uint32_t *)0x1EEF2D0u = (*(volatile uint32_t *)0x1EEF2D0u & ~((1u << 2) | (0x1Fu << 16))) | (1u << 3);
     fm1_c1_trace = 0xC1000002;
     fm1_c1_mb.alive = 1;
     FM1_C1_SYNC();

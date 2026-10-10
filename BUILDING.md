@@ -120,3 +120,31 @@ cd /tmp/felucca-site && python3 -m http.server 8000
 
 Installing firmware is at your own risk. If an install fails and the FM-1 no longer
 starts, recovery needs [FM-1-transporter](https://github.com/kurogedelic/FM-1-transporter).
+
+## The second core (off: a limitation found on the hardware)
+
+The AC79 in the FM-1 has two cores. Jangada has the code to use the second one (after
+[X0X](https://github.com/charlesvestal/fm1-x0x) and [Melodee](https://github.com/keremimo/melodee)):
+`hal/fm1_cpu1.{h,S}` starts it at power-on, and `fx.c` mix_block can hand it some of the synth parts each
+block. The output is bit-for-bit the same on one core and on two (`tests/dualcore_test.c`, also under
+ThreadSanitizer with `TSAN=1 sh tests/run_tests.sh`).
+
+It is **off by default** (`FELUCCA_CPU2=0`), because on our FM-1 (October 2026) the second core reads
+values from RAM that are not there:
+
+- idle in its waiting loop, given no work, it saw a job in its mailbox that nobody wrote: 40 times in
+  13 s at first (`done` read as `0x00200000` while core 0 read `0`), which crashed it into address 0;
+- with Melodee's guards for it (its own stack limits and EMU_CON) it stayed clean while the FM-1 sat
+  idle, then read **1572** wrong values in 68 s once the FM-1 was played with the sequencer running
+  (`job` as `0xA8D00000`, `0` in RAM). More activity (audio, screen, USB DMA) means more errors;
+- the same image with the second core never started does not crash.
+
+Nothing in Jangada's HAL (clock, cache) differs from X0X's or Melodee's. The FM-1 runs at 360 MHz,
+above the AC79 SDK's 320 MHz table, so the bus or the supply with both cores busy is our best guess,
+not a proven cause. If you know more, or your FM-1 behaves differently, please open an issue.
+
+To try it on your FM-1 (at your own risk): `FELUCCA_CPU2=1 ./build.sh`, with `C1_SPLIT_ON=0` to start
+the core and hand it nothing. Then `tools/fm1_console.py status` shows `cpu2` (1 when it answers),
+`cpu2_bad` (mailbox reads it refused: should stay 0), `cpu2_trace`, `cpu2_stack`, `cpu2_timeouts`, and
+`tools/fm1_console.py cpu2 on` / `off` hands it parts or stops it. If a reset finds it running, or it
+faults, it is held and the FM-1 goes on with one core.

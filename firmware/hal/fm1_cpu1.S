@@ -20,12 +20,12 @@ fm1_c1_entry:
 	rti
 
 	.section .pool.c1stack,"aw",@nobits
-	.balign 8
+	.balign 32
 	.globl _c1_ustack
 _c1_ustack:			/* after rti the core runs on this one: the parts' render (filled with a mark at start) */
 	.space 4096
 _c1_ustack_top:
-_c1_sstack:			/* exceptions only (no interrupts on this core) */
-	.space 256
+_c1_sstack:			/* exceptions (no interrupts on this core); 4 KB, as Melodee's */
+	.space 4096
 	.globl _c1_sstack_top
 _c1_sstack_top:
