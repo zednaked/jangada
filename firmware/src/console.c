@@ -202,6 +202,8 @@ static void con_status(void)
     con_kv("cpu2_timeouts", (int32_t)fm1_c1_timeouts);   /* jobs it did not finish (then held) */
     con_kv("cpu2_stack", (int32_t)fm1_cpu1_stack_used());   /* bytes of its 4096 ever used */
     con_kx("cpu2_trace", fm1_c1_trace);
+    con_kv("sysvdd", (int32_t)fm1_rail_get(FM1_P3_SYSVDD, 15u, 1));   /* the core supply (hal/fm1_sys.h): 11 1.26 V, 14 1.35 V */
+    con_kv("vdc14", (int32_t)fm1_rail_get(FM1_P3_VDC14, 7u, 1));      /* 3 1.40 V, 4 1.45 V */
     con_kv("cpu2_bad", (int32_t)fm1_c1_mb.bad);      /* jobs it would not run (no function, out of sequence) */
     con_kx("cpu2_bad_job", fm1_c1_mb.bad_job);
     con_kx("cpu2_bad_done", fm1_c1_mb.bad_done);
@@ -433,7 +435,7 @@ static void con_voices(void)
 static void con_exec(const char *p)
 {
     if (con_word(&p, "help") || con_word(&p, "?"))
-        con_puts("status  dbg  crash  params  color [N|NAME]  preset E I [T]  t4 [drum|synth]  g ID [VAL]  punch N|off  voices  droneoff  cpu2 [on|off]  memr ADDR [LEN]  flr OFF [LEN]  uboot yes\r\n");
+        con_puts("status  dbg  crash  params  color [N|NAME]  preset E I [T]  t4 [drum|synth]  g ID [VAL]  punch N|off  voices  droneoff  cpu2 [on|off|clr]  vdd [S [D]]  p33 ADDR [BYTE]  memr ADDR [LEN]  flr OFF [LEN]  uboot yes\r\n");
     else if (con_word(&p, "status"))
         con_status();
     else if (con_word(&p, "cpu2")) {                   /* Jangada 1.0: the second core's split on / off */
@@ -441,8 +443,29 @@ static void con_exec(const char *p)
             c1_split = 1;
         else if (con_word(&p, "off"))
             c1_split = 0;
+        else if (con_word(&p, "clr"))                  /* a fresh count of the jobs it would not run */
+            fm1_c1_mb.bad = 0;
         con_kv("cpu2", fm1_c1_on);
         con_kv("cpu2_split", c1_split);
+        con_kv("cpu2_bad", (int32_t)fm1_c1_mb.bad);
+    } else if (con_word(&p, "vdd")) {                  /* the core supply: vdd [11..15] (fm1_sys.h) */
+        int ok;
+        uint32_t s = con_num(&p, &ok);
+        if (ok)
+            fm1_core_supply(s, 1);
+        s = con_num(&p, &ok);                          /* vdd S D: then VDC14 to D, either way (measuring) */
+        if (ok && s <= 7u)
+            fm1_rail_set(FM1_P3_VDC14, 7u, s, 1);
+        con_kv("sysvdd", (int32_t)fm1_rail_get(FM1_P3_SYSVDD, 15u, 1));
+        con_kv("vdc14", (int32_t)fm1_rail_get(FM1_P3_VDC14, 7u, 1));
+    } else if (con_word(&p, "p33")) {                  /* p33 ADDR [BYTE]: one P33 register, raw (measuring) */
+        int ok, ok2;
+        uint32_t a = con_num(&p, &ok), v = con_num(&p, &ok2);
+        if (ok && a < 0x400u) {
+            if (ok2)
+                fm1_rail_poke(a, v);
+            con_kx("p33", fm1_rail_get(a, 0xFFu, 1));
+        }
     } else if (con_word(&p, "dbg"))
         con_dbg();
     else if (con_word(&p, "crash"))

@@ -76,6 +76,63 @@ static void fm1_p33_write(uint32_t a, uint8_t d) { fm1__p33_op(0, a, d); }
 static void fm1_p33_or(uint32_t a, uint8_t d) { fm1__p33_op(1, a, d); }
 static void fm1_p33_and(uint32_t a, uint8_t d) { fm1__p33_op(2, a, d); }
 
+/* --------------------------------------------------------- core supply --- */
+/* Jangada 1.0, after Melodee's hal/fm1_power.h (keremimo/melodee#21, GPL-3.0): the core rails as the AC79 SDK's
+ * p33.h has them. SYSVDD (core and SRAM, P3_ANA_CON9 [3:0]) 0.93 V + 30 mV a step: 11 1.26 V (the boot loader's),
+ * 14 1.35 V (JieLi's above 320 MHz). VDC14 (P3_ANA_CON6 [2:0]) 1.25 V + 50 mV a step: 3 1.40 V (the boot
+ * loader's), 4 1.45 V. On an FM-1 whose second core misread the RAM (charlesvestal/fm1-x0x#10), VDC14 was what
+ * mattered: at 1.40 V core 1 faulted within seconds whatever SYSVDD was (up to 1.32 V); 14 / 4 ran it clean.
+ * One step at a time, 100 us apart. irq: interrupts on, so each P33 access is closed off (cli / sti); at boot
+ * they are off already and stay off */
+#define FM1_P3_SYSVDD 0x09u
+#define FM1_P3_VDC14 0x06u
+#define FM1_SYSVDD_DUAL 15u                       /* 1.38 V, and VDC14 at 15 - 10 = 5, 1.50 V */
+
+static uint32_t fm1_rail_rmw(uint32_t reg, uint32_t mask, int32_t step, int irq)
+{
+    uint32_t v;
+    if (irq)
+        __asm__ volatile("cli" ::: "memory");
+    v = fm1_p33_read(reg);
+    if (step)
+        fm1_p33_write(reg, (uint8_t)((v & ~mask) | (((v & mask) + (uint32_t)step) & mask)));
+    if (irq)
+        __asm__ volatile("csync\n\tsti" ::: "memory");
+    return (v & mask) + (uint32_t)step;
+}
+
+static inline uint32_t fm1_rail_get(uint32_t reg, uint32_t mask, int irq) { return fm1_rail_rmw(reg, mask, 0, irq); }
+
+static void fm1_rail_set(uint32_t reg, uint32_t mask, uint32_t level, int irq)
+{
+    uint32_t now = fm1_rail_get(reg, mask, irq);
+    if (level > mask)
+        level = mask;
+    while (now != level) {
+        now = fm1_rail_rmw(reg, mask, now < level ? 1 : -1, irq);
+        for (uint32_t t0 = *(volatile uint32_t *)0x10804u; *(volatile uint32_t *)0x10804u - t0 < 2400u;)
+            ;                                    /* 100 us of TIMER4 */
+    }
+}
+
+static void fm1_rail_poke(uint32_t reg, uint32_t v)   /* the console's: one raw byte */
+{
+    __asm__ volatile("cli" ::: "memory");
+    fm1_p33_write(reg, (uint8_t)v);
+    __asm__ volatile("csync\n\tsti" ::: "memory");
+}
+
+/* SYSVDD to s (11..15), VDC14 raised first when it is short of s - 10, never lowered */
+static void fm1_core_supply(uint32_t s, int irq)
+{
+    uint32_t d = s - 10u;
+    if (s < 11u || s > 15u)
+        return;
+    if (fm1_rail_get(FM1_P3_VDC14, 7u, irq) < d)
+        fm1_rail_set(FM1_P3_VDC14, 7u, d, irq);
+    fm1_rail_set(FM1_P3_SYSVDD, 15u, s, irq);
+}
+
 /* ------------------------------------------------------------ watchdog --- */
 #define FM1_P3_WDT_CON 0x80u
 #define FM1_P3_VLD_KEEP 0x17u

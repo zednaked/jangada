@@ -121,36 +121,38 @@ cd /tmp/felucca-site && python3 -m http.server 8000
 Installing firmware is at your own risk. If an install fails and the FM-1 no longer
 starts, recovery needs [FM-1-transporter](https://github.com/kurogedelic/FM-1-transporter).
 
-## The second core (off: a limitation found on the hardware)
+## The second core (on, with a raised supply)
 
-The AC79 in the FM-1 has two cores. Jangada has the code to use the second one (after
+The AC79 in the FM-1 has two cores. Jangada uses the second one (after
 [X0X](https://github.com/charlesvestal/fm1-x0x) and [Melodee](https://github.com/keremimo/melodee)):
-`hal/fm1_cpu1.{h,S}` starts it at power-on, and `fx.c` mix_block can hand it some of the synth parts each
+`hal/fm1_cpu1.{h,S}` starts it at power-on, and `fx.c` mix_block hands it some of the synth parts each
 block. The output is bit-for-bit the same on one core and on two (`tests/dualcore_test.c`, also under
-ThreadSanitizer with `TSAN=1 sh tests/run_tests.sh`).
+ThreadSanitizer with `TSAN=1 sh tests/run_tests.sh`). `FELUCCA_CPU2=0` builds a one-core image.
 
-It is **off by default** (`FELUCCA_CPU2=0`), because on our FM-1 (October 2026) the second core reads
-values from RAM that are not there:
+**The supply.** On some FM-1s the second core reads values from RAM that are not there, its instruction
+fetches included, at the supply the boot loader leaves: SYSVDD (core and SRAM, `P3_ANA_CON9`) at 11,
+1.26 V, and VDC14 (`P3_ANA_CON6`) at 3, 1.40 V. The FM-1 runs at 360 MHz, above the AC79 SDK's 320 MHz
+table. So before it starts core 1, Jangada raises VDC14 to 5 (1.50 V) and then SYSVDD to 15 (1.38 V), a
+step at a time (`hal/fm1_sys.h` fm1_core_supply, after Melodee's `fm1_power.h`). Measured on our unit
+(October 2026), core 1 rendering part of 12 held voices, drums and the sequencer, each from a fresh boot:
 
-- idle in its waiting loop, given no work, it saw a job in its mailbox that nobody wrote: 40 times in
-  13 s at first (`done` read as `0x00200000` while core 0 read `0`), which crashed it into address 0;
-- with Melodee's guards for it (its own stack limits and EMU_CON) it stayed clean while the FM-1 sat
-  idle, then read **1572** wrong values in 68 s once the FM-1 was played with the sequencer running
-  (`job` as `0xA8D00000`, `0` in RAM). More activity (audio, screen, USB DMA) means more errors;
-- the same image with the second core never started does not crash.
+| SYSVDD | VDC14 | core 1 |
+|---|---|---|
+| 11, 1.26 V (boot loader) | 3, 1.40 V (boot loader) | faults within ~6 s, every time |
+| 12 / 13, 1.29 / 1.32 V | 3, 1.40 V | faults within ~6 s |
+| 11, 1.26 V | 4, 1.45 V | faults after ~90 s |
+| 14, 1.35 V (JieLi's above 320 MHz) | 4, 1.45 V | misreads from ~40 s, faults after ~3.5 min |
+| **15, 1.38 V** | **5, 1.50 V** | **15 min, 1.23 M blocks: 0 misreads, 0 faults** |
 
-- **X0X 1.0.3 misbehaves on the same unit** too: constant clicks while playing, and its USB-MIDI update
-  session stopped 4 times (after 2 / 2 / 14 / 19 requests, nothing written) before a 5th went through.
+VDC14 is what matters: raising SYSVDD alone does nothing. With both cores the same load takes ~21% of
+core 0 instead of ~31%. X0X 1.0.3 also misbehaved on this unit (clicks, update sessions stopping), at
+the boot loader's supply. Reported to [X0X (#10)](https://github.com/charlesvestal/fm1-x0x/issues/10) and
+[Melodee (#17)](https://github.com/keremimo/melodee/issues/17).
 
-So the limit is the unit (or its batch), not Jangada's code: some FM-1s can't run both cores. Nothing in
-the clock or cache setup differs between Felucca, X0X, Melodee and Jangada. The FM-1 runs at 360 MHz,
-above the AC79 SDK's 320 MHz table, so the bus or the supply with both cores busy is our best guess, not
-a proven cause. Reported to [X0X (#10)](https://github.com/charlesvestal/fm1-x0x/issues/10) and
-[Melodee (#17)](https://github.com/keremimo/melodee/issues/17). If your FM-1 behaves differently, please
-open an issue.
-
-To try it on your FM-1 (at your own risk): `FELUCCA_CPU2=1 ./build.sh`, with `C1_SPLIT_ON=0` to start
-the core and hand it nothing. Then `tools/fm1_console.py status` shows `cpu2` (1 when it answers),
-`cpu2_bad` (mailbox reads it refused: should stay 0), `cpu2_trace`, `cpu2_stack`, `cpu2_timeouts`, and
-`tools/fm1_console.py cpu2 on` / `off` hands it parts or stops it. If a reset finds it running, or it
-faults, it is held and the FM-1 goes on with one core.
+**Measuring it.** `tools/fm1_console.py status` shows `sysvdd` and `vdc14`, `cpu2` (1 while it answers),
+`cpu2_blocks`, `cpu2_bad` (mailbox reads it refused: stays 0 on a healthy unit), `cpu2_timeouts`,
+`cpu2_stack`. `cpu2 on` / `off` hands it parts or stops it, `cpu2 clr` zeroes `cpu2_bad`, `vdd S [D]` sets
+SYSVDD to S (11..15) and VDC14 to D, and `p33 ADDR [BYTE]` reads or writes one P33 register. A trap: a
+`cpu2_bad` that stops rising can also mean core 1 has died (it counts nothing then), so check that
+`cpu2_blocks` still rises. If core 1 faults it is held, the fault is recorded with `core 1`, and the FM-1
+goes on with one core; a crash in a boot's first 30 s keeps the next boot on one core.

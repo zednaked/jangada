@@ -195,6 +195,9 @@ static void fm1_main(void)
                                                * its entry). It starts in the chip's ROM: the PC limits open
                                                * meanwhile. Not answering, or a crash in the last boot's first
                                                * 30 s: one core, as before (fx.c mix_block) */
+        fm1_core_supply(FM1_SYSVDD_DUAL, 0);    /* first the supply both cores need (hal/fm1_sys.h): on one FM-1,
+                                                 * at the boot loader's, core 1 misread the RAM and faulted */
+        fm1_delay_us(1000);
         fm1_guard_pc_open();
         fm1_cpu1_start();
         fm1_guard_enable(FM1_GUARD_PC);
