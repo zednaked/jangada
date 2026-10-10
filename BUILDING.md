@@ -121,7 +121,7 @@ cd /tmp/felucca-site && python3 -m http.server 8000
 Installing firmware is at your own risk. If an install fails and the FM-1 no longer
 starts, recovery needs [FM-1-transporter](https://github.com/kurogedelic/FM-1-transporter).
 
-## The second core (on, with a raised supply)
+## The second core (AUTO, and an opt-in BOOST)
 
 The AC79 in the FM-1 has two cores. Jangada uses the second one (after
 [X0X](https://github.com/charlesvestal/fm1-x0x) and [Melodee](https://github.com/keremimo/melodee)):
@@ -129,12 +129,23 @@ The AC79 in the FM-1 has two cores. Jangada uses the second one (after
 block. The output is bit-for-bit the same on one core and on two (`tests/dualcore_test.c`, also under
 ThreadSanitizer with `TSAN=1 sh tests/run_tests.sh`). `FELUCCA_CPU2=0` builds a one-core image.
 
-**The supply.** On some FM-1s the second core reads values from RAM that are not there, its instruction
-fetches included, at the supply the boot loader leaves: SYSVDD (core and SRAM, `P3_ANA_CON9`) at 11,
-1.26 V, and VDC14 (`P3_ANA_CON6`) at 3, 1.40 V. The FM-1 runs at 360 MHz, above the AC79 SDK's 320 MHz
-table. So before it starts core 1, Jangada raises VDC14 to 5 (1.50 V) and then SYSVDD to 15 (1.38 V), a
-step at a time (`hal/fm1_sys.h` fm1_core_supply, after Melodee's `fm1_power.h`). Measured on our unit
-(October 2026), core 1 rendering part of 12 held voices, drums and the sequencer, each from a fresh boot:
+MENU > **2ND CORE** (read at power-on):
+
+- **AUTO** (default): started on the boot loader's supply. On its first misread (a mailbox value nobody
+  wrote) or a job that doesn't come back, it is held before it runs anything else, the FM-1 goes on with
+  one core, and the setting turns itself to OFF. A crash in a boot's first 30 s keeps the next boot on one
+  core too.
+- **OFF**: one core.
+- **BOOST**: before starting core 1, the supply is raised: VDC14 to 5 (1.50 V), then SYSVDD to 15
+  (1.38 V), a step at a time (`hal/fm1_sys.h` fm1_core_supply, after Melodee's `fm1_power.h`). That's
+  above JieLi's own profile (1.35 / 1.45 V), and the chip's absolute limits aren't public, so it is **at
+  the owner's risk** and never the default. Thanks to @keremimo for the warning.
+
+**Why BOOST exists.** On some FM-1s the second core reads values from RAM that are not there (single
+bit flips, its instruction fetches included) at the supply the boot loader leaves: SYSVDD
+(`P3_ANA_CON9`, core and SRAM) at 11, 1.26 V, and VDC14 (`P3_ANA_CON6`) at 3, 1.40 V. The FM-1 runs at
+360 MHz, above the AC79 SDK's 320 MHz table. Measured on our unit (October 2026), with core 1 rendering
+part of 12 held voices, drums and the sequencer, each from a fresh boot:
 
 | SYSVDD | VDC14 | core 1 |
 |---|---|---|
@@ -144,15 +155,17 @@ step at a time (`hal/fm1_sys.h` fm1_core_supply, after Melodee's `fm1_power.h`).
 | 14, 1.35 V (JieLi's above 320 MHz) | 4, 1.45 V | misreads from ~40 s, faults after ~3.5 min |
 | **15, 1.38 V** | **5, 1.50 V** | **15 min, 1.23 M blocks: 0 misreads, 0 faults** |
 
-VDC14 is what matters: raising SYSVDD alone does nothing. With both cores the same load takes ~21% of
+VDC14 is what matters: raising SYSVDD alone does nothing. A 33-minute session played on BOOST: 1 M
+blocks on core 1, no misread, no crash. With both cores the same load takes ~21% of
 core 0 instead of ~31%. X0X 1.0.3 also misbehaved on this unit (clicks, update sessions stopping), at
 the boot loader's supply. Reported to [X0X (#10)](https://github.com/charlesvestal/fm1-x0x/issues/10) and
 [Melodee (#17)](https://github.com/keremimo/melodee/issues/17).
 
 **Measuring it.** `tools/fm1_console.py status` shows `sysvdd` and `vdc14`, `cpu2` (1 while it answers),
-`cpu2_blocks`, `cpu2_bad` (mailbox reads it refused: stays 0 on a healthy unit), `cpu2_timeouts`,
+`cpu2_blocks`, `cpu2_mode` (0 AUTO, 1 OFF, 2 BOOST), `cpu2_failed`, `cpu2_bad` (mailbox reads it refused: stays 0 on a
+healthy unit), `cpu2_timeouts`,
 `cpu2_stack`. `cpu2 on` / `off` hands it parts or stops it, `cpu2 clr` zeroes `cpu2_bad`, `vdd S [D]` sets
 SYSVDD to S (11..15) and VDC14 to D, and `p33 ADDR [BYTE]` reads or writes one P33 register. A trap: a
 `cpu2_bad` that stops rising can also mean core 1 has died (it counts nothing then), so check that
 `cpu2_blocks` still rises. If core 1 faults it is held, the fault is recorded with `core 1`, and the FM-1
-goes on with one core; a crash in a boot's first 30 s keeps the next boot on one core.
+goes on with one core.

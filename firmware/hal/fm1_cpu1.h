@@ -38,6 +38,7 @@ typedef struct {
 static fm1_c1_mb_t fm1_c1_mb __attribute__((aligned(64)));
 volatile uint32_t fm1_c1_trace;                 /* breadcrumbs (fm1_cpu1.S, fm1_c1_main) */
 static uint8_t fm1_c1_on;                       /* started and answering: core 0 may hand it work */
+static uint8_t fm1_c1_failed;                   /* held for this session: it misread its mailbox or a job timed out */
 static uint32_t fm1_c1_wait_max, fm1_c1_timeouts; /* the longest wait for a job (TIMER4 ticks), jobs given up */
 
 /* only the next job, and only with a function: anything else is counted and noted, not run */
@@ -133,6 +134,12 @@ static inline int fm1_cpu1_run(void (*fn)(uint32_t), uint32_t arg)
 {
     if (!fm1_c1_on)
         return 0;
+    if (fm1_c1_mb.bad) {                        /* it misread the mailbox (a unit that needs more supply, fm1_sys.h):
+                                                 * held before it runs anything else, as Melodee and X0X do */
+        fm1_cpu1_hold();
+        fm1_c1_failed = 1;
+        return 0;
+    }
     fm1_c1_mb.fn = fn;
     fm1_c1_mb.arg = arg;
     FM1_C1_SYNC();
@@ -157,6 +164,7 @@ static inline int fm1_cpu1_wait(void)
         if (dt > 24000u * 4u) {                 /* 4 ms: past any block (a half is 5.8 ms) */
             fm1_c1_timeouts++;
             fm1_cpu1_hold();
+            fm1_c1_failed = 1;
             return -1;
         }
     }

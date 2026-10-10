@@ -428,7 +428,7 @@ Hügelton Instruments**. Partes vêm de outros forks, com nossos agradecimentos:
 - [Melodee](https://github.com/keremimo/melodee) (Kerem Kilic / Ellic Studio): o SysEx do DX7, e como
   ligar o segundo núcleo do FM-1.
 - [X0X](https://github.com/charlesvestal/fm1-x0x) (Charles Vestal): o segundo núcleo, a partir do trabalho do Melodee
-  (ligado desde a 0.9.5, com a tensão elevada: veja o [BUILDING.md](BUILDING.md#the-second-core-on-with-a-raised-supply)).
+  (AUTO, com um BOOST opcional da tensão: veja o [BUILDING.md](BUILDING.md#the-second-core-auto-and-an-opt-in-boost)).
 - msfa / Dexed (Google, Pascal Gauthier): o núcleo do FM6 (Apache-2.0).
 
 Veja [README.felucca.md](README.felucca.md) e [LICENSING.md](LICENSING.md) para os créditos completos

@@ -5,15 +5,17 @@
  * Jangada: ZOOM and HARDWARE CALIBRATION left the menu (calibration: OCT- + OCT+ held at power-on).
  * LIGHTS, KEYS, NOTES and USB AUDIO: Jangada, after SLOOP 2.3 (settings of the FM-1, panel.c). MIDI OUT
  * (KEYS / SEQ: the sequencer and the arp too) and MIDI IN (NOTES / CLOCK: the clock only): Jangada 0.7, after
- * SLOOP 2.4 (seq.c). OCT- goes back (the BACK row is gone). */
+ * SLOOP 2.4 (seq.c). 2ND CORE (AUTO / OFF / BOOST): Jangada 0.9.6 (panel.c cpu2_mode, main.c). OCT- goes back
+ * (the BACK row is gone). */
 /* ------------------------------------------------------------ menu --- */
-enum { MI_COLOR, MI_SPEAKER, MI_LIGHTS, MI_KEYS, MI_NOTES, MI_USB, MI_MOUT, MI_MIN, MI_LEARN, MI_NEW, MI_ABOUT,
-       MI_COUNT };
+enum { MI_COLOR, MI_SPEAKER, MI_LIGHTS, MI_KEYS, MI_NOTES, MI_USB, MI_MOUT, MI_MIN, MI_LEARN, MI_CPU2, MI_NEW,
+       MI_ABOUT, MI_COUNT };
 static const char *const MI_NAME[MI_COUNT] = {"COLOR", "SPEAKER", "LIGHTS", "KEYS", "NOTES", "USB AUDIO",
-                                              "MIDI OUT", "MIDI IN", "MIDI LEARN", "NEW PROJECT", "ABOUT"};
+                                              "MIDI OUT", "MIDI IN", "MIDI LEARN", "2ND CORE", "NEW PROJECT", "ABOUT"};
+static const char *const CPU2_NAME[CPU2_N] = {"AUTO", "OFF", "BOOST"};
 static const char *const LIGHTS_NAME[LIGHTS_N] = {"OFF", "LOW", "MID", "HIGH"};
 static const char *const KEYS_NAME[KEYS_N] = {"OFF", "C KEYS", "WHITE KEYS"};
-#define MI_DY 17                                    /* rows between two menu lines */
+#define MI_DY 16                                    /* rows between two menu lines */
 static uint8_t menu_new_armed;                      /* NEW PROJECT: OCT+ once arms, again clears */
 static void felucca_init(void);                     /* main.c */
 
@@ -45,18 +47,19 @@ static void menu_new_project(void)
 static void draw_menu(void)
 {
     uint32_t i, pass, sig = ui.menu * 7u + ui.menu_sel * 131u + settings.palette * 1009u + settings.lowcut * 7919u +
-                            menu_new_armed * 104729u + lights_word() * 1299709u + ml_count() * 7u;
+                            menu_new_armed * 104729u + lights_word() * 1299709u + ml_count() * 7u +
+                            (uint32_t)(cpu2_parked + 2u * (C1_ON() != 0)) * 15485863u;
     if (!ui.force && sig == ui.menu_sig)
         return;
     ui.menu_sig = sig;
-    if (ui.force)                                   /* head + rule + two bands cover rows 0..229 */
-        lcd_fill(0, H_HEAD + 1 + 124 + 85, 240, 240 - (H_HEAD + 1 + 124 + 85), C_BG);
+    if (ui.force)                                   /* head + rule + two bands cover rows 0..239 */
+        lcd_fill(0, H_HEAD + 1 + 124 + 95, 240, 240 - (H_HEAD + 1 + 124 + 95), C_BG);
     cv_begin(240, H_HEAD, C_BG);
     cv_text(4, 1, &FONT_S, ui.menu == 2 ? "ABOUT" : "MENU", C_HI);
     cv_blit(0, Y_HEAD);
     lcd_fill(0, H_HEAD, 240, 1, C_BG);
     for (pass = 0; pass < 2u; pass++) {             /* the canvas holds 124 rows: draw in two bands */
-        cv_begin(240, pass ? 85u : 124u, C_BG);
+        cv_begin(240, pass ? 95u : 124u, C_BG);
         cv_oy = pass ? -124 : 0;
         if (ui.menu == 2) {
             cv_text(4, 2, &FONT_L, "JANGADA", C_HI);
@@ -79,7 +82,7 @@ static void draw_menu(void)
         } else {
             static const char *const HINT[MI_COUNT] = {
                 "", "ON: LESS BASS (SPEAKER)", "BUTTONS GLOW IN THE DARK", "KEYS GLOW TOO (WITH LIGHTS)",
-                "SOUNDING NOTES LIGHT THEIR KEYS", "", "", "", "OCT+ CLEARS EVERY CC (GLO+14 LEARNS)",
+                "SOUNDING NOTES LIGHT THEIR KEYS", "", "", "", "OCT+ CLEARS EVERY CC (GLO+14 LEARNS)", "",
                 "EVERY TRACK BACK TO START", ""};
             const char *hint = HINT[ui.menu_sel % MI_COUNT];
             for (i = 0; i < MI_COUNT; i++) {          /* a row card each, the selected one lit */
@@ -92,7 +95,8 @@ static void draw_menu(void)
                                 i == MI_USB ? (usb_full ? "FULL" : "MASTER") :
                                 i == MI_MOUT ? (midi_seq_out ? "SEQ" : "KEYS") :
                                 i == MI_MIN ? (midi_clk_only ? "CLOCK" : "NOTES") :
-                                i == MI_LEARN ? ml_menu_value() : 0;
+                                i == MI_LEARN ? ml_menu_value() :
+                                i == MI_CPU2 ? CPU2_NAME[cpu2_mode % CPU2_N] : 0;
                 cv_rrect(4, y - 1, 232, 15, 5, sel ? C_SEL : C_SURF, C_BG);
                 cv_text(14, y - 1, &FONT_S, MI_NAME[i], sel ? C_WHITE : C_GRAY);
                 if (v)                                  /* (KEYS needs LIGHTS: gray while it is off) */
@@ -110,11 +114,16 @@ static void draw_menu(void)
                 hint = midi_seq_out ? "KEYS + SEQUENCER + ARP" : "ONLY THE KEYS";
             if (ui.menu_sel == MI_MIN)
                 hint = midi_clk_only ? "CLOCK ONLY, NO NOTES" : "NOTES AND CLOCK";
+            if (ui.menu_sel == MI_CPU2)                 /* (what runs now, or what a restart would change) */
+                hint = cpu2_mode != cpu2_boot && !cpu2_parked ? "POWER OFF AND ON TO APPLY" :
+                       cpu2_mode == CPU2_BOOST ? "RAISED VOLTAGE: AT YOUR RISK" :
+                       cpu2_parked ? "IT MISREAD: ONE CORE NOW" :
+                       C1_ON() ? "TWO CORES RUNNING" : "ONE CORE";
             if (ui.menu_sel == MI_NEW && menu_new_armed)
                 hint = "OCT+ AGAIN: CLEAR ALL";
-            cv_text(4, 3 + MI_COUNT * MI_DY, &FONT_S, hint[0] ? hint : "PRESETS MOVE   KNOB 1 SET",
+            cv_text(4, MI_COUNT * MI_DY, &FONT_S, hint[0] ? hint : "PRESETS MOVE   KNOB 1 SET",
                     menu_new_armed ? C_WHITE : hint[0] ? C_GRAY : C_DIM);
-            cv_text(4, 3 + MI_COUNT * MI_DY + 15, &FONT_S, "OCT+ OK   OCT- BACK", C_DIM);
+            cv_text(4, MI_COUNT * MI_DY + 12, &FONT_S, "OCT+ OK   OCT- BACK", C_DIM);
         }
         cv_oy = 0;
         cv_blit(0, H_HEAD + 1 + pass * 124u);
@@ -168,10 +177,11 @@ static void menu_input(uint32_t pressed)
         *v = (uint8_t)(s > 0 ? 1u : s < 0 ? 0u : !*v);
         ok = 0;
     }
-    if ((s != 0 || ok) && ui.menu == 1 && (ui.menu_sel == MI_LIGHTS || ui.menu_sel == MI_KEYS)) {
-        /* KNOB 1: brighter / more keys (stops at the ends); OCT+ steps round */
-        uint8_t *v = ui.menu_sel == MI_LIGHTS ? &lights_lvl : &lights_keys;
-        uint32_t n = ui.menu_sel == MI_LIGHTS ? LIGHTS_N : KEYS_N;
+    if ((s != 0 || ok) && ui.menu == 1 && (ui.menu_sel == MI_LIGHTS || ui.menu_sel == MI_KEYS ||
+                                           ui.menu_sel == MI_CPU2)) {
+        /* KNOB 1: brighter / more keys / AUTO, OFF, BOOST (stops at the ends); OCT+ steps round */
+        uint8_t *v = ui.menu_sel == MI_LIGHTS ? &lights_lvl : ui.menu_sel == MI_KEYS ? &lights_keys : &cpu2_mode;
+        uint32_t n = ui.menu_sel == MI_LIGHTS ? LIGHTS_N : ui.menu_sel == MI_KEYS ? KEYS_N : CPU2_N;
         if (s > 0 && *v + 1u < n)
             (*v)++;
         else if (s < 0 && *v > 0u)

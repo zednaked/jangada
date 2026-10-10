@@ -190,14 +190,17 @@ static void fm1_main(void)
     fm1_adc_init();
     panel_init();
     felucca_init();
-    if (FELUCCA_CPU2 && !bootguard.failed) {  /* Jangada 1.0 (after X0X, Melodee): the second core, at power-on,
+    if (FELUCCA_CPU2 && !bootguard.failed && cpu2_mode != CPU2_OFF) {  /* Jangada 1.0 (after X0X, Melodee): the second core, at power-on,
                                                * before the audio and the timers (started later, it never reaches
                                                * its entry). It starts in the chip's ROM: the PC limits open
                                                * meanwhile. Not answering, or a crash in the last boot's first
                                                * 30 s: one core, as before (fx.c mix_block) */
-        fm1_core_supply(FM1_SYSVDD_DUAL, 0);    /* first the supply both cores need (hal/fm1_sys.h): on one FM-1,
-                                                 * at the boot loader's, core 1 misread the RAM and faulted */
-        fm1_delay_us(1000);
+        if (cpu2_mode == CPU2_BOOST) {          /* menu 2ND CORE BOOST: first the supply some FM-1s need for it
+                                                 * (hal/fm1_sys.h); at the boot loader's, core 1 misread the RAM */
+            fm1_core_supply(FM1_SYSVDD_DUAL, 0);
+            fm1_delay_us(1000);
+        }
+        cpu2_boot = cpu2_mode;
         fm1_guard_pc_open();
         fm1_cpu1_start();
         fm1_guard_enable(FM1_GUARD_PC);
@@ -228,6 +231,12 @@ static void fm1_main(void)
         if (fm1_ms > 30000u && bootguard.pending) {     /* a crash or hang in the first 30 s counts */
             bootguard.pending = 0;
             bootguard.failed = 0;
+        }
+        if (fm1_c1_failed && cpu2_mode == CPU2_AUTO && cpu2_boot == CPU2_AUTO) {
+            cpu2_mode = CPU2_OFF;                       /* AUTO: it misread on this FM-1's supply, so one core from now
+                                                         * on (menu 2ND CORE: BOOST, or AUTO to try again) */
+            cpu2_parked = 1;
+            settings_later = 1;                         /* (saved once stopped: project.c autosave_tick) */
         }
         {
             int32_t b = fm1_adc_read(FM1_ADC_BATT);     /* battery: slow IIR */

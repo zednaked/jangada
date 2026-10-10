@@ -422,7 +422,7 @@ Hügelton Instruments**. Parts come from other forks, with our thanks:
 - [Melodee](https://github.com/keremimo/melodee) (Kerem Kilic / Ellic Studio): DX7 SysEx, and how to
   start the FM-1's second core.
 - [X0X](https://github.com/charlesvestal/fm1-x0x) (Charles Vestal): the second core, from Melodee's work
-  (on since 0.9.5, with a raised supply: see [BUILDING.md](BUILDING.md#the-second-core-on-with-a-raised-supply)).
+  (AUTO, with an opt-in BOOST of the supply: see [BUILDING.md](BUILDING.md#the-second-core-auto-and-an-opt-in-boost)).
 - msfa / Dexed (Google, Pascal Gauthier): the FM6 core (Apache-2.0).
 
 Going the other way: the ratchets went upstream and ship in

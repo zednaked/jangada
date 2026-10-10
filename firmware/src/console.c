@@ -195,6 +195,8 @@ static void con_status(void)
     con_puts("\r\n");
     con_kv("uptime_ms", (int32_t)fm1_ms);
     con_kv("cpu_pct", (int32_t)(song.cpu_q8 * 100u / 256u));
+    con_kv("cpu2_mode", cpu2_mode);                   /* menu 2ND CORE: 0 AUTO, 1 OFF, 2 BOOST (panel.c) */
+    con_kv("cpu2_failed", fm1_c1_failed);             /* held this session: it misread or timed out */
     con_kv("cpu2", fm1_c1_on);                        /* Jangada 1.0: the second core answers (fx.c mix_block) */
     con_kv("cpu2_split", c1_split);                   /* parts handed to it (cpu2 on / off) */
     con_kv("cpu2_blocks", (int32_t)c1_blocks);        /* blocks it rendered parts of */
