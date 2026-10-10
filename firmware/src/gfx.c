@@ -214,6 +214,37 @@ static void cv_rrect(int32_t x, int32_t y, int32_t w, int32_t h, int32_t r, uint
 /* a card on the background */
 static void cv_card(int32_t x, int32_t y, int32_t w, int32_t h) { cv_rrect(x, y, w, h, 6, C_SURF, C_BG); }
 
+/* ---- Jangada 0.9.4: anti-aliased circles (the big values' indicators, ui_draw.c graph_big; issue #5).
+ * Coordinates and radii in 1/16 px; each pixel is 4 x 4 samples, blended over what is already drawn. */
+static void cv_blend(int32_t x, int32_t y, uint16_t c, uint32_t a16)        /* a16: coverage 0..16 */
+{
+    uint16_t *p;
+    y += cv_oy;
+    if (!a16 || x < cv_cx0 || x >= cv_cx1 || y < cv_cy0 || y >= cv_cy1)
+        return;
+    p = &cv_px[(uint32_t)y * cv_w + (uint32_t)x];
+    *p = swap16(a16 >= 16u ? c : mix565(swap16(*p), c, (int32_t)(a16 * 100u / 16u)));
+}
+
+/* the ring r0 <= d < r1 around (cx, cy); r0 = 0: a disc */
+static void cv_annulus(int32_t cx, int32_t cy, int32_t r0, int32_t r1, uint16_t c)
+{
+    int32_t x, y, x0 = (cx - r1) >> 4, x1 = (cx + r1) >> 4, y0 = (cy - r1) >> 4, y1 = (cy + r1) >> 4;
+    int32_t q0 = r0 > 0 ? r0 * r0 : -1, q1 = r1 * r1;
+    for (y = y0; y <= y1; y++)
+        for (x = x0; x <= x1; x++) {
+            uint32_t sx, sy, n = 0;
+            for (sy = 0; sy < 4u; sy++)
+                for (sx = 0; sx < 4u; sx++) {
+                    int32_t dx = x * 16 + 2 + (int32_t)sx * 4 - cx, dy = y * 16 + 2 + (int32_t)sy * 4 - cy, q = dx * dx + dy * dy;
+                    n += q >= q0 && q < q1;
+                }
+            cv_blend(x, y, c, n);
+        }
+}
+static void cv_disc(int32_t cx, int32_t cy, int32_t r, uint16_t c) { cv_annulus(cx, cy, 0, r, c); }
+static void cv_ring(int32_t cx, int32_t cy, int32_t r, int32_t w, uint16_t c) { cv_annulus(cx, cy, r - w / 2, r + w / 2, c); }
+
 /* ------------------------------------------------- 4-bit alpha blit --- */
 /* coverage curve for light ink on a dark ground (Felucca 1.0 CURVE_DARK); dark ink: linear */
 static const uint8_t CURVE_DARK[16] = {0, 24, 43, 62, 80, 97, 114, 130, 147, 163, 178, 194, 210, 225, 240, 255};

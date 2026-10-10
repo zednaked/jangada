@@ -74,6 +74,8 @@ static struct {
     /* Jangada 0.7 (after SLOOP 2.4): the columns' texts for the big values of a page without a graph */
     char big_l[4][8], big_v[4][12], big_u[4][8];
     uint16_t big_c[4];
+    int16_t big_r[4];            /* Jangada 0.9.4: their gauges (0..1000, < 0 none), icons and kinds (BK_*), */
+    uint8_t big_i[4], big_k[4];  /* for the circles (ui_draw.c graph_big) */
     uint32_t graph_sig, head_sig, foot_sig, frame;
     uint8_t graph_top;           /* the graph strip's top G_OY rows hold something */
 } ui;

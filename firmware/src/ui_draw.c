@@ -131,6 +131,10 @@ static void draw_column(uint32_t c, const char *label, const char *val, const ch
     int32_t x, gw = COL_IN, fx;
     if (icon == ICON_AUTO)
         icon = icon_for_label(label);
+    if (c < 4u) {                                       /* (the big values' circles, graph_big) */
+        ui.big_r[c] = (int16_t)ratio;
+        ui.big_i[c] = (uint8_t)icon;
+    }
     if (str_eq(unit, label))
         unit = "";                                      /* BPM 120 BPM, USB MIDI USB: once is enough */
     str_cpy(l, label, 6);
@@ -397,7 +401,8 @@ static uint32_t graph_signature(void)
         return h ^ (ui.frame / 2u);                  /* scope: redraw every other frame */
     if (big_page(pg))                                /* the big values: as the columns show them */
         for (i = 0; i < 4u; i++)
-            h = str_hash(str_hash(str_hash(h ^ ui.big_c[i] * 31u, ui.big_v[i]), ui.big_l[i]), ui.big_u[i]);
+            h = str_hash(str_hash(str_hash(h ^ ui.big_c[i] * 31u ^ (uint32_t)ui.big_r[i] * 7919u ^ ui.big_i[i] * 104729u ^ ui.big_k[i] * 15485863u,
+                                           ui.big_v[i]), ui.big_l[i]), ui.big_u[i]);
     h ^= (uint32_t)pg->graph * 131u + TSEL->eng_req + song.sel * 7777u;
     for (i = 0; i < P_COUNT; i++)
         h = (h ^ (uint32_t)t->p[i]) * 16777619u;
@@ -679,27 +684,135 @@ static void graph_scope(uint16_t c)
     }
 }
 
-/* the big values: the four columns in 2 x 2 cards (KNOB 1 2 over KNOB 3 4), each in the largest font its value
- * fits whole; the one turned white, an inactive one dim */
+/* the big values (Jangada 0.9.4, issue #5): each knob as a circle that grows with its value, its name and value
+ * under it, as water and wind would move: the shape follows what the parameter does (big_style). The one turned
+ * white, an inactive one dim; a value with no gauge (a list, on / off) in its circle's place */
+enum { BS_DISC, BS_RIPPLE, BS_SPIRAL, BS_WAVE, BS_INTERF };
+enum { BK_AMOUNT, BK_BIPOLAR, BK_LIST };                /* ui.big_k: 0..max; -max..max (from its middle); a list */
+static uint32_t big_style(uint32_t icon)
+{
+    switch (icon) {
+    case ICON_RESO: case ICON_FEEDBACK: case ICON_REVERB: case ICON_DELAY: case ICON_CHORUS: case ICON_DAMP:
+    case ICON_DECAY: case ICON_RELEASE: case ICON_SIZE:
+        return BS_RIPPLE;                               /* rings spreading: what rings on, echoes, dies away */
+    case ICON_RATE: case ICON_TEMPO: case ICON_TIME: case ICON_PHASE: case ICON_SWEEP: case ICON_VIBRATO:
+    case ICON_FADE: case ICON_GLIDE: case ICON_DIVISION: case ICON_SWING:
+        return BS_SPIRAL;                               /* a spiral unfolding: time, speed, motion */
+    case ICON_SHAPE: case ICON_WAVE: case ICON_PULSE: case ICON_FOLD: case ICON_BITS: case ICON_DIST:
+    case ICON_DRIVE: case ICON_NOISE: case ICON_GRAIN:
+        return BS_WAVE;                                 /* calm to stormy: the shape of the sound */
+    case ICON_MOD: case ICON_DETUNE: case ICON_RATIO: case ICON_ALGORITHM: case ICON_PAN:
+        return BS_INTERF;                               /* two sources crossing: modulation, detune */
+    default:
+        return BS_DISC;                                 /* a dot growing into a disc: an amount */
+    }
+}
+
+static uint32_t isqrt_u(uint32_t x)
+{
+    uint32_t r = 0, b = 1u << 30;
+    while (b > x)
+        b >>= 2;
+    while (b) {
+        if (x >= r + b) {
+            x -= r + b;
+            r = (r >> 1) + b;
+        } else {
+            r >>= 1;
+        }
+        b >>= 2;
+    }
+    return r;
+}
+
+/* one indicator around (cx, cy), radius R, all in 1/16 px; v 0..1000 */
+static void big_circle(int32_t cx, int32_t cy, int32_t R, int32_t v, uint32_t style, uint16_t col, int neg)
+{
+    int32_t i, k, mx = neg ? -1 : 1;                    /* below zero: mirrored (a spiral turns the other way) */
+    cv_ring(cx, cy, R, 24, C_RAISE);                    /* the full size, faint */
+    switch (style) {
+    case BS_DISC:                                       /* a dot that grows into the disc */
+        k = 24 + (R - 30) * (int32_t)isqrt_u((uint32_t)v * 1000u) / 1000;
+        if (neg)
+            cv_ring(cx, cy, k - 20, 40, col);           /* below zero: the same size, hollow */
+        else
+            cv_disc(cx, cy, k, col);
+        break;
+    case BS_RIPPLE: {                                   /* more rings as it grows, spreading outward */
+        int32_t n = 1 + (v * 5 + 500) / 1000, reach = 32 + (R - 40) * v / 1000;
+        for (k = 0; k < n; k++)
+            cv_ring(cx, cy, reach * (k + 1) / n, k == n - 1 ? 40 : 19,
+                    k == n - 1 ? col : mix565(col, C_BG, 35 + 40 * (n - 1 - k) / n));
+        cv_disc(cx, cy, 26, col);
+        break;
+    }
+    case BS_SPIRAL: {                                   /* unfolds as it turns; the tip is the value */
+        int32_t turns = 150 + 3200 * v / 1000, steps = turns * 300 / 1000 + 2, x = cx, y = cy;   /* turns in 1/1000 */
+        for (i = 0; i < steps; i++) {
+            int32_t t = turns * i / (steps - 1), r = (R - 40) * t / 3350;
+            uint32_t a = (uint32_t)t * 4294967u;        /* 1/1000 turn -> a phase */
+            x = cx + mx * ((r * sine_i(a)) >> 15);
+            y = cy - ((r * sine_i(a + 0x40000000u)) >> 15);
+            cv_disc(x, y, 15, col);
+        }
+        cv_disc(x, y, 34, C_WHITE);
+        break;
+    }
+    case BS_WAVE: {                                     /* a calm circle that turns stormy */
+        int32_t lobes = 3 + (v * 9 + 500) / 1000, amp = R * 28 / 100 * v / 1000, base = R * 62 / 100;
+        for (i = 0; i < 480; i++) {
+            uint32_t a = (uint32_t)i * 8947849u;        /* 480 steps a turn */
+            int32_t w = (sine_i(a * (uint32_t)lobes) * (1000 - v * 4 / 10) +
+                         sine_i(a * (uint32_t)(2 * lobes + 1) + 888634858u) * (v * 4 / 10)) / 1000;   /* Q15 */
+            int32_t r = base + ((amp * w) >> 15);
+            cv_disc(cx + ((r * sine_i(a + 0x40000000u)) >> 15), cy + ((r * sine_i(a)) >> 15), 15, col);
+        }
+        break;
+    }
+    default: {                                          /* BS_INTERF: two sources move apart, their rings cross */
+        int32_t off = R * 45 / 100 * v / 1000, sx;
+        for (sx = -off; sx <= off; sx += 2 * off) {
+            for (k = 1; k <= 4; k++)
+                cv_ring(cx + sx, cy, (R - (sx < 0 ? -sx : sx) - 32) * k / 4, 19, mix565(col, C_BG, 20 + 15 * k));
+            cv_disc(cx + sx, cy, 26, col);
+            if (!off)
+                break;
+        }
+        break;
+    }
+    }
+}
+
 static void graph_big(void)
 {
     uint32_t c;
     for (c = 0; c < 4u; c++) {
-        int32_t x0 = c & 1u ? 121 : 2, y0 = c & 2u ? 62 : 0, uw, x;
-        const felucca_font_t *f = &FONT_L;
+        int32_t cx = 30 + 60 * (int32_t)c, uw, w, x;
+        const felucca_font_t *f = &FONT_M;
         uint16_t vc = ui.big_c[c] == C_WHITE ? C_WHITE : ui.big_c[c] == C_DIM ? C_DIM : C_HI;
         if (!ui.big_l[c][0])
             continue;
-        uw = ui.big_u[c][0] ? text_w(&FONT_S, ui.big_u[c]) + 4 : 0;
-        if (text_w(f, ui.big_v[c]) + uw > 101)
-            f = &FONT_M;
-        if (text_w(f, ui.big_v[c]) + uw > 101)
+        uw = ui.big_u[c][0] ? text_w(&FONT_S, ui.big_u[c]) + 3 : 0;
+        if (ui.big_r[c] >= 0 && ui.big_k[c] != BK_LIST) {
+            int32_t v = ui.big_r[c] > 1000 ? 1000 : ui.big_r[c], neg = 0;
+            if (ui.big_k[c] == BK_BIPOLAR) {            /* its size: how far from zero */
+                neg = v < 500;
+                v = neg ? (500 - v) * 2 : (v - 500) * 2;
+            }
+            big_circle(cx * 16, 38 * 16, 24 * 16, v, big_style(ui.big_i[c]), vc, neg);
+        } else {                                        /* no gauge: the value large in the circle's place */
+            const felucca_font_t *g = text_w(&FONT_L, ui.big_v[c]) <= 56 ? &FONT_L : text_w(&FONT_M, ui.big_v[c]) <= 56 ? &FONT_M : &FONT_S;
+            cv_text(cx - text_w(g, ui.big_v[c]) / 2, 38 - (g == &FONT_L ? 15 : 10), g, ui.big_v[c], vc);
+        }
+        cv_text(cx - text_w(&FONT_S, ui.big_l[c]) / 2, 68, &FONT_S, ui.big_l[c], C_GRAY);
+        if (ui.big_r[c] < 0 || ui.big_k[c] == BK_LIST)
+            continue;
+        if (text_w(f, ui.big_v[c]) + uw > 58)
             f = &FONT_S;
-        cv_card(x0, y0, 117, 60);
-        cv_text(x0 + 8, y0 + 4, &FONT_S, ui.big_l[c], C_GRAY);
-        x = cv_text(x0 + 8, y0 + (f == &FONT_L ? 18 : 26), f, ui.big_v[c], vc);
-        if (uw)
-            cv_text(x + 4, y0 + 36, &FONT_S, ui.big_u[c], C_DIM);
+        w = text_w(f, ui.big_v[c]) + (text_w(f, ui.big_v[c]) + uw <= 58 ? uw : 0);
+        x = cv_text(cx - w / 2, 86, f, ui.big_v[c], vc);
+        if (uw && w > text_w(f, ui.big_v[c]))
+            cv_text(x + 3, f == &FONT_M ? 89 : 86, &FONT_S, ui.big_u[c], C_DIM);
     }
 }
 
@@ -994,6 +1107,7 @@ static void draw_columns(void)
         } else {
             param_format(d, *vp, val, &unit);
         }
+        ui.big_k[c] = d->fmt == F_ENUM ? BK_LIST : d->min < 0 ? BK_BIPOLAR : BK_AMOUNT;   /* (graph_big) */
         draw_column(c, d->label, val, unit, VAL(c), d->fmt == F_ENUM && d->max < 2 ? -1 : RATIO(d, *vp),
                     param_icon(d, *vp));
     }
