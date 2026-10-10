@@ -3,7 +3,7 @@
 /* FELUCCA boot and main loop. Boot order: WDT first, boot-loop guard, fatal
  * vectors, guards; then LCD, input (TIMER5 IRQ, 10 kHz), audio (ALNK0 IRQ). */
 extern uint32_t _data_start[], _data_end[], _data_load[], _bss_start[], _bss_end[];
-extern uint32_t _pool_start[], _pool_end[], _rt_start[], _rt_end[], _rt_load[];
+extern uint32_t _pool_start[], _pool_end[], _rt_start[], _rt_end[], _rt_load[], _c1_start[], _c1_end[], _c1_load[];
 
 
 #if FELUCCA_UAC
@@ -190,6 +190,15 @@ static void fm1_main(void)
     fm1_adc_init();
     panel_init();
     felucca_init();
+    if (!bootguard.failed) {                  /* Jangada 1.0 (after X0X, Melodee): the second core, at power-on,
+                                               * before the audio and the timers (started later, it never reaches
+                                               * its entry). It starts in the chip's ROM: the PC limits open
+                                               * meanwhile. Not answering, or a crash in the last boot's first
+                                               * 30 s: one core, as before (fx.c mix_block) */
+        fm1_guard_pc_open();
+        fm1_cpu1_start();
+        fm1_guard_enable(FM1_GUARD_PC);
+    }
     audio_init();
     usb_start();
 #if FELUCCA_UART
@@ -330,8 +339,10 @@ void fm1_cstart(void)
         *d = 0;
     for (s = _data_load, d = _data_start; d < _data_end; s++, d++)
         *d = *s;
-    for (s = _rt_load, d = _rt_start; d < _rt_end; s++, d++)
+    for (s = _rt_load, d = _rt_start; d < _c1_start; s++, d++)
         *d = *s;                                /* flash driver code that must run from RAM */
+    for (s = _c1_load, d = _c1_start; d < _c1_end; s++, d++)
+        *d = *s;                                /* the second core's waiting loop (hal/fm1_cpu1.h) */
     fm1_mailbox_clear();
     fm1_guard_enable(FM1_GUARD_STACK | FM1_GUARD_WRITE | FM1_GUARD_BUS | FM1_GUARD_PC);
     fm1_boot.p3_rst = (uint8_t)p3;

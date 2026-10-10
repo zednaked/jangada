@@ -366,10 +366,12 @@ static __attribute__((noinline)) void fm6_op_fb(int32_t *out, int32_t phase, int
 }
 
 /* msfa FmCore::render: the six operators of algorithm alg into out (Q24). Unlike msfa, out starts empty:
- * the first carrier sounding writes it, the next ones add. Returns 0 when none sounded (out untouched) */
-static int32_t fm6_bus[2][FM6_N];
+ * the first carrier sounding writes it, the next ones add. Returns 0 when none sounded (out untouched).
+ * The two buses are this call's own (Jangada 1.0: the parts render on two cores); a bus is read only after
+ * this call wrote it (has[]), so they need no clearing */
 static int fm6_core_render(int32_t *out, fm6_op_t *op, uint32_t alg, int32_t *fb, int32_t fb_shift)
 {
+    int32_t fm6_bus[2][FM6_N];
     const uint8_t *a = FM6_ALG[alg & 31u];
     uint8_t has[3] = {0, 0, 0};
     uint32_t k;

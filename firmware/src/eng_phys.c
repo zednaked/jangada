@@ -181,8 +181,9 @@ static void phys_render(track_t *t, voice_t *v, int32_t *out, uint32_t n, const 
         return;
     if (n > CTL)
         n = CTL;
-    if (S->model != md)                                  /* MODEL changed under a sounding note */
-        phys_reset(S, md, rng());
+    if (S->model != md)                                  /* MODEL changed under a sounding note (its noise seed from
+                                                         * the voice, not rng(): the parts render on two cores) */
+        phys_reset(S, md, v->age * 2654435761u ^ 0x9E3779B9u);
     switch (md) {
     case PM_MODAL: {
         px_modal_blk_t B;

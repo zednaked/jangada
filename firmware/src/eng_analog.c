@@ -103,13 +103,9 @@ static void analog_note_on(track_t *t, voice_t *v)
         v->s[2] = 0x1234567 + (int32_t)v->age;        /* noise state */
 }
 
-static uint32_t voices_busy(void);                   /* voice.c */
-static uint8_t analog_nv;                            /* voices sounding, all parts (analog_block) */
-static void analog_block(track_t *t)
-{
-    (void)t;
-    analog_nv = (uint8_t)voices_busy();
-}
+static uint8_t analog_nv;                            /* voices sounding, all parts: voices_busy() at the block's start
+                                                      * (fx.c mix_block, before the parts render: on two cores, one
+                                                      * part must not count another's while it renders) */
 
 static inline int32_t analog_osc(uint32_t wave, uint32_t ph, uint32_t inc, uint32_t pw)
 {
@@ -149,7 +145,7 @@ __attribute__((noinline)) static void analog_render_x(track_t *t, voice_t *v, in
     int32_t cg;
     /* the CPU: fewer copies when many voices sound (all parts share NVOICE): 7 oscillators a voice
      * up to 4 voices, 5 up to 6, 3 above (8 voices of 7 measured 73 % on the FM-1 and lost voices
-     * to the shedder; capped: SUPER SAW x 8 voices 55 %). analog_nv: analog_block, once a block */
+     * to the shedder; capped: SUPER SAW x 8 voices 55 %). analog_nv: mix_block, once a block */
     if (ncopy > 4u && analog_nv > 4u)
         ncopy = 4;
     if (ncopy > 2u && analog_nv > 6u)
@@ -404,5 +400,4 @@ static const engine_t ENG_ANALOG = {
     },
     ANALOG_PRESETS, sizeof(ANALOG_PRESETS) / sizeof(ANALOG_PRESETS[0]), 1, analog_note_on, analog_render,
     0xF986, {P_E4, P_E5, P_ATK, P_REL},
-    .block = analog_block,                           /* Jangada: the superwave's voice count */
 };

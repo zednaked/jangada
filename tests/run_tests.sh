@@ -16,6 +16,8 @@
 # After an intended change of the sound: GOLDEN_UPDATE=1 sh tests/run_tests.sh, review the diff
 # of tests/golden.txt, commit it with the change. After an intended change of the cost (or a new
 # compiler): BUDGET_UPDATE=1 (rewrites cpu_baseline.txt and target_budget.txt). VERBOSE=1: every render.
+# second core (tests/c1_host.h, tests/dualcore_test.c): every render again with a thread as core 1, bit for bit;
+#                   TSAN=1 also builds both with -fsanitize=thread (any state two parts share while they render).
 # USB audio (tests/uac_test.c, from Felucca 1.0.1): the UAC1 descriptors as a host parses them (with and
 #                   without CDC), the ring and packetiser at the HALF_FRAMES of src/core.h: 44.1 frames per
 #                   packet, every frame in order, underrun / overrun, restart.
@@ -122,6 +124,18 @@ Darwin-*) CPU_BASE=tests/cpu_baseline.txt ;;
 *) CPU_BASE="tests/cpu_baseline.$(uname -s | tr A-Z a-z)-$(uname -m).txt" ;;
 esac
 run "regression: golden renders, health, voices, CPU budget" "$OUT/regress" tests/golden.txt "$CPU_BASE"
+# the second core (Jangada 1.0, fx.c mix_block): a thread renders the parts handed to it (tests/c1_host.h)
+$CC -O2 -w -Ibuild/gen -Ifirmware/src -DC1_HOST -pthread -o "$OUT/regress_c1" tests/regress.c -lm
+run "second core: the golden renders with a thread taking every split of the parts in turn" "$OUT/regress_c1" tests/golden.txt "$CPU_BASE"
+$CC -O2 -w -Ibuild/gen -Ifirmware/src -pthread -o "$OUT/dualcore_test" tests/dualcore_test.c -lm
+run "second core: 4 parts of every preset, mixes, drums: bit for bit on one core and on two" "$OUT/dualcore_test"
+if [ -n "$TSAN" ]; then                     # TSAN=1: the same two under ThreadSanitizer (~10 min): shared state
+    TSAN_CC="cc -O1 -g -w -Ibuild/gen -Ifirmware/src -fsanitize=thread -pthread"
+    $TSAN_CC -DC1_HOST -o "$OUT/regress_tsan" tests/regress.c -lm
+    run "second core under ThreadSanitizer: the golden renders" env TSAN_OPTIONS=halt_on_error=1 "$OUT/regress_tsan" tests/golden.txt "$CPU_BASE"
+    $TSAN_CC -o "$OUT/dualcore_tsan" tests/dualcore_test.c -lm
+    run "second core under ThreadSanitizer: 4 parts of every preset" env TSAN_OPTIONS=halt_on_error=1 "$OUT/dualcore_tsan"
+fi
 # SLICE (tests/slice_test.c) needs a FELUCCA_SLICE=1 build; the engine is not built by default
 
 run "regression: target cost of the render loops" python3 tests/target_budget.py \

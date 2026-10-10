@@ -990,7 +990,7 @@ static void draw_columns(void)
         }
         if (cur_page()->id[c] == G_INFO && cur_page()->scope == SC_GLOBAL) {
             fmt_int(val, (int32_t)(song.cpu_q8 * 100u / 256u));
-            unit = "%";
+            unit = C1_ON() ? "%x2" : "%";                /* Jangada 1.0: x2, the second core takes parts (fx.c) */
         } else {
             param_format(d, *vp, val, &unit);
         }

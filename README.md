@@ -419,7 +419,9 @@ Hügelton Instruments**. Parts come from other forks, with our thanks:
   synthesised kits, the chords, PLATE, autosave, safe updates and rescue, the lights, TRS MIDI, micro
   timing, parameter locks and fills.
 - [Felucca [Salt]](https://github.com/ChanceTheMaker/Felucca) (Chance Roth): the Studio in the browser.
-- [Melodee](https://github.com/keremimo/melodee) (Kerem Kilic / Ellic Studio): DX7 SysEx.
+- [Melodee](https://github.com/keremimo/melodee) (Kerem Kilic / Ellic Studio): DX7 SysEx, and how to
+  start the FM-1's second core.
+- [X0X](https://github.com/charlesvestal/fm1-x0x) (Charles Vestal): the second core, from Melodee's work.
 - msfa / Dexed (Google, Pascal Gauthier): the FM6 core (Apache-2.0).
 
 Going the other way: the ratchets went upstream and ship in

@@ -109,6 +109,8 @@ static void fm1_reset_reason(void)
 static void fm1_reboot(void)
 {
     __asm__ volatile("cli");
+    *(volatile uint32_t *)0x1EEE004u |= 0x2u;          /* the second core held (fm1_cpu1.h): it must not */
+    *(volatile uint32_t *)0x1EEE004u &= ~0x8u;         /* run old code across a reset */
     fm1_p33_or(FM1_P3_PR_PWR, 0x10);
     for (;;)
         ;
@@ -119,6 +121,8 @@ static void fm1_enter_uboot(void)
     static const char k[16] = "usb_update_mode";
     uint32_t i;
     __asm__ volatile("cli");
+    *(volatile uint32_t *)0x1EEE004u |= 0x2u;          /* the second core held (fm1_cpu1.h): it must not */
+    *(volatile uint32_t *)0x1EEE004u &= ~0x8u;         /* run old code across a reset */
     /* CPU0 write limits (fm1_guard.h) may cover the mailbox: drop them all */
     if (!(*(volatile uint32_t *)0x1EEE240u & 1u))
         *(volatile uint32_t *)0x1EEE240u = 0xE7u;
@@ -132,6 +136,8 @@ static void fm1_enter_uboot(void)
 
 FM1_INLINE void fm1_core_reset(void)
 {
+    *(volatile uint32_t *)0x1EEE004u |= 0x2u;          /* the second core held (fm1_cpu1.h): it must not */
+    *(volatile uint32_t *)0x1EEE004u &= ~0x8u;         /* run old code across a reset */
     FM1_PWR_CON |= 0x10u;
     for (;;)
         ;

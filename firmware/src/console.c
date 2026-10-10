@@ -195,6 +195,10 @@ static void con_status(void)
     con_puts("\r\n");
     con_kv("uptime_ms", (int32_t)fm1_ms);
     con_kv("cpu_pct", (int32_t)(song.cpu_q8 * 100u / 256u));
+    con_kv("cpu2", fm1_c1_on);                        /* Jangada 1.0: the second core answers (fx.c mix_block) */
+    con_kv("cpu2_blocks", (int32_t)c1_blocks);        /* blocks it rendered parts of */
+    con_kv("cpu2_stack", (int32_t)fm1_cpu1_stack_used());   /* bytes of its 4096 ever used */
+    con_kx("cpu2_trace", fm1_c1_trace);               /* C1000001 its entry, C1000002 its loop */
     con_kv("audio_max_us", (int32_t)felucca_dbg.max_us);
     con_kv("voices_shed", (int32_t)shed_count);
     con_kv("voices_given_up", (int32_t)voice_kills);

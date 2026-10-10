@@ -23,6 +23,9 @@
  *    selected track changes, the keys while the selected track changes, with ARP and the voice modes).
  * env: GOLDEN_UPDATE=1 rewrites GOLDEN_FILE, BUDGET_UPDATE=1 rewrites CPU_FILE (on purpose: review the
  * diff), VERBOSE=1 prints every render's numbers, JOBS=n children at once (default 8). */
+#ifdef C1_HOST
+#include "c1_host.h"           /* Jangada 1.0: a thread as the second core (fx.c mix_block) */
+#endif
 #define main hostsim_main
 #include "hostsim.c"
 #undef main
@@ -951,6 +954,9 @@ int main(int argc, char **argv)
         }
         if (!j->r.ipc || cupd)
             continue;
+#ifdef C1_HOST
+        continue;                                   /* (a thread as the second core: not the firmware's counts) */
+#endif
         if (!want)
             printf("regress: CPU %s: %.0f instructions / sample, no baseline (BUDGET_UPDATE=1 adds it)\n", j->name, ipc);
         else if (ipc > b * (1 + CPU_TOL) && ipc > b + CPU_SLACK) {

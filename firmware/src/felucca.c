@@ -6,6 +6,7 @@
 #include "fm1_sys.h"
 #include "fm1_irq.h"
 #include "fm1_guard.h"
+#include "fm1_cpu1.h"        /* Jangada 1.0: the second core (fx.c mix_block) */
 #include "fm1_input.h"
 #include "fm1_timer.h"
 #include "fm1_audio.h"
@@ -26,6 +27,9 @@
 #ifndef FELUCCA_UAC
 #define FELUCCA_UAC 1            /* USB audio input (Felucca 1.0.1): the master, 16-bit stereo 44.1 kHz (usb.c; fx.c: USB AUDIO FULL) */
 #endif
+#define C1_ON() fm1_c1_on
+#define C1_RUN(fn, arg) fm1_cpu1_run(fn, arg)
+#define C1_WAIT() fm1_cpu1_wait()
 #include "fx.c"
 #ifndef FELUCCA_OTA
 #define FELUCCA_OTA 1            /* M-UPGRADE update entry; needs FELUCCA_FLASH */

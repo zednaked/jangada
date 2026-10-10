@@ -34,6 +34,9 @@ static int32_t lfo_wave(track_t *t, uint32_t ph)
     }
 }
 
+/* once a block for every synth part, after they all rendered (fx.c mix_block; a render uses the LFO as the last
+ * block left it): RND draws from rng(), which the parts must not share while they render on two cores. The draws
+ * keep their order: nothing else draws between the parts' renders */
 static void track_lfo_tick(track_t *t)
 {
     uint32_t old = t->lfo_ph;
@@ -540,7 +543,6 @@ static uint32_t track_render(track_t *t, int32_t *out, uint32_t n)
         memcpy(pe_new, &t->p[P_E0], sizeof pe_new);
         memcpy(&t->p[P_E0], t->pe_old, sizeof pe_new);
     }
-    track_lfo_tick(t);
     dr = !fade && drone_tick(t, mods && mod_drift(t));  /* Jangada DRONES: EVOL / TENS (drone.c) */
     if (e->block)                                       /* the engine's per-part work (DRAWBAR: bars, rotor) */
         e->block(t);

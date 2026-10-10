@@ -65,7 +65,11 @@ static void vowel_at(int32_t pos, int32_t *f, int32_t *b)
 }
 
 typedef struct { int32_t a, b, c; } fres_t;
-static int32_t formant_nz = 0x2545F491;                 /* breath noise, one xorshift for all voices */
+/* breath noise and RAND vowels: one xorshift for all the voices of a part (Jangada 1.0: one per part, all with the
+ * seed the one shared xorshift had: the parts render on two cores, fx.c mix_block) */
+static int32_t formant_nz[NTRK] = {0x2545F491, 0x2545F491, 0x2545F491, 0x2545F491};
+_Static_assert(NTRK == 4, "formant_nz: a seed per part");
+#define FORMANT_NZ(t) formant_nz[(uint32_t)((t) - trk) % NTRK]
 
 /* Klatt resonator coefficients (Q30) for F, BW in Hz * 16 */
 static void fres_coef(fres_t *r, uint32_t f16, uint32_t bw16)
@@ -84,11 +88,11 @@ static void fres_coef(fres_t *r, uint32_t f16, uint32_t bw16)
 
 static void formant_note_on(track_t *t, voice_t *v)
 {
-    (void)t;
-    formant_nz ^= formant_nz << 13;                     /* a random vowel for this note (RAND) */
-    formant_nz ^= (int32_t)((uint32_t)formant_nz >> 17);
-    formant_nz ^= formant_nz << 5;
-    v->s[7] = (int32_t)(((uint32_t)formant_nz >> 25) << 25);   /* TALK starts over, random vowel kept */
+    int32_t *nz = &FORMANT_NZ(t);
+    *nz ^= *nz << 13;                                   /* a random vowel for this note (RAND) */
+    *nz ^= (int32_t)((uint32_t)*nz >> 17);
+    *nz ^= *nz << 5;
+    v->s[7] = (int32_t)(((uint32_t)*nz >> 25) << 25);   /* TALK starts over, random vowel kept */
     if (!v->env && !v->env_out) {                       /* a fresh voice (not a retrigger): from rest */
         uint32_t i;
         v->ph[0] = 0;                                   /* the opening starts at zero: no click */
@@ -106,7 +110,7 @@ static void formant_render(track_t *t, voice_t *v, int32_t *out, uint32_t n, con
     uint32_t inc = m->inc, i, te, tp, rp, rn, ratio, bws, f0;
     uint32_t ph = v->ph[0];
     int32_t y1 = v->s[0], y2 = v->s[1], y3 = v->s[2], y4 = v->s[3], y5 = v->s[4], y6 = v->s[5];
-    int32_t y7 = (int32_t)v->ph[1], y8 = (int32_t)v->ph[2], lp = v->s[6], nst = formant_nz;
+    int32_t y7 = (int32_t)v->ph[1], y8 = (int32_t)v->ph[2], lp = v->s[6], nst = FORMANT_NZ(t);
 
     /* vowel: VOWEL -> VOWL2 over TALK after note-on; ENV / LFO -> FLT move both */
     k = 0;
@@ -200,7 +204,7 @@ static void formant_render(track_t *t, voice_t *v, int32_t *out, uint32_t n, con
     v->ph[0] = ph;
     v->ph[1] = (uint32_t)y7;
     v->ph[2] = (uint32_t)y8;
-    formant_nz = nst;
+    FORMANT_NZ(t) = nst;
     v->s[0] = y1;
     v->s[1] = y2;
     v->s[2] = y3;

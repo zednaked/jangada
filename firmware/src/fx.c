@@ -405,7 +405,15 @@ static void fx_buses(const int32_t *cho_in, const int32_t *dly_in, const int32_t
  * -> dist -> SLICER -> level / pan / sends -> drums (-> SLICER) -> buses -> master; out: stereo Q15 */
 static void events_block(uint32_t n);                    /* seq.c */
 static uint32_t clk_adv;                                 /* seq.c: units the beat clock moved this block */
-static int32_t send_c[CTL], send_d[CTL], send_r[CTL], wet[CTL], wet_r[CTL], mix_l[CTL], mix_r[CTL], part_buf[CTL];
+static int32_t wet[CTL], wet_r[CTL];
+/* the dry mix and the sends, as each core adds its parts into them (mx[1]: the second core's, mix_block) */
+typedef struct { int32_t l[CTL], r[CTL], c[CTL], d[CTL], v[CTL], b[CTL]; } mixsum_t;   /* b: a part's own render */
+static mixsum_t mx[2];
+#define mix_l (mx[0].l)
+#define mix_r (mx[0].r)
+#define send_c (mx[0].c)
+#define send_d (mx[0].d)
+#define send_r (mx[0].v)
 
 /* ---- Jangada: the beat clock (after SLOOP), in units of a sample at 1 BPM: a beat is BEAT_U at any
  * tempo, so a tempo change keeps the place in the beat. seq_start zeroes it with step 0; seq.c
@@ -710,13 +718,22 @@ static __attribute__((noinline)) void track_insert(track_t *t, int32_t *b, uint3
     t->ins_run = s->w != 0;                             /* (mix_part calls again while it fades) */
 }
 
-/* one synth part into the dry mix and the sends; a part with no voice sounding costs
- * the LFO tick and a cleared buffer only (after the DIST tail has run out) */
-static void mix_part(track_t *t, uint32_t n)
+/* a part's cost for the second core's split (mix_split): its voices x its engine's cost per voice (the host's
+ * instructions per sample, tests/cpu_baseline: a preset's 8 voices (FM6 6, PHYS 3) less the idle mix), ENGINES[]
+ * order; and the DIST, INSERT, FILT and sends while it sounds or its tail runs */
+static uint16_t part_cost[NTRK];                        /* the last block's, per part */
+static const uint16_t ENG_VCOST[] = {214, 116, 112, 57, 70, 103, 159, 165, 86, 100, 156, 379, 127, 70};
+_Static_assert(sizeof ENG_VCOST / sizeof ENG_VCOST[0] >= NENGINES, "ENG_VCOST: a cost per engine");
+
+/* one synth part into the dry mix and the sends of s (mx[0], or mx[1] on the second core); a part with no
+ * voice sounding costs a cleared buffer only (after the DIST tail has run out) */
+
+static void mix_part(track_t *t, uint32_t n, mixsum_t *s)
 {
-    int32_t *b = part_buf;
-    uint32_t i;
-    if (track_render(t, b, n))
+    int32_t *b = s->b;
+    uint32_t i, nr = track_render(t, b, n);
+    part_cost[(uint32_t)(t - trk) % NTRK] = (uint16_t)(nr * ENG_VCOST[t->engine % NENGINES] + (nr || t->tail ? 60u : 0u));
+    if (nr)
         t->tail = t->p[P_ITYPE] ? 64 : 16;              /* blocks of DIST / INSERT state to run out after the last
                                                          * voice (the INSERT's: 46 ms, a flanger's feedback) */
     else if ((!t->tail || !(t->p[P_DIST] | t->p[P_ITYPE]) || !--t->tail) && !slicer_busy(t)) {
@@ -757,13 +774,13 @@ static void mix_part(track_t *t, uint32_t n)
             if (a > pk)
                 pk = a;
             if (c)
-                send_c[i] += mulq15(xs, c);
+                s->c[i] += mulq15(xs, c);
             if (d)
-                send_d[i] += mulq15(xs, d);
+                s->d[i] += mulq15(xs, d);
             if (r)
-                send_r[i] += mulq15(xs, r);
-            mix_l[i] += (int32_t)(((int64_t)x * gl) >> 12);   /* 64-bit: x * 4096 overflowed for loud parts */
-            mix_r[i] += (int32_t)(((int64_t)x * gr) >> 12);
+                s->v[i] += mulq15(xs, r);
+            s->l[i] += (int32_t)(((int64_t)x * gl) >> 12);   /* 64-bit: x * 4096 overflowed for loud parts */
+            s->r[i] += (int32_t)(((int64_t)x * gr) >> 12);
         }
         t->peak = pk;
     }
@@ -873,16 +890,80 @@ static __attribute__((noinline)) void usb_full_block(uint32_t n)
 }
 #endif
 
+/* ---- Jangada 1.0: the second core (hal/fm1_cpu1.h, after X0X and Melodee's dual-core audio) renders some of
+ * the synth parts of each block into its own sums (mx[1]) while this core renders the others and the drums;
+ * then this core adds them in and goes on (buses, master) as with one core. The sums are integers, so the
+ * order they are added in changes nothing: the output is bit for bit one core's. A part's render touches its
+ * own state only, and what nobody writes meanwhile (song, the tables); what the parts share is done by this
+ * core before the split (events_block: the notes; ANALOG's voice count) or after it (the LFOs), or kept per part
+ * (FORMANT's noise, FM6's buses). tests/dualcore_test.c checks it, under ThreadSanitizer too. Without a second core (the host, the Studio, one
+ * that did not answer at power-on or stopped answering) C1_RUN takes nothing and this core renders them all. */
+#ifndef C1_RUN
+#define C1_ON() 0                                       /* a second core is answering */
+#define C1_RUN(fn, arg) 0                               /* hand it fn(arg): 1 = taken */
+#define C1_WAIT() 0                                     /* wait for it: 0 = done */
+#endif
+#ifndef C1_SPLIT
+#define C1_SPLIT() mix_split()
+#endif
+
+static uint32_t c1_blocks;                              /* blocks the second core took parts of (console) */
+
+static void c1_parts(uint32_t arg)                      /* arg: the parts (bit k = part k) | n << 8 */
+{
+    uint32_t i, n = arg >> 8;
+    mixsum_t *s = &mx[1];
+    for (i = 0; i < n; i++)
+        s->l[i] = s->r[i] = s->c[i] = s->d[i] = s->v[i] = 0;
+    for (i = 0; i < NTRK; i++)
+        if (arg >> i & 1u)
+            mix_part(&trk[i], n, s);
+}
+
+/* which parts go to the second core: the split of the last block's costs (voices x the engine's cost per
+ * voice, ENG_VCOST: the host's instructions per sample) that leaves the busier core the least, the drums on
+ * this one; none when that saves less than handing them over costs */
+static uint32_t mix_split(void)
+{
+    uint32_t m, i, best = 0, c0 = is_drum(TDRUM) ? 160u : 0u, all = c0, lo;
+    for (i = 0; i < NTRK; i++)
+        if (trk_synth(i))
+            all += part_cost[i];
+    lo = all;
+    for (m = 1; m < 1u << NTRK; m++) {
+        uint32_t a = 0, w;
+        for (i = 0; i < NTRK; i++)
+            if (m >> i & 1u) {
+                if (!trk_synth(i) || !part_cost[i])
+                    break;
+                a += part_cost[i];
+            }
+        if (i < NTRK)
+            continue;
+        w = a > all - a ? a : all - a;
+        if (w + 40u < lo) {
+            lo = w + 40u;
+            best = m;
+        }
+    }
+    return best;
+}
+
 static void mix_block(int32_t *out, uint32_t n)
 {
-    uint32_t i;
+    uint32_t i, m;
     for (i = 0; i < n; i++)
         send_c[i] = send_d[i] = send_r[i] = mix_l[i] = mix_r[i] = 0;
     events_block(n);
     duck_block(clk_adv);                                /* (n x BPM, or the MIDI clock's units: seq.c) */
+    analog_nv = (uint8_t)voices_busy();                 /* the superwave's voice count (eng_analog.c) */
+    m = C1_ON() ? C1_SPLIT() & (((1u << NPART) - 1u) | (song.t4 ? 1u << TRK_DRUM : 0u)) : 0;   /* synth parts */
+    if (m && !C1_RUN(c1_parts, m | n << 8))
+        m = 0;
+    c1_blocks += m != 0;
     for (i = 0; i < NTRK; i++)
-        if (trk_synth(i))
-            mix_part(&trk[i], n);
+        if (trk_synth(i) && !(m >> i & 1u))
+            mix_part(&trk[i], n, &mx[0]);
     if (is_drum(TDRUM)) {
         static int32_t dl[CTL], dr[CTL], dv[CTL];
         tsvf_t fc;
@@ -904,6 +985,21 @@ static void mix_block(int32_t *out, uint32_t n)
         }
     } else
         drums_render(mix_l, mix_r, send_r, n);          /* track 4 is a synth: only the drums' tails */
+    if (m) {
+        mixsum_t *s = &mx[1];
+        if (C1_WAIT())                                  /* it stopped answering (held from now on): its parts here */
+            c1_parts(m | n << 8);
+        for (i = 0; i < n; i++) {
+            mix_l[i] += s->l[i];
+            mix_r[i] += s->r[i];
+            send_c[i] += s->c[i];
+            send_d[i] += s->d[i];
+            send_r[i] += s->v[i];
+        }
+    }
+    for (i = 0; i < NTRK; i++)                          /* the parts' LFOs, for the next block (voice.c) */
+        if (trk_synth(i))
+            track_lfo_tick(&trk[i]);
     fx_buses(send_c, send_d, send_r, wet, wet_r, n);
     for (i = 0; i < n; i++) {
         mix_l[i] += wet[i];
