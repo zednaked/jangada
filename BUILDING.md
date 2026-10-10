@@ -139,9 +139,15 @@ values from RAM that are not there:
   (`job` as `0xA8D00000`, `0` in RAM). More activity (audio, screen, USB DMA) means more errors;
 - the same image with the second core never started does not crash.
 
-Nothing in Jangada's HAL (clock, cache) differs from X0X's or Melodee's. The FM-1 runs at 360 MHz,
-above the AC79 SDK's 320 MHz table, so the bus or the supply with both cores busy is our best guess,
-not a proven cause. If you know more, or your FM-1 behaves differently, please open an issue.
+- **X0X 1.0.3 misbehaves on the same unit** too: constant clicks while playing, and its USB-MIDI update
+  session stopped 4 times (after 2 / 2 / 14 / 19 requests, nothing written) before a 5th went through.
+
+So the limit is the unit (or its batch), not Jangada's code: some FM-1s can't run both cores. Nothing in
+the clock or cache setup differs between Felucca, X0X, Melodee and Jangada. The FM-1 runs at 360 MHz,
+above the AC79 SDK's 320 MHz table, so the bus or the supply with both cores busy is our best guess, not
+a proven cause. Reported to [X0X (#10)](https://github.com/charlesvestal/fm1-x0x/issues/10) and
+[Melodee (#17)](https://github.com/keremimo/melodee/issues/17). If your FM-1 behaves differently, please
+open an issue.
 
 To try it on your FM-1 (at your own risk): `FELUCCA_CPU2=1 ./build.sh`, with `C1_SPLIT_ON=0` to start
 the core and hand it nothing. Then `tools/fm1_console.py status` shows `cpu2` (1 when it answers),
