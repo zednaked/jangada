@@ -421,7 +421,8 @@ Hügelton Instruments**. Parts come from other forks, with our thanks:
 - [Felucca [Salt]](https://github.com/ChanceTheMaker/Felucca) (Chance Roth): the Studio in the browser.
 - [Melodee](https://github.com/keremimo/melodee) (Kerem Kilic / Ellic Studio): DX7 SysEx, and how to
   start the FM-1's second core.
-- [X0X](https://github.com/charlesvestal/fm1-x0x) (Charles Vestal): the second core, from Melodee's work.
+- [X0X](https://github.com/charlesvestal/fm1-x0x) (Charles Vestal): the second core, from Melodee's work
+  (in the tree, off by default: see [BUILDING.md](BUILDING.md#the-second-core-off-a-limitation-found-on-the-hardware)).
 - msfa / Dexed (Google, Pascal Gauthier): the FM6 core (Apache-2.0).
 
 Going the other way: the ratchets went upstream and ship in
