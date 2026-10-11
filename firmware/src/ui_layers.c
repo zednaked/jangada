@@ -19,10 +19,12 @@
  *         knobs: PRESET (of the engine)  VOICE  GLIDE  LEVEL
  *   SCL   any key: the key of the song (ROOT of every synth track)
  *         knobs: CHORD (the track: one key plays a chord of the scale)  SCALE (every synth track)  QNT  TRN
- * HOME tapped while a layer button is held locks the layer open (both hands free); any other button
+ * HOME tapped while a layer button is held locks the layer open (both hands free), as does a double tap of
+ * its button (0.9.8, issue #4); any other button
  * lets it go and does only that, PLAY, REC and OCT- / OCT+ keep working inside it.
  * Colours: the palette's (CHOQUE by default), white for what is on. */
 #define TAP_MS 450u                                     /* a press shorter than this, untouched: a tap */
+#define DTAP_MS 400u                                    /* a tap this soon after the last one: a double tap */
 #define SHOW_MS 140u                                    /* the layer shows after this (a tap does not flash it) */
 static const uint8_t LAYER_BTN[LY_COUNT] = {NB, B_FX, B_GLO, B_SEQ, B_SCL, B_EDIT};
 static const char *const LAYER_NAME[LY_COUNT] = {"", "PUNCH", "MIX", "STEPS", "KEY", "ENGINE"};
@@ -33,6 +35,8 @@ static struct {
     uint8_t used;                /* a key or a knob was touched while the button was held: no tap */
     uint8_t shown;               /* the screen holds a layer */
     uint32_t t0;                 /* the press, fm1_ms */
+    uint8_t tap_btn;             /* the layer button tapped last, and when (fm1_ms): a double tap locks */
+    uint32_t tap_at;
     uint8_t tap_n;               /* tap tempo */
     uint32_t tap_ms[4];
     uint32_t head, tiles, foot;  /* drawn-state signatures */
@@ -520,7 +524,13 @@ static void layers_input(uint32_t *pressed, uint32_t now)
         ly.snap = 0;                                    /* SEQ: a new hold, a new undo step */
     }
     if (ly.btn && !((fm1_in.buttons >> panel.btn[LAYER_BTN[ly.btn]]) & 1u)) {   /* let go */
-        if (!ly.used && !ly.lock && now - ly.t0 < TAP_MS) {   /* a tap: its pages */
+        if (!ly.used && !ly.lock && now - ly.t0 < TAP_MS && ly.tap_btn == ly.btn && now - ly.tap_at < DTAP_MS) {
+            ly.lock = ly.btn;                           /* a second tap soon after the first: locked open (0.9.8, */
+            ly.tap_btn = 0;                             /* issue #4), as HOME while held */
+            ui_message("LOCKED");
+        } else if (!ly.used && !ly.lock && now - ly.t0 < TAP_MS) {   /* a tap: its pages */
+            ly.tap_btn = ly.btn;
+            ly.tap_at = now;
             if (ly.btn == LY_ENGINE && song.seq_mode && cur_page()->scope == SC_STEP) {
                 step_clear(&TSEL->step[ui.cursor]);     /* (EDIT on a STEP page: clears the step) */
                 stepx_clear(TSEL, ui.cursor);

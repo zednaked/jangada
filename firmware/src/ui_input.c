@@ -699,9 +699,14 @@ static void ui_input(void)
         track_select((uint32_t)clamp((int32_t)song.sel + (s > 0 ? 1 : -1), 0, NTRK - 1));
     if (vis_shown() && (s = panel_enc(EN_SELECT)) != 0)
         vis_select(s);                              /* the visualiser: SELECT its style */
-    if ((s = panel_enc(EN_SELECT)) != 0) {          /* SELECT knob = global tempo */
-        song.g[G_BPM] = (int16_t)clamp(song.g[G_BPM] + accel(EN_SELECT, s, 200), GP[G_BPM].min, GP[G_BPM].max);
-        ui.bpm_t = 40;                              /* the header's BPM lights up; no message over the header */
+    if ((s = panel_enc(EN_SELECT)) != 0) {          /* SELECT knob = global tempo, with GLO held (0.9.8, issue #4: */
+        if (layer_now() == LY_MIX) {                /* a stray turn no longer changes the whole rhythm) */
+            song.g[G_BPM] = (int16_t)clamp(song.g[G_BPM] + accel(EN_SELECT, s, 200), GP[G_BPM].min, GP[G_BPM].max);
+            ui.bpm_t = 40;                          /* the header's BPM lights up; no message over the header */
+            ly.used = 1;                            /* (GLO let go: no tap) */
+        } else {
+            ui_message("BPM: GLO + SELECT");
+        }
     }
     if (layer_now()) {                                  /* Jangada: a layer has the knobs */
         layers_knobs(layer_now());

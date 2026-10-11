@@ -187,6 +187,26 @@ int main(void){
    song.octave = 0;
    printf("%-46s ok\n", "pages: OCT- + page button goes back; EDIT circles");
  }
+ { /* 0.9.8 (issue #4): SELECT changes the BPM only with GLO held (or locked); a double tap of a layer button
+    * locks it open, as HOME while held */
+   int16_t bpm = song.g[G_BPM]; uint32_t pr, g = 1u << panel.btn[B_GLO];
+   ly.btn = ly.lock = 0; ui.menu = 0; ui.confirm = 0; panel = PANEL_DEFAULT; fm1_in.buttons = 0; ui.home = 1;
+   enc_turn(EN_SELECT, 3); ui_input(); assert(song.g[G_BPM] == bpm);           /* alone: nothing */
+   ly.lock = LY_MIX; enc_turn(EN_SELECT, 3); ui_input(); assert(song.g[G_BPM] > bpm);
+   ly.lock = 0; song.g[G_BPM] = bpm; ly.tap_btn = 0;
+   fm1_ms = 5000; pr = g; fm1_in.buttons = g; layers_input(&pr, fm1_ms);       /* tap ... */
+   fm1_ms += 100; pr = 0; fm1_in.buttons = 0; layers_input(&pr, fm1_ms); assert(!ly.lock && cur_fam() == FAM_GLO);
+   fm1_ms += 150; pr = g; fm1_in.buttons = g; layers_input(&pr, fm1_ms);       /* ... tap: locked */
+   fm1_ms += 100; pr = 0; fm1_in.buttons = 0; layers_input(&pr, fm1_ms); assert(ly.lock == LY_MIX);
+   pr = g; fm1_in.buttons = g; layers_input(&pr, fm1_ms); fm1_in.buttons = 0; pr = 0; layers_input(&pr, fm1_ms);
+   assert(!ly.lock);                                                            /* a tap lets it go */
+   fm1_ms += 1000; pr = g; fm1_in.buttons = g; layers_input(&pr, fm1_ms);       /* two taps far apart: no lock */
+   fm1_ms += 100; pr = 0; fm1_in.buttons = 0; layers_input(&pr, fm1_ms);
+   fm1_ms += 900; pr = g; fm1_in.buttons = g; layers_input(&pr, fm1_ms);
+   fm1_ms += 100; pr = 0; fm1_in.buttons = 0; layers_input(&pr, fm1_ms); assert(!ly.lock);
+   ly.btn = ly.lock = 0; ui.home = 0;
+   printf("%-46s ok\n", "GLO + SELECT: BPM; a double tap locks a layer");
+ }
  /* engine layer */
  layer_key(LY_ENGINE,key_of_white(6),1,0); assert(t->eng_req==6);
  printf("%-46s ok\n", "layers: SEQ tools, undo / redo, step keys");

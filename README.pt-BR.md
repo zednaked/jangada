@@ -286,12 +286,13 @@ solte, e ele continua respirando sozinho, inclusive enquanto você toca outras t
 Toque um botão de função e as páginas dele abrem; toque de novo para a próxima página, com **OCT−**
 segurado para a anterior. **Segure** e ele vira uma **camada**: as 16 teclas
 brancas e os 4 knobs mudam de função, e a tela mostra 16 tiles e 4 dials. **HOME** tocado com a camada
-segurada a **trava** aberta. PLAY, REC e OCT continuam valendo dentro dela.
+segurada a **trava** aberta, e um **toque duplo** no botão também; um toque a solta. PLAY, REC e OCT continuam
+valendo dentro dela.
 
 | Segure | Teclas | Knobs 1 · 2 · 3 · 4 |
 |---|---|---|
 | **FX** | os 16 efeitos punch-in; pretas **F#3 REV THROW**, **G#3 ECHO THROW** | FILT · DUST · DUCK · TAPE |
-| **GLO** | 1–4 mute, 5–8 solo, 9 segurada = virada (fill), 10 = o próximo compasso é virada, 14 = MIDI LEARN, a última tap tempo | nível das trilhas 1–4 |
+| **GLO** | 1–4 mute, 5–8 solo, 9 segurada = virada (fill), 10 = o próximo compasso é virada, 14 = MIDI LEARN, a última tap tempo; o **SELECT** muda o BPM (sozinho não muda, desde a 0.9.8) | nível das trilhas 1–4 |
 | **SEQ** | os 16 passos da página (vazio = cria, cheio = apertar e soltar apaga); pretas: página, deslocar, metade / dobro, transpor, **F#5 segurada apaga** o que o playhead passa | NOTE · DIV · SWG · LEN; com passos segurados: NOTE · RTCH · CHNC · FLAG |
 | **SCL** | qualquer tecla = o tom da música | CHRD · SCL · QNT · TRN |
 | **EDIT** | o motor da trilha; a última = trilha 4 DRUM / SYNTH | PRST · VOICE · GLIDE · LVL |

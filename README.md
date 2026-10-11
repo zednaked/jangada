@@ -283,12 +283,13 @@ and it keeps breathing on its own, even while you play the other tracks.
 Tap a function button and its pages open; tap again for the next page, with **OCT−** held for the one
 before. **Hold** it and it becomes a **layer**: the 16 white keys and
 the 4 knobs change job, and the screen shows 16 tiles and 4 dials. **HOME** tapped while a layer is held
-**locks** it open. PLAY, REC and OCT keep working inside it.
+**locks** it open, and so does a **double tap** of its button; a tap lets it go. PLAY, REC and OCT keep working
+inside it.
 
 | Hold | Keys | Knobs 1 · 2 · 3 · 4 |
 |---|---|---|
 | **FX** | the 16 punch-in effects; black keys **F#3 REV THROW**, **G#3 ECHO THROW** | FILT · DUST · DUCK · TAPE |
-| **GLO** | 1–4 mute, 5–8 solo, 9 held = a fill, 10 = the next bar a fill, 14 = MIDI LEARN, the last one tap tempo | levels of tracks 1–4 |
+| **GLO** | 1–4 mute, 5–8 solo, 9 held = a fill, 10 = the next bar a fill, 14 = MIDI LEARN, the last one tap tempo; **SELECT** turns the BPM (alone it doesn't, since 0.9.8) | levels of tracks 1–4 |
 | **SEQ** | the 16 steps of the page (empty = set, set = press and release clears); black keys: page, shift, half / double, transpose, **F#5 held erases** what the playhead passes | NOTE · DIV · SWG · LEN; steps held: NOTE · RTCH · CHNC · FLAG |
 | **SCL** | any key = the key of the song | CHRD · SCL · QNT · TRN |
 | **EDIT** | the track's engine; the last one = track 4 DRUM / SYNTH | PRST · VOICE · GLIDE · LVL |
