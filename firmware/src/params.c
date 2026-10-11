@@ -195,6 +195,7 @@ static const param_desc_t GP[G_COUNT] = {
     [G_MAC1] = PD("MAC1", F_PCT, 0, 127, 0), [G_MAC2] = PD("MAC2", F_PCT, 0, 127, 0),
     [G_MAC3] = PD("MAC3", F_PCT, 0, 127, 0), [G_MAC4] = PD("MAC4", F_PCT, 0, 127, 0),
     [G_CLICK] = PE("CLICK", N_CLICK, 0), [G_CLVL] = PE("LEVEL", N_CLVL, 1), [G_CNTIN] = PE("COUNT", N_CNTIN, 0),
+    [G_PREVIEW] = PE("PREV", N_ONOFF, 0),
 };
 
 /* the INSERT's A B C as its TYPE means them (TP's ranges and defaults): the drives DRIVE TONE LEVEL, CRUSH BITS RATE
@@ -413,7 +414,8 @@ static const page_t PAGES[] = {
     {"VOICE", FAM_EDIT, SC_TRACK, GR_NONE, {P_VOICE, P_GLIDE, P_GLMODE, P_PRIO}},
     {"VOICE 2", FAM_EDIT, SC_TRACK, GR_NONE, {P_ALLOC, P_DETUNE, P_PAN, P_MUTE}},
     {"GLOBAL", FAM_GLO, SC_GLOBAL, GR_NONE, {G_BPM, G_SWING, G_CLOCK, G_TUNE}},
-    {"CLICK", FAM_GLO, SC_GLOBAL, GR_NONE, {G_CLICK, G_CLVL, G_CNTIN, 0xFF}},   /* Jangada 0.9.7: the metronome */
+    {"CLICK", FAM_GLO, SC_GLOBAL, GR_NONE, {G_CLICK, G_CLVL, G_CNTIN, G_PREVIEW}},   /* Jangada 0.9.7: the metronome,
+                                                                                     * STEP PREVIEW */
     {"SYSTEM", FAM_GLO, SC_GLOBAL, GR_NONE, {G_MIDI, G_SYNC, G_ROUTE, G_INFO}},
     {"DRUMS", FAM_GLO, SC_GLOBAL, GR_NONE, {G_DRCH, G_DRLVL, G_DRREV, G_T4}},   /* GM kit on MIDI ch 10; T4: Jangada */
     {"MASTER", FAM_GLO, SC_GLOBAL, GR_NONE, {G_DUST, G_DUCK, G_FILT, G_TAPE}},

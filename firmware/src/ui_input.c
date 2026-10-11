@@ -211,6 +211,8 @@ static void step_edit(uint32_t slot, int32_t steps)
     switch (id) {
     case 0:                                               /* STEP: the cursor */
         cursor_set(ui.cursor + steps);
+        if (song.g[G_PREVIEW] && !song.playing)
+            prev_req = (uint8_t)(ui.cursor + 1u);           /* STEP PREVIEW: it plays (seq.c) */
         break;
     case 1:                                               /* NOTE: transpose the step */
         if (!st->n) {

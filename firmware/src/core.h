@@ -109,6 +109,7 @@ enum {                          /* global parameters */
      * OFF / 1BAR / 2BAR. Settings of the FM-1 (panel.c lights_word), not of a project: from G_SETTINGS on, a project
      * load or NEW PROJECT leaves them as they are */
     G_CLICK, G_CLVL, G_CNTIN,
+    G_PREVIEW,                  /* Jangada 0.9.7 (after Felucca 1.4): STEP PREVIEW, a setting too (seq.c prev_req) */
     G_COUNT
 };
 /* the globals a stored project keeps: all before the macros. The macros are where the hands are, not part of

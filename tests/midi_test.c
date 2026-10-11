@@ -405,6 +405,27 @@ int main(void)
         song.g[G_CLICK] = 0;
         song.rec = 0;
     }
+    {   /* Jangada 0.9.7 STEP PREVIEW (after Felucca 1.4): stopped, the step plays once for its gate */
+        track_t *t = &trk[0];
+        uint32_t k, on = 0;
+        setup();
+        t->p[P_SLEN] = 16;
+        t->p[P_SDIV] = 2;
+        t->p[P_SGATE] = 64;
+        t->step[3] = (step_t){{62, 0, 0, 0}, 1, ST_NOTE, 0, 100};
+        t->step[4] = (step_t){{0, 0, 0, 0}, 0, ST_TIE, 0, 0};    /* (a TIE after it: still let go) */
+        prev_req = 4;
+        run(1);
+        for (k = 0; k < NVOICE; k++)
+            on += t->v[k].active && t->v[k].gate && t->v[k].note == 62;
+        run((uint32_t)FS / CTL);
+        ok(on == 1 && !t->seq_n && !gates(t), "STEP PREVIEW: the step sounds, then lets go");
+        song.playing = 1;
+        prev_req = 4;
+        run(1);
+        ok(!prev_req && !gates(t), "STEP PREVIEW: nothing while playing");
+        song.playing = 0;
+    }
     {   /* Jangada 0.9.7 ESYNC (after Felucca 1.5): ATK as a note value of the tempo; it follows the BPM */
         uint32_t bpm, blocks[2];
         for (bpm = 0; bpm < 2u; bpm++) {

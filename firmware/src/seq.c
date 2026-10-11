@@ -36,6 +36,7 @@ static const uint16_t SCALE_MASK[] = {
 #define KB_SILENT 255u
 static uint32_t kb_prev;
 static uint8_t kb_note[27], kb_trk[27];  /* per key: the note it started and on which track */
+static volatile uint8_t prev_req;        /* STEP PREVIEW: the step + 1 the cursor landed on (ui_input.c), 0 none */
 static volatile uint8_t pc_req[NTRK];    /* MIDI Program Change: program + 1 per track, the main loop loads it (ui.c
                                           * pc_service), 0 none (Jangada 0.9.7, after Felucca 1.5.1, PR #179) */
 static volatile uint8_t kb_boot_hold;    /* power-on to the end of the splash (main.c): the keys sound nothing, and one
@@ -1744,6 +1745,18 @@ static void events_block(uint32_t n)
         cnt.left = 0;
         seq_stop();
         transport_req = 0;
+    }
+    if (prev_req) {                                   /* STEP PREVIEW (0.9.7, after Felucca 1.4): stopped, the step the
+                                                       * cursor landed on plays once, as written, for its gate */
+        uint32_t s = prev_req - 1u;
+        prev_req = 0;
+        if (!song.playing) {
+            track_t *t = TSEL;
+            seq_release(t);
+            seq_step(t, s, div_samples((uint32_t)t->p[P_SDIV]), 0);
+            t->seq_hold = 0;                          /* (a tie or slide after it: never held while stopped) */
+            t->rat_left = 0;
+        }
     }
     if (cnt.left && (cnt.pos += n * (uint32_t)song.g[G_BPM]) >= BEAT_U) {
         cnt.pos -= BEAT_U;

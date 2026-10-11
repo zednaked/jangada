@@ -1469,7 +1469,7 @@ function makeMockDevice(opt = {}) {
     D("DUST", F.PCT, 0, 127, 0), D("DUCK", F.PCT, 0, 127, 0), D("FILT", F.BIPCT, -64, 63, 0), D("KIT", F.ENUM, 0, 37, 0, ["GM", "808", "909", "606", "80S", "VINTAGE", "TRAP", "DRILL", "BOOMBAP", "LO-FI", "PHONK", "HOUSE", "D.HOUSE", "TECHNO", "MINIMAL", "ELECTRO", "DISCO", "GARAGE", "JUNGLE", "DUBSTEP", "DEMBOW", "AMAPIANO", "AFRO", "LATIN", "TRIBAL", "SYNTHWV", "CHIP", "ARCADE", "GLITCH", "INDUSTR", "HYPER", "AMBIENT", "JAZZ", "RUST", "FORGE", "PISTON", "HURT", "MANGUE"]),
     D("TYPE", F.ENUM, 0, 2, 0, ["ROOM", "SPRING", "PLATE"]), D("TAPE", F.PCT, 0, 127, 0), D("HUM", F.PCT, 0, 127, 0), D("MAC1", F.PCT, 0, 127, 0),
     D("MAC2", F.PCT, 0, 127, 0), D("MAC3", F.PCT, 0, 127, 0), D("MAC4", F.PCT, 0, 127, 0), D("CLICK", F.ENUM, 0, 2, 0, ["OFF", "REC", "ON"]),
-    D("LEVEL", F.ENUM, 0, 2, 1, ["LOW", "MID", "HIGH"]), D("COUNT", F.ENUM, 0, 2, 0, ["OFF", "1BAR", "2BAR"]),
+    D("LEVEL", F.ENUM, 0, 2, 1, ["LOW", "MID", "HIGH"]), D("COUNT", F.ENUM, 0, 2, 0, ["OFF", "1BAR", "2BAR"]), D("PREV", F.ENUM, 0, 1, 0, ["OFF", "ON"]),
   ];
   const P = (name, e, env = [10, 70, 90, 60], mono = 0, pat = 0) => ({ name, e, env, mono, pat });
   const ENG = [
@@ -1714,7 +1714,7 @@ function makeMockDevice(opt = {}) {
         P("ESTACA", [3, 110, 90, 60, 127, 0, 20, 110, 0, 0, 0, 0, 0, 0, 0, 0], [0, 60, 0, 30], 0, 0),
         P("VIDRO", [3, 20, 10, 120, 0, 20, 0, 120, 0, 0, 0, 0, 0, 0, 0, 0], [20, 90, 120, 80], 0, 0)] },
   ];
-  const P_COUNT = 102, G_COUNT = 42, NSTEP = 64, P_E0 = 64, NEDIT = 16, G_ENGSEL = 20, P_SLCR = 45;
+  const P_COUNT = 102, G_COUNT = 43, NSTEP = 64, P_E0 = 64, NEDIT = 16, G_ENGSEL = 20, P_SLCR = 45;
   /* </generated> */
   /* factory PATTERNS[] (ui.c): absolute notes, 0 rest; flags 1 accent, 2 slide, 4 tie (holds the previous note) */
   const T_ = 4;
@@ -2636,7 +2636,7 @@ function selfLoad() {
 const stepEdit = new Map(); /* index -> time of the last edit */
 
 /* parameter ids (firmware/src/core.h); used only when P_COUNT / G_COUNT match */
-const EXPECT = { pcount: 102, gcount: 42, pe0: 64 };   /* tools/gen_editor_tables.py --check: == the firmware */
+const EXPECT = { pcount: 102, gcount: 43, pe0: 64 };   /* tools/gen_editor_tables.py --check: == the firmware */
 const P = { LEVEL: 0, SLEN: 29 };
 const LAYOUT = (pe0) => [
   { t: "ENV", pages: [["ENV", 0, [1, 2, 3, 4]], ["ENV DEST", 0, [5, 6, 7, pe0 + 37]]] },   /* 0.9.7: ESYNC */
@@ -2652,7 +2652,7 @@ const LAYOUT = (pe0) => [
     ["VIVO", 0, [pe0 + 27, pe0 + 28, pe0 + 29, pe0 + 30]], ["VIVO 2", 0, [pe0 + 31, pe0 + 32, pe0 + 33, pe0 + 34]],
     ["VIVO 3", 0, [pe0 + 35, pe0 + 36]]] },   /* Jangada 0.9.7: VIVO, the pattern alive (issue #4) */
   { t: "GLOBAL", tab: "setgroups", pages: [["GLOBAL", 1, [0, 1, 2, 3]]] },
-  { t: "CLICK", tab: "setgroups", pages: [["CLICK", 1, [39, 40, 41]]] },   /* Jangada 0.9.7: the metronome */
+  { t: "CLICK", tab: "setgroups", pages: [["CLICK", 1, [39, 40, 41, 42]]] },   /* Jangada 0.9.7: the metronome */
   { t: "DRUMS", tab: "setgroups", pages: [["DRUMS", 1, [31, 24, 25, 26]]] },   /* Jangada: KIT first */
   { t: "MASTER", tab: "setgroups", pages: [["MASTER", 1, [28, 29, 30, 33]], ["MASTER 2", 1, [34, 33, 28]]] },   /* Jangada: DUST DUCK FILT; GRIT: TAPE HUM */
 ];
