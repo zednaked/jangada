@@ -207,14 +207,21 @@ static void midi_out_event(uint32_t pkt)            /* from the audio ISR */
 
 /* ------------------------------------------------------- descriptors --- */
 /* interfaces: 0 audio control, 1 MIDI streaming, 2 audio streaming (FELUCCA_UAC), then CDC's two.
- * bcdDevice: 3.00 MIDI, +0.01 CDC, +0.10 the audio input (hosts cache descriptors per version) */
+ * bcdDevice: 3.00 MIDI, +0.01 CDC, +0.10 the audio input, +0.08 the audio streaming interface first in the AC
+ * collection (Jangada 0.9.7, after Felucca 1.5.1, its #67) (hosts cache descriptors per version).
+ * The AC header lists the audio streaming interface before the MIDI one: macOS up to 15 (the kernel
+ * AppleUSBAudio) drops a MIDI streaming interface from the collection while it walks it with the count from
+ * bInCollection; with MIDI first it runs past the shortened list, gives up before the audio streaming
+ * interface, and no audio input appears (MIDI works). Listed last, MIDI is dropped at the end of the walk. The
+ * class spec gives the order no meaning (Linux takes each listed interface on its own) */
+#define BCD_AS_FIRST (0x08 * FELUCCA_UAC)
 #define CDC_IF (2 + FELUCCA_UAC)
 #define UAC_AS_IF 2u
 #define CFG_LEN (101 + 74 * FELUCCA_CDC + 74 * FELUCCA_UAC)
 #define USB_NIF (2 + FELUCCA_UAC + 2 * FELUCCA_CDC)
 #if FELUCCA_CDC
 static const uint8_t DEV_DESC[18] = {18, 1, 0x00, 0x02, 0xEF, 0x02, 0x01, 64, 0x09, 0x12, 0x01, 0x00,
-                                     0x01 + 0x10 * FELUCCA_UAC, 0x03, 1, 2, 0, 1};   /* misc/IAD */
+                                     0x01 + 0x10 * FELUCCA_UAC + BCD_AS_FIRST, 0x03, 1, 2, 0, 1};   /* misc/IAD */
 static const uint8_t CFG_DESC[] = {
     9, 2, CFG_LEN & 0xFF, CFG_LEN >> 8, USB_NIF, 1, 0, 0x80, 50,
     8, 0x0B, 0, 2 + FELUCCA_UAC, 1, 1, 0, 0,            /* IAD: audio + MIDI (IF 0-1, 0-2) */
@@ -223,14 +230,14 @@ static const uint8_t CFG_DESC[] = {
 #define FELUCCA_USB_PID 0x0001   /* the update loader is 0x0002 */
 #endif
 static const uint8_t DEV_DESC[18] = {18, 1, 0x10, 0x01, 0, 0, 0, 64, 0x09, 0x12, FELUCCA_USB_PID & 0xFF,
-                                     FELUCCA_USB_PID >> 8, 0x00 + 0x10 * FELUCCA_UAC, 0x03,
+                                     FELUCCA_USB_PID >> 8, 0x00 + 0x10 * FELUCCA_UAC + BCD_AS_FIRST, 0x03,
                                      1, 2, 0, 1};
 static const uint8_t CFG_DESC[] = {
     9, 2, CFG_LEN & 0xFF, CFG_LEN >> 8, USB_NIF, 1, 0, 0x80, 50,
 #endif
     9, 4, 0, 0, 0, 1, 1, 0, 0,
 #if FELUCCA_UAC
-    10, 0x24, 1, 0x00, 0x01, 31, 0, 2, 1, UAC_AS_IF,    /* AC header 1.00: MIDI + audio streaming */
+    10, 0x24, 1, 0x00, 0x01, 31, 0, 2, UAC_AS_IF, 1,    /* AC header 1.00: audio + MIDI streaming */
     12, 0x24, 2, 1, 0x03, 0x06, 0, 2, 0x03, 0x00, 0, 0, /* input terminal 1: line, 2 ch (L R) */
     9, 0x24, 3, 2, 0x01, 0x01, 0, 1, 0,                 /* output terminal 2: USB streaming, from 1 */
 #else
