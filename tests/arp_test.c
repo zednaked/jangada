@@ -82,6 +82,29 @@ int main(void)
         arp_run(t, sizeof want, got);
         expect("UDI: ends twice", got, want, sizeof want);
     }
+    {   /* 0.9.7 (after Felucca 1.1.5): DNUP, CONV, DIVG, PINKY, THUMB; WALK a step at a time */
+        static const uint8_t dnup[] = {67, 64, 60, 64, 67, 64}, conv[] = {60, 67, 64, 60, 67, 64};
+        static const uint8_t divg[] = {64, 67, 60, 64, 67, 60}, pinky[] = {67, 60, 67, 64, 67, 60};
+        static const uint8_t thumb[] = {60, 64, 60, 67, 60, 64};
+        uint32_t i, ok = 1;
+        t = arp_setup(8, 1); arp_run(t, 6, got); expect("DNUP", got, dnup, sizeof dnup);
+        t = arp_setup(9, 1); arp_run(t, 6, got); expect("CONV: outside in", got, conv, sizeof conv);
+        t = arp_setup(10, 1); arp_run(t, 6, got); expect("DIVG: inside out", got, divg, sizeof divg);
+        t = arp_setup(11, 1); arp_run(t, 6, got); expect("PINKY: the top every other", got, pinky, sizeof pinky);
+        t = arp_setup(12, 1); arp_run(t, 6, got); expect("THUMB: the bottom every other", got, thumb, sizeof thumb);
+        t = arp_setup(13, 2);
+        arp_run(t, 12, got);
+        for (i = 1; i < 12u; i++) {                     /* C E G C' E' G': each next one a neighbour */
+            static const uint8_t L[6] = {60, 64, 67, 72, 76, 79};
+            uint32_t a2, b2;
+            for (a2 = 0; a2 < 6u && L[a2] != got[i - 1u]; a2++) ;
+            for (b2 = 0; b2 < 6u && L[b2] != got[i]; b2++) ;
+            ok &= a2 < 6u && b2 < 6u && (a2 > b2 ? a2 - b2 : b2 - a2) == 1u;
+        }
+        printf("%-46s %s\n", "WALK: a neighbour each step", ok ? "ok" : "FAIL");
+        if (!ok)
+            exit(1);
+    }
     {
         t = arp_setup(7, 2);
         atick(t, 1);

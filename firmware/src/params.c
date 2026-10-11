@@ -2,7 +2,9 @@
  * Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments */
 /* Parameter descriptors, formatting and the page table. */
 static const char *const N_LWAVE[] = {"SIN", "TRI", "SAW", "SQR", "S&H"};
-static const char *const N_AMODE[] = {"OFF", "UP", "DN", "UPDN", "RND", "ORD", "UDI", "RPT"};   /* UDI: UPDN with the ends repeated; RPT: the whole chord */
+static const char *const N_AMODE[] = {"OFF", "UP", "DN", "UPDN", "RND", "ORD", "UDI", "RPT",   /* UDI: UPDN with the ends
+                                                                                          * repeated; RPT: the chord */
+                                      "DNUP", "CONV", "DIVG", "PINKY", "THUMB", "WALK"};   /* 0.9.7 (after Felucca 1.1.5) */
 static const char *const N_DIV[] = {"1/4", "1/8", "1/16", "1/32", "8T", "16T"};
 /* the delay's TIME: N_DIV plus the dotted 1/8 and 1/16 (Jangada 0.7, after SLOOP 2.4; appended) */
 static const char *const N_DLY[] = {"1/4", "1/8", "1/16", "1/32", "8T", "16T", "1/8D", "1/16D"};

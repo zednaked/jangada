@@ -491,6 +491,36 @@ static void arp_tick(track_t *t, uint32_t n, uint32_t adv)
     case 7:                                         /* RPT: the whole chord on every step (drones) */
         j = 0;
         break;
+    /* Jangada 0.9.7 (after Felucca 1.1.5): DNUP down and up; CONV the outer notes first, closing in; DIVG from the
+     * middle out; PINKY every other note the top one; THUMB every other the bottom one; WALK a step up or down */
+    case 8: {
+        uint32_t cyc = len > 1u ? 2u * len - 2u : 1u, k = t->arp_idx % cyc;
+        j = k < len ? len - 1u - k : k - len + 1u;
+        break;
+    }
+    case 9:
+    case 10: {
+        uint32_t k = t->arp_idx % len;
+        if (t->p[P_AMODE] == 10)
+            k = len - 1u - k;
+        j = k & 1u ? len - 1u - k / 2u : k / 2u;
+        break;
+    }
+    case 11:
+    case 12: {
+        uint32_t k = t->arp_idx;
+        j = len < 2u ? 0u : !(k & 1u) ? (t->p[P_AMODE] == 11 ? len - 1u : 0u)
+                                       : (t->p[P_AMODE] == 11 ? 0u : 1u) + (k / 2u) % (len - 1u);
+        break;
+    }
+    case 13: {
+        static uint8_t walk[NTRK];
+        uint32_t w = walk[trk_index(t) % NTRK] % len;
+        w = (rng() & 1u) ? (w + 1u < len ? w + 1u : (w ? w - 1u : 0u)) : (w ? w - 1u : (len > 1u ? 1u : 0u));
+        walk[trk_index(t) % NTRK] = (uint8_t)w;
+        j = w;
+        break;
+    }
     default:
         j = t->arp_idx % len;
         break;
