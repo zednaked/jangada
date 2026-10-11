@@ -229,6 +229,37 @@ static void step_edit(uint32_t slot, int32_t steps)
     }
 }
 
+/* Jangada 0.9.7 MOMENTARY (after Felucca 1.4): hold LFO and turn knobs on HOME or any page: let go of LFO and every
+ * value turned goes back; OCT+ while holding LFO keeps them. LFO opens its pages on a tap (on release) */
+#define MOM_N 16u
+static struct { uint8_t n; int16_t *vp[MOM_N]; int16_t v[MOM_N]; } mom;
+static int mom_held(void) { return (fm1_in.buttons >> panel.btn[B_LFO]) & 1u && !ui.menu; }
+static void mom_touch(int16_t *vp)                    /* a knob about to change *vp */
+{
+    uint32_t i;
+    if (!mom_held())
+        return;
+    ui.lfo_t0 |= 2u;                                  /* (no tap: the LFO pages stay closed) */
+    for (i = 0; i < mom.n; i++)
+        if (mom.vp[i] == vp)
+            return;
+    if (mom.n < MOM_N) {
+        mom.vp[mom.n] = vp;
+        mom.v[mom.n++] = *vp;
+    }
+}
+static void mom_release(void)                         /* LFO let go: what was turned goes back */
+{
+    uint32_t i;
+    if (!mom.n)
+        return;
+    for (i = mom.n; i-- > 0;)
+        *mom.vp[i] = mom.v[i];
+    mom.n = 0;
+    ui_message("MOMENTARY: BACK");
+    ui.force = 1;
+}
+
 static void edit_param(uint32_t slot, int32_t steps)
 {
     int16_t *vp;
@@ -308,6 +339,8 @@ static void edit_param(uint32_t slot, int32_t steps)
         return;
     }
     v = clamp(*vp + accel(EN_K1 + slot, steps, d->max - d->min), d->min, d->max);
+    if (!(pg->scope == SC_GLOBAL && (id == G_LOAD || id == G_SAVE || id == G_CLRSEQ || id == G_INITSND || id == G_SLOT)))
+        mom_touch(vp);                                    /* MOMENTARY: its value before (not the GO buttons) */
     *vp = (int16_t)v;
     if (pg->scope == SC_TRACK || pg->scope == SC_ENGINE)
         ml_knob(id);                                      /* MIDI LEARN: this parameter is picked */
@@ -439,6 +472,7 @@ static void ui_input(void)
     uint32_t home = btn_hold(&ui.home_t0, B_HOME, now, 1);
     uint32_t rec = btn_hold(&ui.rec_t0, B_REC, now, !ui.menu && (fam == FAM_SEQ || fam == FAM_ARP || fam == FAM_TRK));
     uint32_t arp = btn_hold(&ui.arp_t0, B_ARP, now, !ui.menu);
+    uint32_t lfo = btn_hold(&ui.lfo_t0, B_LFO, now, 0);   /* (0.9.7: a tap opens LFO; held: MOMENTARY) */
     int32_t s;
     static int8_t punch_shown = -1;
     t4_follow();
@@ -455,6 +489,10 @@ static void ui_input(void)
         if (punch_shown >= 0)
             ui_message(PUNCH_NAME[punch_shown]);
     }
+    if (!mom_held())
+        mom_release();
+    if (lfo == BT_TAP && !ui.menu && !ui.confirm)
+        open_family(FAM_LFO);
     if (arp == BT_TAP && !ui.menu && !ui.confirm)       /* Jangada: ARP acts on release, as HOME: a tap */
         open_family(FAM_ARP);                           /* opens its page, a hold (below) does not */
     if (arp == BT_HOLD) {                               /* Jangada: ARP held: every latched (HOLD) chord off */
@@ -549,12 +587,19 @@ static void ui_input(void)
             break;
         case B_REC:                                     /* tap / hold: above */
         case B_ARP:                                     /* Jangada: tap / hold, above */
+        case B_LFO:                                     /* (0.9.7: a tap, above) */
             break;
         case B_OCTDN:
         case B_OCTUP: {
             uint32_t both;
             if (b == B_OCTDN && ml_oct_down())          /* MIDI LEARN: OCT- clears the picked one's CC */
                 break;
+            if (b == B_OCTUP && mom_held()) {           /* MOMENTARY: OCT+ keeps what was turned */
+                mom.n = 0;
+                ui.lfo_t0 |= 2u;
+                ui_message("MOMENTARY: KEPT");
+                break;
+            }
             both = (1u << panel.btn[B_OCTDN]) | (1u << panel.btn[B_OCTUP]);
             if ((fm1_in.buttons & both) == both)
                 song.octave = 0;
@@ -632,6 +677,7 @@ static void ui_input(void)
         if (ui.home) {
             int16_t *vp;
             const param_desc_t *d = home_param(k, &vp);
+            mom_touch(vp);
             *vp = (int16_t)clamp(*vp + accel(EN_K1 + k, s, d->max - d->min), d->min, d->max);
         } else {
             edit_param(k, s);

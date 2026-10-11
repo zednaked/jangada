@@ -338,4 +338,19 @@ int main(void){
    ui.force = 1; ui_draw();
  }
  printf("%-46s ok\n", "MIDI LEARN: pick, learn, replace, clear (0.9)");
+ { /* 0.9.7 MOMENTARY (after Felucca 1.4): LFO held, a knob turned: let go, it comes back; OCT+ held keeps it */
+   uint32_t pi, lfo = 1u << panel.btn[B_LFO]; int16_t d0;
+   ly.btn = ly.lock = 0; ml_ui.on = 0; song.sel = 0; ui.home = 0;
+   for (pi = 0; pi < NPAGES && strcmp(PAGES[pi].title, "FX"); pi++) ;
+   assert(pi < NPAGES); ui.page = (uint8_t)pi;
+   d0 = trk[0].p[P_DIST];
+   fm1_in.buttons = lfo; edit_param(0, 9); assert(trk[0].p[P_DIST] != d0 && mom.n == 1);
+   edit_param(0, 3); assert(mom.n == 1);                      /* the same one: its first value kept */
+   fm1_in.buttons = 0; mom_release(); assert(trk[0].p[P_DIST] == d0 && !mom.n);
+   fm1_in.buttons = lfo; edit_param(0, 9); mom.n = 0;          /* (OCT+ held: kept) */
+   fm1_in.buttons = 0; mom_release(); assert(trk[0].p[P_DIST] != d0);
+   edit_param(0, -9); assert(!mom.n);                          /* LFO not held: an ordinary turn */
+   trk[0].p[P_DIST] = d0;
+ }
+ printf("%-46s ok\n", "MOMENTARY: LFO held, back on release (0.9.7)");
  return 0;}
