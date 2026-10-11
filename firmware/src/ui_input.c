@@ -256,7 +256,7 @@ static void step_edit(uint32_t slot, int32_t steps)
 /* Jangada 0.9.7 MOMENTARY (after Felucca 1.4): hold LFO and turn knobs on HOME or any page: let go of LFO and every
  * value turned goes back; OCT+ while holding LFO keeps them. LFO opens its pages on a tap (on release) */
 #define MOM_N 16u
-static struct { uint8_t n; int16_t *vp[MOM_N]; int16_t v[MOM_N]; } mom;
+static struct { uint8_t n, kept; int16_t *vp[MOM_N]; int16_t v[MOM_N]; } mom;
 static int mom_held(void) { return (fm1_in.buttons >> panel.btn[B_LFO]) & 1u && !ui.menu; }
 static void mom_touch(int16_t *vp)                    /* a knob about to change *vp */
 {
@@ -264,6 +264,7 @@ static void mom_touch(int16_t *vp)                    /* a knob about to change 
     if (!mom_held())
         return;
     ui.lfo_t0 |= 2u;                                  /* (no tap: the LFO pages stay closed) */
+    mom.kept = 0;                                     /* (turned again after OCT+: these go back) */
     for (i = 0; i < mom.n; i++)
         if (mom.vp[i] == vp)
             return;
@@ -513,8 +514,16 @@ static void ui_input(void)
         if (punch_shown >= 0)
             ui_message(PUNCH_NAME[punch_shown]);
     }
-    if (!mom_held())
+    if (!mom_held()) {
         mom_release();
+        mom.kept = 0;
+    } else if (ui.lfo_t0 && now - (ui.lfo_t0 & ~3u) > 250u * 1000u * FM1_TICKS_PER_US) {   /* held (not a tap): */
+        char b[4] = "";                                 /* the top bar says so, and how many values it holds */
+        if (mom.n)
+            fmt_int(b, (int32_t)mom.n);
+        ui_say(mom.kept ? "MOMENTARY: KEPT" : mom.n ? "MOMENTARY: " : "MOMENTARY: TURN A KNOB", mom.kept ? "" : b);
+        ui.msg_t = 3;                                   /* (gone a moment after LFO is let go) */
+    }
     if (lfo == BT_TAP && !ui.menu && !ui.confirm)
         open_family(FAM_LFO);
     if (arp == BT_TAP && !ui.menu && !ui.confirm)       /* Jangada: ARP acts on release, as HOME: a tap */
@@ -620,6 +629,7 @@ static void ui_input(void)
                 break;
             if (b == B_OCTUP && mom_held()) {           /* MOMENTARY: OCT+ keeps what was turned */
                 mom.n = 0;
+                mom.kept = 1;
                 ui.lfo_t0 |= 2u;
                 ui_message("MOMENTARY: KEPT");
                 break;
