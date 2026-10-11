@@ -638,6 +638,50 @@ static void preset_go(uint32_t n)                    /* load list index n into t
     ui.force = 1;
 }
 
+/* MIDI Program Change (Jangada 0.9.7, after Felucca 1.5.1 and renebohne's PR #179 there): program n on a track's
+ * channel loads its engine's sound n as PRESETS lists them (the engine never changes; FM6: then the bank voices
+ * that hold one, B1..B64 in order); the drum track: the kit n in the browser's order. A number past the last is
+ * ignored, never wrapped, so a number is always the same sound. In the main loop (seq.c only marks it) */
+static void pc_service(void)
+{
+    uint32_t i;
+    for (i = 0; i < NTRK; i++) {
+        track_t *t = &trk[i];
+        const engine_t *e = ENGINES[t->eng_req % NENGINES];
+        uint32_t n = pc_req[i];
+        char b[16];
+        if (!n)
+            continue;
+        pc_req[i] = 0;
+        n--;
+        if (is_drum(t)) {
+            if (n >= DRUM_KITS)
+                continue;
+            drum_kit_set(DS_KIT_NAV[n]);
+        } else if (n < e->npresets) {
+            apply_preset_to(t, n);
+        } else if (t->eng_req == ENGI_FM6 && n - e->npresets < fm6_list_count()) {
+            uint32_t k = fm6_list_nth(n - e->npresets);
+            apply_preset_to(t, 0);
+            fm1_irq_off();
+            t->p[P_E7] = (int16_t)(FM6_NFACTORY + k);
+            fm1_irq_on();
+            fm6_load_slot(i, FM6_NFACTORY + k);
+        } else {
+            continue;
+        }
+        b[0] = 'T';
+        b[1] = (char)('1' + i);
+        b[2] = ' ';
+        b[3] = 'P';
+        b[4] = 'C';
+        b[5] = ' ';
+        fmt_int(b + 6, (int32_t)n);
+        ui_message(b);
+        ui.force = 1;
+    }
+}
+
 /* Jangada 0.6: an FM6 track on a bank voice (PTCH B1..B64, as the PRESETS list loads one) is named by its patch,
  * not by the preset it started from: the name -> b (11 bytes or more), 1; 0 = not one */
 static int fm6_bank_sound(const track_t *t, char *b)

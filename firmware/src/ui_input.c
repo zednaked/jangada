@@ -212,6 +212,12 @@ static void step_edit(uint32_t slot, int32_t steps)
         st->flags = (uint8_t)((st->flags & ~m) | ((uint32_t)clamp(v, 0, 3) << sh));
         break;
     }
+    case 6:                                               /* VEL 1..127 (Jangada 0.9.7, after Felucca 1.5): a step
+                                                           * entered by hand plays 96, one recorded live as hard
+                                                           * as it was played; an accent plays 127 */
+        if (st->n)
+            st->vel = (uint8_t)clamp((st->vel ? st->vel : 96) + steps, 1, 127);
+        break;
     case 0xFF:
         break;
     default: {                                            /* FLAG: - / ACC / SLD / A+S */
@@ -434,6 +440,7 @@ static void ui_input(void)
     int32_t s;
     static int8_t punch_shown = -1;
     t4_follow();
+    pc_service();                                       /* MIDI Program Change (ui.c) */
     if (pressed || notes || fm1_in.buttons || fm1_in.notes)
         ui_input_ms = fm1_ms;                           /* Jangada: not idle (project.c autosave) */
     fm6_ask_input(&pressed);                            /* Jangada 0.6: "FM6 BANK n? SAVE=YES" */

@@ -36,6 +36,8 @@ static const uint16_t SCALE_MASK[] = {
 #define KB_SILENT 255u
 static uint32_t kb_prev;
 static uint8_t kb_note[27], kb_trk[27];  /* per key: the note it started and on which track */
+static volatile uint8_t pc_req[NTRK];    /* MIDI Program Change: program + 1 per track, the main loop loads it (ui.c
+                                          * pc_service), 0 none (Jangada 0.9.7, after Felucca 1.5.1, PR #179) */
 static volatile uint8_t kb_boot_hold;    /* power-on to the end of the splash (main.c): the keys sound nothing, and one
                                           * held across its end stays silent until let go (after Felucca 1.5, #137) */
 static uint8_t kb_nt[27][4], kb_n[27];    /* Jangada: per key, the chord it started (CHORD on), 0 = none */
@@ -1758,6 +1760,8 @@ static void events_block(uint32_t n)
             midi_track(ch)->bend16 = (int16_t)((((int32_t)(d2 << 7 | d1) - 8192) * 32) / 8192);
         else if (st == 0xB0u)
             midi_cc(midi_track(ch), d1, d2);
+        else if (st == 0xC0u)                         /* PROGRAM CHANGE: loaded in the main loop, not here */
+            pc_req[trk_index(midi_track(ch)) % NTRK] = (uint8_t)(d1 + 1u);
         else if (st == 0xD0u)                         /* channel AFTERTOUCH (mod.c AT) */
             midi_track(ch)->at = (uint8_t)d1;
     }

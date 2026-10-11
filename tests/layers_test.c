@@ -93,6 +93,12 @@ static void felucca_init(void)
 static int notes(track_t*t,int i){return t->step[i].n?t->step[i].note[0]:0;}
 int main(void){
  felucca_init(); track_t*t=&trk[0]; t->p[P_SLEN]=4;
+ { /* Jangada 0.9.7: MIDI Program Change, loaded in the main loop (ui.c pc_service): the engine's preset n, the drum
+    * track's kit n in the browser's order; past the last: ignored */
+   uint32_t e0=t->eng_req; pc_req[0]=4; pc_service(); assert(t->preset==3 && t->eng_req==e0 && !pc_req[0]);
+   pc_req[0]=(uint8_t)(ENGINES[e0]->npresets+1); pc_service(); assert(t->preset==3);
+   pc_req[TRK_DRUM]=3; pc_service(); assert(song.g[G_KIT]==(int16_t)DS_KIT_NAV[2]);
+   ui.msg_t=0; felucca_init(); t->p[P_SLEN]=4; }
  for(int i=0;i<4;i++){t->step[i].note[0]=60+i;t->step[i].n=1;t->step[i].time=ST_NOTE;}
  ly.snap=0; pattern_tool(1);  /* shift > */
  assert(notes(t,0)==63&&notes(t,1)==60);

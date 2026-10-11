@@ -93,6 +93,11 @@ int main(void)
     midi(0xE0, 0x00, 0x40);
     run(1);
     ok(t->bend16 == 0, "pitch bend centre: 0");
+    midi(0xC0, 5, 0);                                         /* Jangada 0.9.7: PROGRAM CHANGE */
+    midi(0xC1, 0, 0);
+    run(1);
+    ok(pc_req[0] == 6 && pc_req[1] == 1, "program change: marked for the main loop, per channel's track");
+    pc_req[0] = pc_req[1] = 0;
     midi(0xE1, 0x00, 0x00);
     run(1);
     ok(trk[1].bend16 == -32 && t->bend16 == 0, "bend on channel 2 moves track 2 only");

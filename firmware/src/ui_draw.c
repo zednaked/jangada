@@ -1191,7 +1191,9 @@ static void draw_columns(void)
                 static const char *const CHN_N[4] = {"100%", "75%", "50%", "25%"};
                 draw_column(1, "RTCH", RAT_N[(st->flags & SF_RATCH) >> SF_RATCH_SH], "", step_on(st) ? VAL(1u) : C_DIM, -1, ICON_AUTO);
                 draw_column(2, "CHNC", CHN_N[(st->flags & SF_CHANCE) >> SF_CHANCE_SH], "", step_on(st) ? VAL(2u) : C_DIM, -1, ICON_AUTO);
-                draw_column(3, "", "", "", C_HI, -1, ICON_AUTO);
+                fmt_int(u, st->vel ? st->vel : 96);   /* VEL (0.9.7) */
+                draw_column(3, "VEL", st->flags & SF_ACCENT ? "127" : u, "", step_on(st) ? VAL(3u) : C_DIM,
+                            step_on(st) ? (st->flags & SF_ACCENT ? 127 : st->vel ? st->vel : 96) * 1000 / 127 : -1, ICON_AUTO);
                 return;
             }
             draw_column(1, "NOTE", val, u, step_on(st) ? VAL(1u) : C_DIM, -1, ICON_AUTO);

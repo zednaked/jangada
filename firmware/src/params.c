@@ -396,7 +396,7 @@ static const page_t PAGES[] = {
     {"ARP 2", FAM_ARP, SC_TRACK, GR_NONE, {P_ASWING, P_APROB, P_AHOLD, P_AORDER}},
     {"DRONE", FAM_ARP, SC_TRACK, GR_DRONE, {P_AHOLD, P_EVOL, P_TENS, P_TRAMP}},   /* Jangada DRONES (drone.c) */
     {"STEP", FAM_SEQ, SC_STEP, GR_ROLL, {0, 1, 2, 3}},
-    {"STEP 2", FAM_SEQ, SC_STEP, GR_ROLL, {0, 4, 5, 0xFF}},   /* Jangada: STEP RTCH CHNC */
+    {"STEP 2", FAM_SEQ, SC_STEP, GR_ROLL, {0, 4, 5, 6}},      /* Jangada: STEP RTCH CHNC VEL (0.9.7) */
     {"PATTERN", FAM_SEQ, SC_TRACK, GR_STEPS, {P_SLEN, P_SDIV, P_SSWING, P_SGATE}},
     {"VIVO", FAM_SEQ, SC_TRACK, GR_VIVO, {P_VPULS, P_VROT, P_VDENS, P_VMEM}},   /* Jangada 0.9.7 (issue #4): */
     {"VIVO 2", FAM_SEQ, SC_TRACK, GR_VIVO, {P_VCYC, P_VACC, P_VEVOL, P_VSEED}}, /* the pattern alive (seq.c) */
