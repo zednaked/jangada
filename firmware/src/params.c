@@ -147,6 +147,7 @@ static const param_desc_t TP[P_COUNT] = {
     [P_VSEED] = PD("SEED", F_INT, 0, 127, 0),
     [P_VFRZ] = PE("FRZ", N_ONOFF, 0),
     [P_VRATE] = PE("LOOP", N_VRATE, 0),
+    [P_ESYNC] = PE("ESYNC", N_ONOFF, 0),
 };
 
 static const param_desc_t GP[G_COUNT] = {
@@ -226,8 +227,24 @@ static const param_desc_t *track_desc(const track_t *t, uint32_t id)
     }
     if (id >= P_IA && id <= P_IC)                     /* the INSERT's values as its TYPE names them */
         return ins_desc(t->p[P_ITYPE], id - P_IA);
+    if (t->p[P_ESYNC] && (id == P_ATK || id == P_DEC || id == P_REL)) {   /* ESYNC: note values (voice.c) */
+        static const param_desc_t ES_D[3] = {PD("ATK", F_ESYNC, 0, 127, 10), PD("DEC", F_ESYNC, 0, 127, 70),
+                                             PD("REL", F_ESYNC, 0, 127, 60)};
+        return &ES_D[id == P_ATK ? 0 : id == P_DEC ? 1 : 2];
+    }
     return &TP[id];
 }
+
+/* Jangada 0.9.7 ESYNC (after Felucca 1.5): ATK, DEC and REL as note values of the tempo, 1/64T .. 4 bars with
+ * the dotted and triplet ones; a knob value 0..127 is one of the 21 (presets keep their numbers). Their length
+ * in 1/96 of a beat */
+#define ES_N 21u
+static const char *const ES_NAME[ES_N] = {"1/64T", "1/64", "1/32T", "1/32", "1/16T", "1/32D", "1/16", "1/8T",
+                                          "1/16D", "1/8", "1/4T", "1/8D", "1/4", "1/2T", "1/4D", "1/2", "1/2D",
+                                          "1/1", "1/1D", "2BAR", "4BAR"};
+static const uint16_t ES_U96[ES_N] = {4, 6, 8, 12, 16, 18, 24, 32, 36, 48, 64, 72, 96, 128, 144, 192, 288, 384,
+                                      576, 768, 1536};
+static uint32_t es_index(int32_t v) { return (uint32_t)clamp(v, 0, 127) * (ES_N - 1u) / 127u; }
 
 /* value string (<= 5 chars) and unit for a parameter value */
 static void param_format(const param_desc_t *d, int32_t v, char *val, const char **unit)
@@ -247,6 +264,10 @@ static void param_format(const param_desc_t *d, int32_t v, char *val, const char
             str_cpy(val + 1, t, 6);
         }
         *unit = "%";
+        break;
+    case F_ESYNC:                                       /* Jangada 0.9.7: an envelope time as a note value */
+        str_cpy(val, ES_NAME[es_index(v)], 6);
+        *unit = "";
         break;
     case F_TIME: {
         uint32_t ms10 = TIME_MS_X10[v & 127];
@@ -360,7 +381,8 @@ typedef struct {
 
 static const page_t PAGES[] = {
     {"ENV", FAM_ENV, SC_TRACK, GR_ADSR, {P_ATK, P_DEC, P_SUS, P_REL}},
-    {"ENV DEST", FAM_ENV, SC_TRACK, GR_NONE, {P_ED_FLT, P_ED_PIT, P_ED_SHP, 0xFF}},   /* (P_ED_FX: nothing reads it) */
+    {"ENV DEST", FAM_ENV, SC_TRACK, GR_NONE, {P_ED_FLT, P_ED_PIT, P_ED_SHP, P_ESYNC}},   /* (P_ED_FX: nothing reads it;
+                                                                                   * ESYNC: Jangada 0.9.7) */
     {"LFO", FAM_LFO, SC_TRACK, GR_LFO, {P_LRATE, P_LWAVE, P_LPHASE, P_LFADE}},
     {"LFO DEST", FAM_LFO, SC_TRACK, GR_NONE, {P_LD_PIT, P_LD_FLT, P_LD_SHP, P_LD_AMP}},
     {"MOD 1", FAM_LFO, SC_TRACK, GR_NONE, {P_M1SRC, P_M1DST, P_M1AMT, 0xFF}},   /* Jangada: matrix */

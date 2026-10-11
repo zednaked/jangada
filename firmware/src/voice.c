@@ -489,24 +489,45 @@ static void engine_block(track_t *t)
         t->pe_old[i] = t->p[P_E0 + i];
 }
 
+/* ESYNC (Jangada 0.9.7, after Felucca 1.5): per part, the time-table index (TIME_MS_X10) of ATK, DEC and REL as
+ * note values at the tempo, once a block (track_render); they follow the BPM, even while a note sounds */
+static uint8_t env_sync[NTRK][3];
+static void env_sync_block(track_t *t)
+{
+    static const uint8_t ID[3] = {P_ATK, P_DEC, P_REL};
+    uint32_t k, bpm = (uint32_t)clamp(song.g[G_BPM], 40, 240);
+    for (k = 0; k < 3u; k++) {
+        uint32_t ms10 = (uint32_t)ES_U96[es_index(t->p[ID[k]])] * 6250u / bpm, lo = 0, hi = 127;   /* 60000 / 96 */
+        while (lo < hi) {                               /* the first time at least that long */
+            uint32_t mid = (lo + hi) / 2u;
+            if (TIME_MS_X10[mid] < ms10)
+                lo = mid + 1u;
+            else
+                hi = mid;
+        }
+        env_sync[(uint32_t)(t - trk) % NTRK][k] = (uint8_t)lo;
+    }
+}
+
 /* one control tick (CTL samples) of the amplitude envelope; returns Q15 */
 static int32_t env_tick(track_t *t, voice_t *v)
 {
     const int16_t *p = t->p;
     int32_t sus = (int32_t)p[P_SUS] << 17;              /* Q24 */
+    const uint8_t *es = p[P_ESYNC] ? env_sync[(uint32_t)(t - trk) % NTRK] : 0;
     switch (v->stage) {
     case 1:
-        v->env += (int32_t)ENV_LIN[p[P_ATK] & 127];
+        v->env += (int32_t)ENV_LIN[es ? es[0] : p[P_ATK] & 127];
         if (v->env >= (1 << 24)) {
             v->env = 1 << 24;
             v->stage = 2;
         }
         break;
     case 2:
-        v->env += mulq16(sus - v->env, ENV_EXP[p[P_DEC] & 127]);
+        v->env += mulq16(sus - v->env, ENV_EXP[es ? es[1] : p[P_DEC] & 127]);
         break;
     case 3:
-        v->env -= mulq16(v->env, ENV_EXP[p[P_REL] & 127]);
+        v->env -= mulq16(v->env, ENV_EXP[es ? es[2] : p[P_REL] & 127]);
         if (v->env < (1 << 12)) {
             v->env = 0;
             v->stage = 0;
@@ -544,6 +565,8 @@ static uint32_t track_render(track_t *t, int32_t *out, uint32_t n)
         memcpy(&t->p[P_E0], t->pe_old, sizeof pe_new);
     }
     dr = !fade && drone_tick(t, mods && mod_drift(t));  /* Jangada DRONES: EVOL / TENS (drone.c) */
+    if (p[P_ESYNC])
+        env_sync_block(t);
     if (e->block)                                       /* the engine's per-part work (DRAWBAR: bars, rotor) */
         e->block(t);
     for (i = 0; i < NVOICE; i++) {

@@ -28,7 +28,7 @@ enum { V_POLY, V_MONO, V_LEGATO, V_UNISON };   /* P_VOICE */
 /* ------------------------------------------------------- parameters --- */
 enum {
     F_INT, F_PCT, F_BIPCT, F_TIME, F_LFOHZ, F_CUTOFF, F_DB, F_SEMI, F_ENUM, F_BPM, F_NOTE,
-    F_ONOFF, F_OCT, F_STEPS, F_FILT
+    F_ONOFF, F_OCT, F_STEPS, F_FILT, F_ESYNC
 };
 
 typedef struct {
@@ -79,6 +79,7 @@ enum {                          /* per-track parameters */
      * DENSITY with MEMORY, the CYCLE of its chances, an ACCENT cycle, EVOLVE (a cellular automaton), its SEED,
      * FREEZE and the passes between evolutions. All off: the pattern plays as written */
     P_VPULS, P_VROT, P_VDENS, P_VMEM, P_VCYC, P_VACC, P_VEVOL, P_VSEED, P_VFRZ, P_VRATE,
+    P_ESYNC,                                   /* Jangada 0.9.7 (after Felucca 1.5): ATK DEC REL as note values */
     P_COUNT
 };
 #define NEDIT 16                 /* engine parameters P_E0.. */

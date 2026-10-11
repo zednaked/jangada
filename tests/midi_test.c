@@ -399,6 +399,21 @@ int main(void)
         song.g[G_CLICK] = 0;
         song.rec = 0;
     }
+    {   /* Jangada 0.9.7 ESYNC (after Felucca 1.5): ATK as a note value of the tempo; it follows the BPM */
+        uint32_t bpm, blocks[2];
+        for (bpm = 0; bpm < 2u; bpm++) {
+            track_t *t = &trk[0];
+            setup();
+            song.g[G_BPM] = bpm ? 60 : 120;
+            t->p[P_ESYNC] = 1;
+            t->p[P_ATK] = 77;                                   /* 1/4 */
+            trk_note_on(t, 60, 100);
+            for (blocks[bpm] = 0; blocks[bpm] < 4000u && t->v[0].stage == 1; blocks[bpm]++)
+                run(1);
+        }
+        ok(blocks[0] * CTL > FS * 45 / 100 && blocks[0] * CTL < FS * 56 / 100, "ESYNC ATK 1/4 at 120 BPM: ~500 ms");
+        ok(blocks[1] > blocks[0] * 18 / 10 && blocks[1] < blocks[0] * 22 / 10, "ESYNC: at 60 BPM twice as long");
+    }
     if (fails)
         printf("MIDI: %u FAILED\n", fails);
     return fails != 0;

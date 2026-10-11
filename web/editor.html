@@ -1456,7 +1456,7 @@ function makeMockDevice(opt = {}) {
     D("INS B", F.PCT, 0, 127, 96), D("INS C", F.PCT, 0, 127, 96), D("MIX", F.PCT, 0, 127, 127), D("PULS", F.INT, 0, 64, 0),
     D("ROT", F.INT, 0, 63, 0), D("DENS", F.PCT, 0, 127, 127), D("MEM", F.BIPCT, -64, 63, 0), D("CYC", F.INT, 0, 32, 0),
     D("ACC", F.INT, 0, 16, 0), D("EVOL", F.ENUM, 0, 7, 0, ["OFF", "R30", "R90", "R110", "R150", "R54", "R184", "R22"]), D("SEED", F.INT, 0, 127, 0), D("FRZ", F.ENUM, 0, 1, 0, ["OFF", "ON"]),
-    D("LOOP", F.ENUM, 0, 3, 0, ["x1", "x2", "x4", "x8"]),
+    D("LOOP", F.ENUM, 0, 3, 0, ["x1", "x2", "x4", "x8"]), D("ESYNC", F.ENUM, 0, 1, 0, ["OFF", "ON"]),
   ];
   const GP = [
     D("BPM", F.BPM, 40, 240, 120), D("SWG", F.PCT, 0, 100, 0), D("CLK", F.ENUM, 0, 2, 0, ["INT", "USB", "TRS"]), D("TUNE", F.INT, -50, 50, 0),
@@ -1714,7 +1714,7 @@ function makeMockDevice(opt = {}) {
         P("ESTACA", [3, 110, 90, 60, 127, 0, 20, 110, 0, 0, 0, 0, 0, 0, 0, 0], [0, 60, 0, 30], 0, 0),
         P("VIDRO", [3, 20, 10, 120, 0, 20, 0, 120, 0, 0, 0, 0, 0, 0, 0, 0], [20, 90, 120, 80], 0, 0)] },
   ];
-  const P_COUNT = 101, G_COUNT = 42, NSTEP = 64, P_E0 = 64, NEDIT = 16, G_ENGSEL = 20, P_SLCR = 45;
+  const P_COUNT = 102, G_COUNT = 42, NSTEP = 64, P_E0 = 64, NEDIT = 16, G_ENGSEL = 20, P_SLCR = 45;
   /* </generated> */
   /* factory PATTERNS[] (ui.c): absolute notes, 0 rest; flags 1 accent, 2 slide, 4 tie (holds the previous note) */
   const T_ = 4;
@@ -2636,10 +2636,10 @@ function selfLoad() {
 const stepEdit = new Map(); /* index -> time of the last edit */
 
 /* parameter ids (firmware/src/core.h); used only when P_COUNT / G_COUNT match */
-const EXPECT = { pcount: 101, gcount: 42, pe0: 64 };   /* tools/gen_editor_tables.py --check: == the firmware */
+const EXPECT = { pcount: 102, gcount: 42, pe0: 64 };   /* tools/gen_editor_tables.py --check: == the firmware */
 const P = { LEVEL: 0, SLEN: 29 };
 const LAYOUT = (pe0) => [
-  { t: "ENV", pages: [["ENV", 0, [1, 2, 3, 4]], ["ENV DEST", 0, [5, 6, 7, 8]]] },
+  { t: "ENV", pages: [["ENV", 0, [1, 2, 3, 4]], ["ENV DEST", 0, [5, 6, 7, pe0 + 37]]] },   /* 0.9.7: ESYNC */
   { t: "LFO", pages: [["LFO", 0, [9, 10, 11, 12]], ["LFO DEST", 0, [13, 14, 15, 16]],
     ["MOD 1", 0, [49, 50, 51]], ["MOD 2", 0, [52, 53, 54]], ["MOD 3", 0, [55, 56, 57]], ["MOD 4", 0, [58, 59, 60]]] },   /* Jangada: matrix */
   { t: "EDIT", engine: true, pages: [["EDIT 1", 0, [pe0, pe0 + 1, pe0 + 2, pe0 + 3]], ["EDIT 2", 0, [pe0 + 4, pe0 + 5, pe0 + 6, pe0 + 7]],
