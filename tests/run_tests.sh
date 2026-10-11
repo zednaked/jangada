@@ -70,6 +70,8 @@ $CC -O2 -w -Ibuild/gen -Ifirmware/src -o "$OUT/step_test" tests/step_test.c -lm
 run "steps: RTCH ratchet and CHNC chance (Jangada)" "$OUT/step_test"
 $CC -O2 -w -Ibuild/gen -Ifirmware/src -o "$OUT/seqx_test" tests/seqx_test.c -lm
 run "steps: nudges, parameter locks, fills (Jangada, after SLOOP 2.4)" "$OUT/seqx_test"
+$CC -O2 -w -Ibuild/gen -Ifirmware/src -o "$OUT/vivo_test" tests/vivo_test.c -lm
+run "VIVO: Euclid, chance with memory, cycles, accents, evolve (Jangada 0.9.7)" "$OUT/vivo_test"
 $CC -O2 -w -Ibuild/gen -Ifirmware/src -o "$OUT/punch_test" tests/punch_test.c -lm
 run "master: punch-in FX, DUST, DUCK, FILT (Jangada, after SLOOP)" "$OUT/punch_test"
 $CC -O2 -w -Ibuild/gen -Ifirmware/src -o "$OUT/chord_test" tests/chord_test.c -lm

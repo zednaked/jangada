@@ -1453,7 +1453,10 @@ function makeMockDevice(opt = {}) {
     NONE, NONE, NONE, NONE,
     D("EVOL", F.PCT, 0, 127, 0), D("TENS", F.PCT, 0, 127, 0), D("RAMP", F.ENUM, 0, 6, 0, ["OFF", "1BAR", "2BAR", "4BAR", "8BAR", "16BAR", "32BAR"]), D("FILT", F.FILT, -64, 63, 0),
     D("STRM", F.INT, -60, 60, 0, null, "ms"), D("VLEAD", F.ENUM, 0, 1, 0, ["OFF", "ON"]), D("INSRT", F.ENUM, 0, 9, 0, ["OFF", "SOFT", "HARD", "FOLD", "FUZZ", "CRUSH", "PHASR", "FLANG", "CHOR", "DISP"]), D("INS A", F.PCT, 0, 127, 64),
-    D("INS B", F.PCT, 0, 127, 96), D("INS C", F.PCT, 0, 127, 96), D("MIX", F.PCT, 0, 127, 127),
+    D("INS B", F.PCT, 0, 127, 96), D("INS C", F.PCT, 0, 127, 96), D("MIX", F.PCT, 0, 127, 127), D("PULS", F.INT, 0, 64, 0),
+    D("ROT", F.INT, 0, 63, 0), D("DENS", F.PCT, 0, 127, 127), D("MEM", F.BIPCT, -64, 63, 0), D("CYC", F.INT, 0, 32, 0),
+    D("ACC", F.INT, 0, 16, 0), D("EVOL", F.ENUM, 0, 7, 0, ["OFF", "R30", "R90", "R110", "R150", "R54", "R184", "R22"]), D("SEED", F.INT, 0, 127, 0), D("FRZ", F.ENUM, 0, 1, 0, ["OFF", "ON"]),
+    D("LOOP", F.ENUM, 0, 3, 0, ["x1", "x2", "x4", "x8"]),
   ];
   const GP = [
     D("BPM", F.BPM, 40, 240, 120), D("SWG", F.PCT, 0, 100, 0), D("CLK", F.ENUM, 0, 2, 0, ["INT", "USB", "TRS"]), D("TUNE", F.INT, -50, 50, 0),
@@ -1710,7 +1713,7 @@ function makeMockDevice(opt = {}) {
         P("ESTACA", [3, 110, 90, 60, 127, 0, 20, 110, 0, 0, 0, 0, 0, 0, 0, 0], [0, 60, 0, 30], 0, 0),
         P("VIDRO", [3, 20, 10, 120, 0, 20, 0, 120, 0, 0, 0, 0, 0, 0, 0, 0], [20, 90, 120, 80], 0, 0)] },
   ];
-  const P_COUNT = 91, G_COUNT = 39, NSTEP = 64, P_E0 = 64, NEDIT = 16, G_ENGSEL = 20, P_SLCR = 45;
+  const P_COUNT = 101, G_COUNT = 39, NSTEP = 64, P_E0 = 64, NEDIT = 16, G_ENGSEL = 20, P_SLCR = 45;
   /* </generated> */
   /* factory PATTERNS[] (ui.c): absolute notes, 0 rest; flags 1 accent, 2 slide, 4 tie (holds the previous note) */
   const T_ = 4;
@@ -2632,7 +2635,7 @@ function selfLoad() {
 const stepEdit = new Map(); /* index -> time of the last edit */
 
 /* parameter ids (firmware/src/core.h); used only when P_COUNT / G_COUNT match */
-const EXPECT = { pcount: 91, gcount: 39, pe0: 64 };   /* tools/gen_editor_tables.py --check: == the firmware */
+const EXPECT = { pcount: 101, gcount: 39, pe0: 64 };   /* tools/gen_editor_tables.py --check: == the firmware */
 const P = { LEVEL: 0, SLEN: 29 };
 const LAYOUT = (pe0) => [
   { t: "ENV", pages: [["ENV", 0, [1, 2, 3, 4]], ["ENV DEST", 0, [5, 6, 7, 8]]] },
@@ -2644,7 +2647,9 @@ const LAYOUT = (pe0) => [
   { t: "FX", pages: [["FX", 0, [33, 34, 35, 36]], ["DIST", 0, [62, 33, 63]], ["SLICER", 0, [45, 46, 47, 48]], ["INSERT", 0, [pe0 + 22, pe0 + 23, pe0 + 24, pe0 + 25]], ["INSERT 2", 0, [pe0 + 26]], ["DLY", 1, [4, 5, 6, 7]], ["REV/CHO", 1, [8, 9, 10, 11]], ["REVERB", 1, [32, 8, 9]]] },   /* Jangada: TYPE; GRIT: DIST TYPE DIST FREQ; 0.9: the INSERT */
   { t: "SCL", pages: [["SCL", 0, [25, 26, 27, 28]], ["CHORD", 0, [61]]] },   /* Jangada: CHORD */
   { t: "ARP", pages: [["ARP", 0, [17, 18, 19, 20]], ["ARP 2", 0, [21, 22, 23, 24]], ["DRONE", 0, [23, pe0 + 16, pe0 + 17, pe0 + 18]]] },   /* Jangada DRONES: HOLD EVOL TENS RAMP */
-  { t: "SEQ PATTERN", tab: "seqgroups", pages: [["PATTERN", 0, [29, 30, 31, 32]]] },
+  { t: "SEQ PATTERN", tab: "seqgroups", pages: [["PATTERN", 0, [29, 30, 31, 32]],
+    ["VIVO", 0, [pe0 + 27, pe0 + 28, pe0 + 29, pe0 + 30]], ["VIVO 2", 0, [pe0 + 31, pe0 + 32, pe0 + 33, pe0 + 34]],
+    ["VIVO 3", 0, [pe0 + 35, pe0 + 36]]] },   /* Jangada 0.9.7: VIVO, the pattern alive (issue #4) */
   { t: "GLOBAL", tab: "setgroups", pages: [["GLOBAL", 1, [0, 1, 2, 3]]] },
   { t: "DRUMS", tab: "setgroups", pages: [["DRUMS", 1, [31, 24, 25, 26]]] },   /* Jangada: KIT first */
   { t: "MASTER", tab: "setgroups", pages: [["MASTER", 1, [28, 29, 30, 33]], ["MASTER 2", 1, [34, 33, 28]]] },   /* Jangada: DUST DUCK FILT; GRIT: TAPE HUM */

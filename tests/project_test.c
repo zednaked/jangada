@@ -24,7 +24,7 @@ static int check(const char *what, int ok)
 }
 
 /* the value parameter k (old id) of track t had in the old project */
-static int16_t oldv(uint32_t t, uint32_t k) { return (int16_t)(t * 100u + k * 3u + 1u); }
+static int16_t oldv(uint32_t t, uint32_t k) { return (int16_t)((t * 29u + k * 3u + 1u) % 127u); }   /* (a byte, as stored) */
 
 static const uint8_t OLD_ENG[NTRK] = {7, 0, 6, 8};   /* WHEEL, ANALOG, TRIO; the drum track: 8 (none) */
 static void fill_v2_track(proj_trk_v2_t *d, uint32_t t)
@@ -147,7 +147,7 @@ int main(void)
         bad += check("JNG2: every track parameter (each engine's too) fits a byte", fits);
         for (t = 0; t < NTRK; t++)                     /* (the converted test values: into a byte, as real ones are) */
             for (i = 0; i < P_COUNT; i++)
-                q.t[t].p[i] = (int16_t)((int8_t)(q.t[t].p[i] & 0xFF));
+                q.t[t].p[i] = (int8_t)(q.t[t].p[i] & 0xFF);
         q.sum = proj_sum(&q);
     }
     {   /* JNG1 as Jangada 0.4 .. 0.8.2 wrote it (two bytes a value): read as it was */
@@ -164,7 +164,10 @@ int main(void)
         memcpy(buf.jng + o, q.g, 2u * G_STORED);
         o += 2u * G_STORED;
         for (t = 0; t < NTRK; t++) {
-            memcpy(buf.jng + o, q.t[t].p, 2u * P_COUNT);
+            for (k = 0; k < P_COUNT; k++) {            /* (two bytes a value) */
+                int16_t v = q.t[t].p[k];
+                memcpy(buf.jng + o + 2u * k, &v, 2);
+            }
             o += 2u * P_COUNT;
             buf.jng[o++] = q.t[t].engine;
             buf.jng[o++] = q.t[t].preset;
@@ -195,7 +198,7 @@ int main(void)
                                                                 q2.t[TRK_DRUM].engine == 6 && q2.t[TRK_DRUM].preset == 2);
         bad += check("JNG1 -> today: as stored", n == JNG_SIZE(P_COUNT, G_STORED) &&
                                                      proj_import(&q2, buf.jng, (int)n) && !memcmp(&q, &q2, sizeof q));
-        buf.jng[JNG_HDR + P_LEVEL] = 120;              /* a key this build does not know, instead of LEVEL's */
+        buf.jng[JNG_HDR + P_LEVEL] = 127;              /* a key this build does not know, instead of LEVEL's */
         {
             uint32_t sum = proj_hash(buf.jng, n - 4u);
             memcpy(buf.jng + n - 4u, &sum, 4);

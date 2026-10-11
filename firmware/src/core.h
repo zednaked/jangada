@@ -75,6 +75,10 @@ enum {                          /* per-track parameters */
                                                 * the last (seq.c chord_vlead) */
     P_ITYPE, P_IA, P_IB, P_IC, P_IMIX,         /* Jangada 0.9 (after Felucca 1.5): the INSERT after DIST, its TYPE,
                                                 * three values and MIX (fx.c track_insert) */
+    /* Jangada 0.9.7 VIVO (issue #4): a living layer over the pattern (seq.c vv_*): Euclid's PULSES and ROTATE, the
+     * DENSITY with MEMORY, the CYCLE of its chances, an ACCENT cycle, EVOLVE (a cellular automaton), its SEED,
+     * FREEZE and the passes between evolutions. All off: the pattern plays as written */
+    P_VPULS, P_VROT, P_VDENS, P_VMEM, P_VCYC, P_VACC, P_VEVOL, P_VSEED, P_VFRZ, P_VRATE,
     P_COUNT
 };
 #define NEDIT 16                 /* engine parameters P_E0.. */

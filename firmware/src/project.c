@@ -28,13 +28,14 @@
 #define PROJ_MAGIC_JNG2 0x32474E4Au            /* "JNG2" (Jangada 0.9): as JNG1, a track's values one byte each */
 #define PROJ_MAGIC_V3 0x46554E33u              /* "FUN3": Felucca 0.9, 57 values a track = keys 0..56 */
 #define PROJ_NP_V3 57u
-#define PROJ_DEF ((int16_t)-32768)             /* a value the stored data has not: its default (proj_fill) */
+#define PROJ_DEF ((int8_t)-128)                /* a value the stored data has not: its default (proj_fill) */
+#define PROJ_DEF16 ((int16_t)-32768)           /* (the same, while a stored form's two-byte values are mapped) */
 #define PROJ_MAGIC_V2 0x46554E32u              /* "FUN2": four tracks, PROJ_NP_V2 parameters; read only */
 #define PROJ_MAGIC_V1 0x46554E31u              /* "FUN1": one instrument; loads into track 1 */
 #define PROJ_NP_V2 53u                         /* P_COUNT of formats 1 and 2 (P_E0 was 45) */
 #define PROJ_NG_V2 27u                         /* G_COUNT of formats 1 and 2 */
 typedef struct {                               /* one track; the drum track ignores engine / preset */
-    int16_t p[P_COUNT];
+    int8_t p[P_COUNT];                         /* (Jangada 0.9.7: a byte each, as stored since 0.9; -128 none) */
     uint8_t engine, preset;
     step_t step[NSTEP];
     seqx_t x;                                  /* Jangada: nudges, conditions, locks (param: P_* in RAM) */
@@ -113,6 +114,16 @@ static void proj_g_from_v2(int16_t *g, const int16_t *g2)
         g[i] = i < PROJ_NG_V2 ? g2[i] : GP[i].def;
 }
 
+/* stored values (keys[n], vals[n]) -> a slot's track, in today's P_* order; missing: PROJ_DEF */
+static void proj_map(const uint8_t *keys, const int16_t *vals, uint32_t n, int8_t *out)
+{
+    int16_t v[P_COUNT];
+    uint32_t k;
+    key_map(keys, vals, n, v, PROJ_DEF16);
+    for (k = 0; k < P_COUNT; k++)
+        out[k] = v[k] == PROJ_DEF16 ? PROJ_DEF : (int8_t)clamp(v[k], -127, 127);
+}
+
 /* a track of formats 1 and 2 -> today's, mapped by count (see the top); drum: the drum track */
 static void proj_trk_from_v2(proj_trk_t *d, const proj_trk_v2_t *s, int drum)
 {
@@ -120,9 +131,10 @@ static void proj_trk_from_v2(proj_trk_t *d, const proj_trk_v2_t *s, int drum)
     for (k = 0; k < P_COUNT; k++)
         d->p[k] = PROJ_DEF;
     for (k = 0; k < nc; k++)                    /* P_LEVEL..: keys 0.. as they were */
-        d->p[key_param(k)] = s->p[k];
+        if (key_param(k) < P_COUNT)
+            d->p[key_param(k)] = (int8_t)clamp(s->p[k], -127, 127);
     for (k = 0; k < 8u; k++)
-        d->p[P_E0 + k] = s->p[nc + k];
+        d->p[P_E0 + k] = (int8_t)clamp(s->p[nc + k], -127, 127);
     d->engine = drum ? 0u : s->engine;          /* (indices 0..7 as they were) */
     d->preset = drum ? 0u : s->preset;
     memcpy(d->step, s->step, sizeof d->step);
@@ -162,7 +174,7 @@ static int proj_from_v1(project_t *q, const project_v1_t *v1, int n)
     for (i = 1; i < NTRK; i++) {               /* the other tracks: their defaults, no steps */
         uint32_t k;
         for (k = 0; k < P_COUNT; k++)
-            q->t[i].p[k] = k >= P_E0 && k < P_E0 + NEDIT ? ENGINES[trk_def_engine(i)]->edit[k - P_E0].def : TP[k].def;
+            q->t[i].p[k] = (int8_t)(k >= P_E0 && k < P_E0 + NEDIT ? ENGINES[trk_def_engine(i)]->edit[k - P_E0].def : TP[k].def);
         q->t[i].engine = (uint8_t)trk_def_engine(i);
         q->t[i].preset = 0xFF;                 /* 0xFF: its default preset (project_load) */
         for (k = 0; k < NSTEP; k++)
@@ -180,7 +192,7 @@ static void proj_fill(project_t *q)
         uint32_t e = q->t[i].engine % NENGINES;     /* (the drum track's byte is 0 unless T4 was SYNTH) */
         for (k = 0; k < P_COUNT; k++)
             if (q->t[i].p[k] == PROJ_DEF)
-                q->t[i].p[k] = k >= P_E0 && k < P_E0 + NEDIT ? ENGINES[e]->edit[k - P_E0].def : TP[k].def;
+                q->t[i].p[k] = (int8_t)(k >= P_E0 && k < P_E0 + NEDIT ? ENGINES[e]->edit[k - P_E0].def : TP[k].def);
     }
 }
 
@@ -200,7 +212,7 @@ static int proj_from_v3(project_t *q, const project_v3_t *v3, int n)
     proj_g_from_v2(q->g, v3->g);
     q->sel = v3->sel;
     for (i = 0; i < NTRK; i++) {
-        key_map(K3, v3->t[i].p, PROJ_NP_V3, q->t[i].p, PROJ_DEF);
+        proj_map(K3, v3->t[i].p, PROJ_NP_V3, q->t[i].p);
         q->t[i].engine = i == TRK_DRUM ? 0u : v3->t[i].engine;
         q->t[i].preset = i == TRK_DRUM ? 0u : v3->t[i].preset;
         memcpy(q->t[i].step, v3->t[i].step, sizeof q->t[i].step);
@@ -356,7 +368,7 @@ static int proj_from_jng(project_t *q, const uint8_t *b, int n)
                 memcpy(vals, b + o, 2u * np);
             }
             o += w * np;
-            key_map(keys, vals, np, q->t[i].p, PROJ_DEF);
+            proj_map(keys, vals, np, q->t[i].p);
             q->t[i].engine = b[o++];
             q->t[i].preset = b[o++];
             memcpy(q->t[i].step, b + o, sizeof q->t[i].step);
@@ -440,7 +452,7 @@ static void proj_capture(project_t *p)
     for (i = 0; i < NTRK; i++) {
         uint32_t k;
         for (k = 0; k < P_COUNT; k++)                  /* (a lock in force: the value under it) */
-            p->t[i].p[k] = p_unlocked(&trk[i], k);
+            p->t[i].p[k] = (int8_t)clamp(p_unlocked(&trk[i], k), -127, 127);
         p->t[i].engine = trk[i].eng_req;
         p->t[i].preset = trk[i].preset;
         memcpy(p->t[i].step, trk[i].step, sizeof trk[i].step);

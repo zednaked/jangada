@@ -34,6 +34,8 @@ static const char *const N_RTYPE[] = {"ROOM", "SPRING", "PLATE"};   /* fx.c (Jan
 /* Jangada GRIT: the DIST types (fx.c track_dist); SOFT first: older projects and presets keep their sound */
 static const char *const N_DTYPE[] = {"SOFT", "FUZZ", "FOLD", "CRUSH", "RING"};
 /* Jangada DRONES (drone.c): the RAMP of TENSION, in bars (DR_RAMP_BARS) */
+static const char *const N_VRULE[] = {"OFF", "R30", "R90", "R110", "R150", "R54", "R184", "R22"};   /* VIVO EVOL */
+static const char *const N_VRATE[] = {"x1", "x2", "x4", "x8"};
 static const char *const N_TRAMP[] = {"OFF", "1BAR", "2BAR", "4BAR", "8BAR", "16BAR", "32BAR"};
 static const char *const N_NOTE[] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
 static const char *const N_DASH[] = {"--"};
@@ -131,6 +133,17 @@ static const param_desc_t TP[P_COUNT] = {
     [P_IB] = PD("INS B", F_PCT, 0, 127, 96),
     [P_IC] = PD("INS C", F_PCT, 0, 127, 96),
     [P_IMIX] = PD("MIX", F_PCT, 0, 127, 127),
+    /* Jangada 0.9.7 VIVO (seq.c vv_*): 0 pulses, 100 %, no memory, no cycles, no rule: the pattern as written */
+    [P_VPULS] = PD("PULS", F_INT, 0, 64, 0),
+    [P_VROT] = PD("ROT", F_INT, 0, 63, 0),
+    [P_VDENS] = PD("DENS", F_PCT, 0, 127, 127),
+    [P_VMEM] = PD("MEM", F_BIPCT, -64, 63, 0),
+    [P_VCYC] = PD("CYC", F_INT, 0, 32, 0),
+    [P_VACC] = PD("ACC", F_INT, 0, 16, 0),
+    [P_VEVOL] = PE("EVOL", N_VRULE, 0),
+    [P_VSEED] = PD("SEED", F_INT, 0, 127, 0),
+    [P_VFRZ] = PE("FRZ", N_ONOFF, 0),
+    [P_VRATE] = PE("LOOP", N_VRATE, 0),
 };
 
 static const param_desc_t GP[G_COUNT] = {
@@ -332,7 +345,7 @@ enum { FAM_HOME, FAM_ENV, FAM_LFO, FAM_FX, FAM_SCL, FAM_EDIT, FAM_GLO, FAM_SAVE,
        FAM_COUNT };
 enum { SC_TRACK, SC_GLOBAL, SC_ENGINE, SC_STEP, SC_TRK };   /* SC_TRK: the TRACKS page (ui_input.c tracks_edit) */
 enum { GR_NONE, GR_ADSR, GR_LFO, GR_STEPS, GR_ARP, GR_SCALE, GR_FX, GR_ROLL, GR_BROWSE, GR_SLOTS, GR_USER, GR_TRK,
-       GR_SLCR, GR_DRONE };
+       GR_SLCR, GR_DRONE, GR_VIVO };
 
 typedef struct {
     const char *title;
@@ -385,6 +398,9 @@ static const page_t PAGES[] = {
     {"STEP", FAM_SEQ, SC_STEP, GR_ROLL, {0, 1, 2, 3}},
     {"STEP 2", FAM_SEQ, SC_STEP, GR_ROLL, {0, 4, 5, 0xFF}},   /* Jangada: STEP RTCH CHNC */
     {"PATTERN", FAM_SEQ, SC_TRACK, GR_STEPS, {P_SLEN, P_SDIV, P_SSWING, P_SGATE}},
+    {"VIVO", FAM_SEQ, SC_TRACK, GR_VIVO, {P_VPULS, P_VROT, P_VDENS, P_VMEM}},   /* Jangada 0.9.7 (issue #4): */
+    {"VIVO 2", FAM_SEQ, SC_TRACK, GR_VIVO, {P_VCYC, P_VACC, P_VEVOL, P_VSEED}}, /* the pattern alive (seq.c) */
+    {"VIVO 3", FAM_SEQ, SC_TRACK, GR_VIVO, {P_VFRZ, P_VRATE, 0xFF, 0xFF}},
     {"TRACKS", FAM_TRK, SC_TRK, GR_TRK, {0, 1, 2, 3}},   /* REC button; TYPE LEVEL LEN PAN (Jangada: TYPE) */
 };
 #define NPAGES (sizeof(PAGES) / sizeof(PAGES[0]))

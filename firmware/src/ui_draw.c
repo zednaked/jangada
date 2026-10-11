@@ -372,6 +372,37 @@ static void graph_drone(const track_t *t, uint16_t c)
     if (t->p[P_TRAMP])
         cv_text(170, 64, &FONT_S, N_TRAMP[(uint32_t)t->p[P_TRAMP] % 7u], C_AMB);
 }
+/* Jangada 0.9.7 VIVO (issue #4): the pattern as a ring, step 1 at the top. Outside, the rhythm VIVO plays from
+ * (Euclid's hits, the rule's cells, or the note steps); inside, what played in the last pass, an accent white;
+ * the step playing ringed */
+static void graph_vivo(const track_t *t, uint16_t c)
+{
+    uint32_t k = song.sel % NTRK, len = t->p[P_SLEN] ? (uint32_t)t->p[P_SLEN] : 1u, i;
+    int32_t cx = 120 * 16, cy = 50 * 16, ro = 42 * 16, ri = 29 * 16;
+    char b[16];
+    for (i = 0; i < len; i++) {
+        uint32_t a = i * (0xFFFFFFFFu / len);
+        int32_t sx = (sine_i(a) * 16) >> 15, sy = -((sine_i(a + 0x40000000u) * 16) >> 15);
+        uint32_t m = t->p[P_VEVOL] && vv[k].born ? vv_bit(vv[k].row, i) : vv_base(t, i, len);
+        int32_t dr = len > 32u ? 36 : 54;
+        cv_disc(cx + sx * ro / 16, cy + sy * ro / 16, m ? dr : 18, m ? c : C_DIM);
+        if (vv_bit(vv[k].hit, i))
+            cv_disc(cx + sx * ri / 16, cy + sy * ri / 16, vv_bit(vv[k].acc, i) ? dr : dr - 16,
+                    vv_bit(vv[k].acc, i) ? C_WHITE : mix565(c, C_BG, 30));
+        if (song.playing && i == t->seq_idx % len)
+            cv_ring(cx + sx * ro / 16, cy + sy * ro / 16, dr + 28, 14, C_WHITE);
+    }
+    if (t->p[P_VEVOL])
+        str_cpy(b, N_VRULE[t->p[P_VEVOL] & 7], sizeof b);
+    else if (t->p[P_VPULS]) {
+        fmt_int(b, t->p[P_VPULS] > (int16_t)len ? (int32_t)len : t->p[P_VPULS]);
+        str_cpy(b + str_len(b), "/", 4);
+        fmt_int(b + str_len(b), (int32_t)len);
+    } else
+        str_cpy(b, vv_on(t) ? "STEPS" : "OFF", sizeof b);
+    cv_text(120 - text_w(&FONT_M, b) / 2, 41, &FONT_M, b, vv_on(t) ? C_HI : C_DIM);
+}
+
 static uint32_t steps_hash(const track_t *t)
 {
     uint32_t h = 2166136261u, i;
@@ -416,6 +447,12 @@ static uint32_t graph_signature(void)
         for (i = 0; i < DR_NW; i++)
             h = (h ^ (uint32_t)(d->on ? d->w[i] >> 10 : 0)) * 16777619u;
         h = (h ^ (uint32_t)(d->tens >> 24) ^ (uint32_t)d->on << 16) * 16777619u;
+    }
+    if (pg->graph == GR_VIVO) {                      /* VIVO: the playhead, the pass, the cells */
+        const uint32_t *w = &vv[song.sel % NTRK].row[0];
+        h ^= (song.playing ? t->seq_idx + 1u : 0u) * 2654435761u + steps_hash(t);
+        h = (h ^ w[0] ^ w[1] * 3u ^ vv[song.sel % NTRK].hit[0] * 5u ^ vv[song.sel % NTRK].hit[1] * 7u ^
+             vv[song.sel % NTRK].acc[0] * 11u ^ vv[song.sel % NTRK].born) * 16777619u;
     }
     if (pg->graph == GR_BROWSE)                      /* Jangada 0.6: the FM6 bank voices listed (a write) */
         h ^= (uint32_t)fm6_bank_gen * 2654435761u;
@@ -941,6 +978,9 @@ static void draw_graph(void)
             break;
         case GR_DRONE:
             graph_drone(t, c);
+            break;
+        case GR_VIVO:
+            graph_vivo(t, c);
             break;
         case GR_BROWSE:
             cv_oy = 0;

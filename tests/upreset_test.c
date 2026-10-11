@@ -192,7 +192,7 @@ int main(void)
         up_bank[0].np = 3;
         up_bank[0].key[0] = P_KEY[P_E0];
         up_bank[0].key[1] = P_KEY[P_LEVEL];
-        up_bank[0].key[2] = 120;                         /* a key this build does not know */
+        up_bank[0].key[2] = 127;                         /* a key this build does not know */
         up_rec(2)->used = UP_USED;
         up_rec(2)->ver = UP_VER;
         up_rec(2)->engine = 1;

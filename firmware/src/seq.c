@@ -1002,6 +1002,7 @@ static uint32_t step_plays(const track_t *t, uint32_t idx)
 }
 
 /* -------------------------------------------------------- sequencer --- */
+static void vv_reset(void);
 static void seq_start(void)
 {
     uint32_t i;
@@ -1014,6 +1015,7 @@ static void seq_start(void)
         t->mx_due = t->mx_early = 0;
     }
     song.tick = 0;
+    vv_reset();                                    /* VIVO: from the start, as the SEED says */
     fill_bar = 0xFFFFFFFFu;
     clk_pos = 0;                                   /* fx.c: the beat clock, step 0 on the beat */
     clk_beat = 0;
@@ -1057,11 +1059,13 @@ static void seq_stop(void)
  * the previous step makes this one legato with a glide (acid style). skip: bit k =
  * note k already sounds from live recording (not triggered, not released here).
  * The drum track: each note is a hit (drum_on through trk_note_on), nothing else. */
+static const step_t *vv_step;                       /* VIVO: the step to play instead (a note of no step), 0 = none */
+static uint8_t vv_accent;                           /* VIVO: this one accented */
 static void seq_step(track_t *t, uint32_t idx, uint32_t period, uint32_t skip)
 {
-    const step_t *s = &t->step[idx % NSTEP];
+    const step_t *s = vv_step ? vv_step : &t->step[idx % NSTEP];
     uint32_t i, j, gate = period * (uint32_t)t->p[P_SGATE] / 128u;
-    uint32_t vel = (s->flags & SF_ACCENT) ? 127u : (s->vel ? s->vel : 96u);
+    uint32_t vel = (s->flags & SF_ACCENT) || vv_accent ? 127u : (s->vel ? s->vel : 96u);
     uint32_t slide_in = t->seq_hold && t->seq_n;
     uint32_t len = t->p[P_SLEN] ? (uint32_t)t->p[P_SLEN] : 1u;
     uint32_t next_tie = t->step[(idx + 1u) % len].time == ST_TIE;
@@ -1158,11 +1162,188 @@ static void seq_ratchet(track_t *t, uint32_t n)
         sq_on(t, s->note[i], vel);
 }
 
+/* ---- Jangada 0.9.7 VIVO (issue #4, after gospodindilly-ops' "living sequence"): a layer over the pattern that
+ * decides, step by step, what plays. Nothing written is changed, and with every value at its default the pattern
+ * plays as written. Reproducible: every chance comes from SEED, the track and a count since PLAY.
+ *   PULSE   PULS > 0: Euclid's rhythm, PULS hits spread over the pattern's LEN, turned by ROT. Each hit plays the
+ *           next note step of the pattern in turn (its notes, ratchet, ties), so the melody walks over the rhythm
+ *   EVOLVE  EVOL a rule (R30, R90, ..): the hits are a row of cells, born from the rhythm (or the steps, or SEED)
+ *           and changed by the rule every LOOP passes; FRZ holds it, and each pass then plays the same
+ *   MEMORY  DENS the chance a hit plays; MEM > 0 makes a hit likelier after a hit (bursts), < 0 after a rest
+ *           (alternation)
+ *   CYCLE   CYC > 0: the chances repeat every CYC steps, a cycle of its own against the pattern's LEN; ACC > 0:
+ *           an accent every ACC steps, again on its own cycle
+ * Without PULS or EVOL the layer only thins out the pattern's own note steps (DENS, MEM, CYC) and accents them */
+static struct {
+    uint32_t cnt, loop, floop;                      /* steps since PLAY, passes, the pass FRZ holds */
+    uint32_t row[2];                                /* EVOLVE: the cells, bit i = step i */
+    uint32_t hit[2], acc[2];                        /* what played in the last pass, accented (the VIVO page) */
+    uint32_t sig;                                   /* what the row was born from (a change: born again) */
+    uint8_t np, last, born, lp;                     /* the next note step, the last one played, the row born,
+                                                     * passes since it evolved */
+} vv[NTRK];
+static const uint8_t VV_RULE[8] = {0, 30, 90, 110, 150, 54, 184, 22};
+static void vv_reset(void) { memset(vv, 0, sizeof vv); }
+static uint32_t vv_bit(const uint32_t *w, uint32_t i) { return w[(i >> 5) & 1u] >> (i & 31u) & 1u; }
+static void vv_put(uint32_t *w, uint32_t i, uint32_t b)
+{
+    w[(i >> 5) & 1u] = (w[(i >> 5) & 1u] & ~(1u << (i & 31u))) | b << (i & 31u);
+}
+static uint32_t vv_hash(uint32_t a, uint32_t b)
+{
+    uint32_t h = a * 0x9E3779B1u ^ b * 0x85EBCA77u;
+    h ^= h >> 15;
+    h *= 0x2C1B3C6Du;
+    return h ^ h >> 12;
+}
+static int vv_on(const track_t *t)
+{
+    return t->p[P_VPULS] || t->p[P_VEVOL] || t->p[P_VDENS] < 127 || t->p[P_VACC];
+}
+static int step_note(const step_t *s) { return s->time == ST_NOTE && s->n; }
+/* the rhythm under step i: Euclid's hits, else the pattern's note steps */
+static uint32_t vv_base(const track_t *t, uint32_t i, uint32_t len)
+{
+    uint32_t k = (uint32_t)t->p[P_VPULS];
+    if (k) {
+        k = k > len ? len : k;
+        i = (i + len - (uint32_t)t->p[P_VROT] % len) % len;
+        return (i * k) % len < k;
+    }
+    return step_note(&t->step[i % NSTEP]);
+}
+/* EVOLVE: the row is born from the rhythm (none: one cell in the middle, and SEED's), then the rule */
+static void vv_born(const track_t *t, uint32_t len, uint32_t sig)
+{
+    uint32_t i, k = trk_index(t) % NTRK, any = 0;
+    vv[k].row[0] = vv[k].row[1] = 0;
+    for (i = 0; i < len; i++) {
+        uint32_t b = vv_base(t, i, len);
+        vv_put(vv[k].row, i, b);
+        any |= b;
+    }
+    if (!any) {
+        vv_put(vv[k].row, len / 2u, 1u);
+        if (t->p[P_VSEED])
+            for (i = 0; i < len; i++)
+                if (!(vv_hash((uint32_t)t->p[P_VSEED], i) & 3u))
+                    vv_put(vv[k].row, i, 1u);
+    }
+    vv[k].sig = sig;
+    vv[k].born = 1;
+    vv[k].lp = 0;
+}
+static void vv_evolve(const track_t *t, uint32_t len)
+{
+    uint32_t i, k = trk_index(t) % NTRK, rule = VV_RULE[t->p[P_VEVOL] & 7], nr[2] = {0, 0};
+    for (i = 0; i < len; i++) {
+        uint32_t l = vv_bit(vv[k].row, (i + len - 1u) % len), c = vv_bit(vv[k].row, i), r = vv_bit(vv[k].row, (i + 1u) % len);
+        vv_put(nr, i, rule >> (l << 2 | c << 1 | r) & 1u);
+    }
+    if (!(nr[0] | nr[1]))                           /* died out: born again (a silent row stays silent) */
+        vv[k].born = 0;
+    vv[k].row[0] = nr[0];
+    vv[k].row[1] = nr[1];
+}
+
+/* VIVO's say on step idx: -1 the step as written, 0 nothing plays (a rest), 1 play (vv_step: what) */
+static int vv_decide(track_t *t, uint32_t idx)
+{
+    uint32_t k = trk_index(t) % NTRK, len = t->p[P_SLEN] ? (uint32_t)t->p[P_SLEN] : 1u, i = idx % len, gen, gate, p;
+    int32_t m = t->p[P_VMEM];
+    uint32_t sig = (uint32_t)t->p[P_VPULS] | (uint32_t)t->p[P_VROT] << 7 | len << 13 | (uint32_t)t->p[P_VEVOL] << 20 |
+                   (uint32_t)t->p[P_VSEED] << 24;
+    if (i == 0u && vv[k].cnt) {                     /* a new pass */
+        vv[k].loop++;
+        if (!t->p[P_VFRZ])
+            vv[k].floop = vv[k].loop;
+        else
+            vv[k].np = 0;                           /* FRZ: the notes from the start again, each pass the same */
+        if (t->p[P_VEVOL] && vv[k].born && !t->p[P_VFRZ] && ++vv[k].lp >= 1u << (t->p[P_VRATE] & 3)) {
+            vv[k].lp = 0;
+            vv_evolve(t, len);
+        }
+    }
+    gen = t->p[P_VPULS] || t->p[P_VEVOL];
+    if (t->p[P_VEVOL] && (!vv[k].born || vv[k].sig != sig))
+        vv_born(t, len, sig);
+    gate = t->p[P_VEVOL] ? vv_bit(vv[k].row, i) : vv_base(t, i, len);
+    vv_accent = t->p[P_VACC] && vv[k].cnt % (uint32_t)t->p[P_VACC] == 0u;
+    p = (uint32_t)t->p[P_VDENS] * 100u / 127u;
+    if (m > 0)                                      /* MEM: after a hit likelier (bursts), or after a rest */
+        p = vv[k].last ? p + (uint32_t)m * (100u - p) / 64u : p - (uint32_t)m * p / 64u;
+    else if (m < 0)
+        p = vv[k].last ? p - (uint32_t)-m * p / 64u : p + (uint32_t)-m * (100u - p) / 64u;
+    {
+        uint32_t c = t->p[P_VFRZ] ? vv[k].floop * 1009u + i : t->p[P_VCYC] ? vv[k].cnt % (uint32_t)t->p[P_VCYC] : vv[k].cnt;
+        if (gate && vv_hash((uint32_t)t->p[P_VSEED] << 8 | k, c) % 100u >= p)
+            gate = 0;
+    }
+    vv[k].cnt++;
+    vv_put(vv[k].acc, i, gate && vv_accent);
+    vv_put(vv[k].hit, i, gate);
+    if (!gen) {                                     /* the pattern's own steps: thinned out, accented */
+        if (!step_note(&t->step[idx % NSTEP]))
+            return -1;
+        vv[k].last = (uint8_t)gate;
+        return (int)gate;
+    }
+    if (vv_base(t, i, len) || t->p[P_VEVOL])        /* (a step of the rhythm decided: the memory follows it) */
+        vv[k].last = (uint8_t)gate;
+    if (!gate)
+        return 0;
+    {                                               /* the next note step of the pattern, in turn */
+        uint32_t j, n;
+        for (j = 0; j < len; j++) {
+            n = (vv[k].np + j) % len;
+            if (step_note(&t->step[n])) {
+                vv[k].np = (uint8_t)((n + 1u) % len);
+                vv_step = &t->step[n];
+                return 1;
+            }
+        }
+    }
+    if (is_drum(t))
+        return 0;
+    {                                               /* no note step at all: the key played last */
+        static step_t one;
+        one.note[0] = last_note;
+        one.n = 1;
+        one.time = ST_NOTE;
+        one.flags = 0;
+        vv_step = &one;
+    }
+    return 1;
+}
+
 /* step idx fires (its nudged time): its condition, its locks, then the step itself */
 static void seq_fire(track_t *t, uint32_t idx, uint32_t period)
 {
     const step_t *s = &t->step[idx % NSTEP];
     uint32_t skip = 0, i, k;
+    int vd = -1;
+    vv_step = 0;
+    vv_accent = 0;
+    if (step_plays(t, idx) && vv_on(t)) {
+        vd = vv_decide(t, idx);
+        if (vd == 0) {                              /* VIVO: no hit here. Euclid's / the rule's gaps let the last
+                                                     * note ring to its gate; a thinned note step is a REST */
+            lock_step(t, NSTEP);
+            t->rat_left = 0;
+            if (!t->p[P_VPULS] && !t->p[P_VEVOL] && !is_drum(t))
+                seq_release(t);
+            return;
+        }
+        if (vd == 1 && vv_step) {
+            int own = vv_step >= t->step && vv_step < t->step + NSTEP;
+            uint32_t n = own ? (uint32_t)(vv_step - t->step) : idx;
+            lock_step(t, own ? n : NSTEP);          /* the played step's locks */
+            seq_step(t, n, period, 0);
+            vv_step = 0;
+            vv_accent = 0;
+            return;
+        }
+    }
     if (!step_plays(t, idx)) {                      /* its fill condition fails: as a REST, no lock */
         lock_step(t, NSTEP);
         t->rat_left = 0;
@@ -1180,6 +1361,7 @@ static void seq_fire(track_t *t, uint32_t idx, uint32_t period)
         t->rskip_n = 0;
     }
     seq_step(t, idx, period, skip);
+    vv_accent = 0;
 }
 
 /* n samples; adv: the units seq_pos moves (n x BPM, or the MIDI clock's: seq_u). The gates and the
