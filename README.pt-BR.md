@@ -306,7 +306,8 @@ O **REC** numa página sem nada para
 gravar abre a tela **TRACKS**: BPM, compasso.beat, uma linha por trilha com passos e playhead.
 
 - **MOMENTARY**: segure **LFO** e gire knobs (na HOME ou em qualquer página); solte o LFO e todo valor
-  girado volta. **OCT+** com o LFO segurado mantém. Um toque no LFO abre as páginas dele.
+  girado volta. **OCT+** com o LFO segurado mantém. Enquanto ele está segurado, o topo da tela avisa (TURN A
+  KNOB, quantos valores vão voltar, KEPT). Um toque no LFO abre as páginas dele.
 - **THROWs** (camada FX): **F#3** segurada joga a reverb de todas as trilhas no máximo, **G#3** o send de
   delay (e o FDBK até 70 % se estiver abaixo); entram e saem em ~12 ms, e nada é salvo.
 

@@ -303,7 +303,8 @@ NO FILL). **REC** on a page with nothing to
 record opens the **TRACKS** view: BPM, bar.beat, one row per track with its steps and playhead.
 
 - **MOMENTARY**: hold **LFO** and turn knobs (HOME or any page); let go of LFO and every value you turned
-  goes back. **OCT+** while holding LFO keeps them. A tap of LFO opens its pages.
+  goes back. **OCT+** while holding LFO keeps them. While held, the top line says so (TURN A KNOB, how many
+  values will go back, KEPT). A tap of LFO opens its pages.
 - **THROWs** (FX layer): **F#3** held sends every track's reverb to full, **G#3** every delay send (and
   FDBK up to 70 % if lower); they glide in and out in ~12 ms and nothing is saved.
 
