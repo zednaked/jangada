@@ -328,6 +328,8 @@ static void edit_param(uint32_t slot, int32_t steps)
     ui.arm = 0;
     if (pg->scope != SC_GLOBAL)
         return;
+    if (id >= G_SETTINGS)
+        settings_later = 1;                               /* a setting of the FM-1: into flash once stopped */
     switch (id) {                                         /* GO buttons: act, then back to 0 */
     case G_LOAD:
         *vp = 0;

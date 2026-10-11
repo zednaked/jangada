@@ -33,6 +33,7 @@ static void audio_block(int32_t *out, uint32_t n)       /* mix (fx.c), then Q15 
     uac_tap(usb_full_now ? usb_out : out, n);           /* the USB audio input: the master output (usb.c), or at
                                                          * full level (menu USB AUDIO = FULL: fx.c usb_full_block) */
 #endif
+    click_add(out, n);
     for (i = 0; i < n; i++) {
         if (i & 1u)
             scope_buf[scope_w++ & (SCOPE_N - 1u)] = (int16_t)out[2u * i];

@@ -28,8 +28,10 @@ static void midi(uint32_t st, uint32_t d1, uint32_t d2)          /* as usb.c que
 
 static void run(uint32_t blocks)
 {
-    while (blocks--)
+    while (blocks--) {
         mix_block(out, CTL);
+        click_add(out, CTL);                      /* (as audio.c: the metronome after the USB tap) */
+    }
 }
 
 /* a master clock: pulses at exact (fractional) times, queued before the block they fall in;
@@ -361,6 +363,41 @@ int main(void)
         ml_heard = 0;
         memset(ml_tab, 0, sizeof ml_tab);
         trk[2].p[P_E4] = before;
+    }
+    {   /* Jangada 0.9.7 (after Felucca 1.1.5): GLO > CLICK. COUNT-IN 1BAR with a track armed: four beats of clicks,
+         * then PLAY; PLAY again in it stops it. CLICK ON: a blip a beat, a bar's first the higher one */
+        uint32_t b, blips = 0, beat = (uint32_t)FS * 60u / 120u / CTL + 1u;
+        setup();
+        song.rec = 1;
+        song.g[G_CNTIN] = 1;
+        transport_req = 1;
+        run(1);
+        ok(!song.playing && cnt.left == 4 && blip.env > 20000 && blip.inc == 152710000u, "count-in: PLAY clicks first, a bar's first");
+        for (b = 0; b < 3u * beat; b++) {
+            run(1);
+            blips += blip.env > 20000;
+        }
+        ok(!song.playing && blips >= 2u && cnt.left == 1, "count-in: the beats counted, not playing yet");
+        run(beat);
+        ok(song.playing && !cnt.left && trk[0].seq_idx == 0, "count-in: then the sequencer from step 1");
+        transport_req = 2;
+        run(1);
+        transport_req = 1;
+        run(1);
+        transport_req = 1;
+        run(1);
+        ok(!song.playing && !cnt.left, "count-in: PLAY in it stops it");
+        song.g[G_CNTIN] = 0;
+        song.g[G_CLICK] = 2;
+        transport_req = 1;
+        run(1);
+        ok(song.playing && blip.inc == 152710000u, "CLICK ON: the downbeat with PLAY");
+        run(beat + 2u);
+        ok(blip.inc == 101969000u, "CLICK ON: the next beat, the lower blip");
+        transport_req = 2;
+        run(1);
+        song.g[G_CLICK] = 0;
+        song.rec = 0;
     }
     if (fails)
         printf("MIDI: %u FAILED\n", fails);

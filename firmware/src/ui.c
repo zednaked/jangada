@@ -645,6 +645,15 @@ static void preset_go(uint32_t n)                    /* load list index n into t
 static void pc_service(void)
 {
     uint32_t i;
+    static uint8_t cnt_shown;
+    if (cnt.left != cnt_shown) {                     /* the count-in counting down (seq.c) */
+        char b[12] = "COUNT-IN ";
+        cnt_shown = cnt.left;
+        if (cnt_shown) {
+            fmt_int(b + 9, (cnt_shown - 1u) % 4u + 1u);
+            ui_message(b);
+        }
+    }
     for (i = 0; i < NTRK; i++) {
         track_t *t = &trk[i];
         const engine_t *e = ENGINES[t->eng_req % NENGINES];

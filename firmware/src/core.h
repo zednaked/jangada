@@ -104,11 +104,16 @@ enum {                          /* global parameters */
     /* Jangada 0.8 (issue #2): four macro knobs for playing live, sources MAC1..MAC4 of every part's matrix
      * (mod.c): point slots of one part or of all at a MAC and one knob moves them all */
     G_MAC1, G_MAC2, G_MAC3, G_MAC4,
+    /* Jangada 0.9.7 (after Felucca 1.1.5): the metronome (GLO > CLICK): CLICK OFF / REC / ON, its LEVEL, COUNT-IN
+     * OFF / 1BAR / 2BAR. Settings of the FM-1 (panel.c lights_word), not of a project: from G_SETTINGS on, a project
+     * load or NEW PROJECT leaves them as they are */
+    G_CLICK, G_CLVL, G_CNTIN,
     G_COUNT
 };
 /* the globals a stored project keeps: all before the macros. The macros are where the hands are, not part of
  * the song (a load leaves them as they are); and the worst-case project fills its flash object to 2 bytes */
 #define G_STORED G_MAC1
+#define G_SETTINGS G_CLICK
 
 /* ----------------------------------------------------------- voices --- */
 typedef struct {
@@ -316,6 +321,7 @@ static song_t song;
 /* Jangada 0.9.7 (after Felucca 1.5.1): REV THROW and ECHO THROW, held in the FX layer (F#3, G#3: seq.c throw_keys):
  * how far every reverb send (0) and every delay send (1) is pushed to full, 0..32767, gliding (fx.c thr_block) */
 static int32_t thr_g[2];
+static volatile uint8_t click_due;       /* the metronome: a blip to start, 1 a beat, 2 a bar's first (seq.c, fx.c) */
 static volatile uint8_t throw_keys;      /* FX layer, held: bit 0 F#3 REV THROW, bit 1 G#3 ECHO THROW */
 static inline int32_t thr_send(int32_t s, uint32_t k) { return thr_g[k] ? s + (((32766 - s) * thr_g[k]) >> 15) : s; }
 #define TSEL (&trk[song.sel])    /* the selected track */

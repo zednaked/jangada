@@ -140,7 +140,7 @@ int main(void)
         check("MAC2 is its own knob", t->p[P_E0 + 4] > b4 && t->p[P_E0 + 5] == b5);
         mod_restore(t, moved, keep);
         song.g[G_MAC2] = 0;
-        check("the macros are not stored in a project (G_STORED)", G_STORED == G_MAC1 && G_MAC4 + 1 == G_COUNT);
+        check("the macros are not stored in a project (G_STORED)", G_STORED == G_MAC1 && G_MAC4 + 1 == G_SETTINGS && G_SETTINGS < G_COUNT);
     }
     puts(fails ? "MOD TEST FAILED" : "mod: all ok");
     return fails != 0;

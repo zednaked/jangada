@@ -985,6 +985,32 @@ static uint32_t mix_split(void)
     return best;
 }
 
+/* the metronome's blip (seq.c click_due): C6, G6 on a bar's first and louder, gone in ~30 ms; at GLO > CLICK's
+ * LEVEL and the MASTER knob. After the USB tap: heard, never recorded */
+static struct { uint32_t ph, inc; int32_t env; } blip;
+static void click_add(int32_t *out, uint32_t n)   /* (audio.c, after the USB tap) */
+{
+    static const int16_t LV[3] = {4000, 9000, 18000};
+    uint32_t i;
+    int32_t g;
+    if (click_due) {
+        blip.inc = click_due == 2u ? 152710000u : 101969000u;   /* 1568 / 1047 Hz */
+        blip.env = click_due == 2u ? 32767 : 21000;
+        blip.ph = 0;
+        click_due = 0;
+    }
+    if (blip.env < 64)
+        return;
+    g = (LV[song.g[G_CLVL] % 3] * (int32_t)(song.master_q12 >> 4)) >> 8;
+    for (i = 0; i < n; i++) {
+        int32_t x = (((sine_i(blip.ph) * blip.env) >> 15) * g) >> 15;
+        out[2u * i] += x;
+        out[2u * i + 1u] += x;
+        blip.ph += blip.inc;
+        blip.env -= blip.env >> 9;
+    }
+}
+
 /* REV / ECHO THROW: the sends glide to full and back over ~12 ms (529 samples), no click */
 static void thr_block(uint32_t n)
 {

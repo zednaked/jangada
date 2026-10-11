@@ -1681,17 +1681,45 @@ static void midi_clock_out(void)                    /* after the beat clock move
     mclk_out = want;
 }
 
+/* ---- Jangada 0.9.7 (after Felucca 1.1.5): the metronome and the count-in (GLO > CLICK). CLICK OFF, REC (while a
+ * track is armed) or ON: a blip on every beat while the transport runs, higher and louder on a bar's first, in time
+ * with an external clock too. COUNT-IN 1BAR or 2BAR: PLAY with a track armed clicks that long first (even with CLICK
+ * OFF), the screen counting down, then the sequencer starts at step 1; PLAY again in it stops it. No count-in with an
+ * external clock. The blip goes to the headphones and the speaker only, never to USB audio (audio.c click_add) */
+static struct { uint32_t pos; uint8_t left; } cnt;    /* the count-in: units into its beat, beats still to go */
+static int click_on(void) { return song.g[G_CLICK] == 2 || (song.g[G_CLICK] == 1 && song.rec); }
+
 /* everything that happens between two rendered blocks */
 static uint32_t clk_adv;                            /* units the beat clock moved this block (fx.c DUCK) */
 static void events_block(uint32_t n)
 {
     uint32_t i, pr, adv;
     if (transport_req == 1u) {
-        seq_start();
+        if (cnt.left)
+            cnt.left = 0;                             /* PLAY in the count-in: stopped */
+        else if (song.g[G_CNTIN] && song.rec && !song.g[G_CLOCK]) {
+            cnt.left = (uint8_t)(song.g[G_CNTIN] * 4);   /* the count-in: its first beat now */
+            cnt.pos = 0;
+            click_due = 2;
+        } else {
+            seq_start();
+            if (click_on())
+                click_due = 2;
+        }
         transport_req = 0;
     } else if (transport_req == 2u) {
+        cnt.left = 0;
         seq_stop();
         transport_req = 0;
+    }
+    if (cnt.left && (cnt.pos += n * (uint32_t)song.g[G_BPM]) >= BEAT_U) {
+        cnt.pos -= BEAT_U;
+        if (--cnt.left)
+            click_due = cnt.left % 4u ? 1 : 2;
+        else {
+            seq_start();                              /* counted in: step 1 on the beat */
+            click_due = 2;
+        }
     }
     pr = panic_req;
     panic_req = 0;
@@ -1796,6 +1824,8 @@ static void events_block(uint32_t n)
         while (clk_pos >= BEAT_U) {
             clk_pos -= BEAT_U;
             clk_beat++;
+            if (click_on())
+                click_due = clk_beat % 4u ? 1 : 2;
         }
         midi_clock_out();
     }

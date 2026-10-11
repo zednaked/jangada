@@ -103,7 +103,8 @@ static uint32_t lights_word(void)
 {
     return (uint32_t)lights_lvl | (uint32_t)lights_keys << 4 | (uint32_t)(lights_notes != 0u) << 8 |
            (uint32_t)(usb_full != 0u) << 11 | (uint32_t)(midi_seq_out != 0u) << 12 | (uint32_t)(midi_clk_only != 0u) << 13 |
-           (uint32_t)(vis_style & 7u) << 14 | (uint32_t)(cpu2_mode & 3u) << 17;
+           (uint32_t)(vis_style & 7u) << 14 | (uint32_t)(cpu2_mode & 3u) << 17 |
+           (uint32_t)(song.g[G_CLICK] & 3) << 19 | (uint32_t)(song.g[G_CLVL] & 3) << 21 | (uint32_t)(song.g[G_CNTIN] & 3) << 23;
 }
 static void lights_from_word(uint32_t w)        /* (each field checked: a damaged word lights nothing) */
 {
@@ -115,6 +116,9 @@ static void lights_from_word(uint32_t w)        /* (each field checked: a damage
     midi_clk_only = (uint8_t)((w >> 13) & 1u);
     vis_style = (uint8_t)((w >> 14) & 7u);          /* (ui_vis.c takes it modulo its styles) */
     cpu2_mode = (uint8_t)(((w >> 17) & 3u) < CPU2_N ? ((w >> 17) & 3u) : CPU2_AUTO);   /* (0.9.6: 0 before, AUTO) */
+    song.g[G_CLICK] = (int16_t)(((w >> 19) & 3u) % 3u);   /* 0.9.7: the metronome (0 before: OFF, LOW, OFF) */
+    song.g[G_CLVL] = (int16_t)(((w >> 21) & 3u) % 3u);
+    song.g[G_CNTIN] = (int16_t)(((w >> 23) & 3u) % 3u);
 }
 
 static void settings_init(void)

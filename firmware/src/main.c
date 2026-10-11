@@ -136,7 +136,7 @@ static void felucca_init(void)
 {
     uint32_t i;
     fm6_init();                                 /* Jangada: every track the FM6 init voice */
-    for (i = 0; i < G_COUNT; i++)
+    for (i = 0; i < G_SETTINGS; i++)            /* (from G_SETTINGS: the FM-1's settings, kept: panel.c) */
         song.g[i] = GP[i].def;
     for (i = 0; i < NTRK; i++) {
         track_t *t = &trk[i];
