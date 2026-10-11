@@ -756,6 +756,8 @@ static void keyboard_block(void)
                     if (fx >= 0) {
                         punch.req = (int8_t)fx;
                         punch.keybit = 1u << k;
+                    } else if (k == 1u || k == 3u) {   /* a black key: F#3 REV THROW, G#3 ECHO THROW */
+                        throw_keys |= (uint8_t)(k == 1u ? 1u : 2u);
                     }
                 } else {                          /* the others: to the UI, with the time */
                     kb_lkeys |= 1u << k;
@@ -795,6 +797,8 @@ static void keyboard_block(void)
             in_key = 0;
             midi_out_event(0x09u | (0x90u | mc) << 8 | (uint32_t)kb_note[k] << 16 | 100u << 24);
         } else {
+            if ((k == 1u || k == 3u) && throw_keys)   /* a THROW let go: the sends glide back, the tails ring */
+                throw_keys &= (uint8_t)~(k == 1u ? 1u : 2u);
             if (punch.keybit == 1u << k) {        /* the punch-in key is up: the mix comes back */
                 punch.keybit = 0;
                 punch.req = -1;

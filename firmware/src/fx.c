@@ -349,6 +349,8 @@ static void fx_buses(const int32_t *cho_in, const int32_t *dly_in, const int32_t
 {
     uint32_t i, rt = (uint32_t)clamp(song.g[G_RTYPE], 0, 2), dl = delay_samples();
     int32_t fb = song.g[G_DFDBK] * 230, col = 2000 + song.g[G_DCOLOR] * 240;
+    if (fb < 89 * 230)                                  /* ECHO THROW: FDBK up to 70 % while held, never above */
+        fb += ((89 * 230 - fb) * (thr_g[1] >> 4)) >> 11;
     int32_t dmix = song.g[G_DMIX] * 258;
     int32_t cdepth = song.g[G_CDEPTH] * 6;
     uint32_t cinc = LFO_INC[song.g[G_CRATE] & 127] / CTL;
@@ -773,7 +775,7 @@ static void mix_part(track_t *t, uint32_t n, mixsum_t *s)
     {
         int32_t lvl = LEVEL_Q12[t->p[P_LEVEL] & 127], pan = t->p[P_PAN];
         int32_t gl = 4096 - (pan > 0 ? pan * 64 : 0), gr = 4096 + (pan < 0 ? pan * 64 : 0);
-        int32_t c = t->p[P_CHOR] * 258, d = t->p[P_DLY] * 258, r = t->p[P_REV] * 258, pk = t->peak;
+        int32_t c = t->p[P_CHOR] * 258, d = thr_send(t->p[P_DLY] * 258, 1), r = thr_send(t->p[P_REV] * 258, 0), pk = t->peak;
         int32_t xmax = c > d ? c : d, ga = duck.g0, gb = duck.g1;   /* DUCK, ramped over the block */
         xmax = 0x7FFFFFFF / ((xmax > r ? xmax : r) | 1);   /* sends: loud chords at a high LEVEL */
         {                                               /* Jangada DRONES: the tension pushes the DIST */
@@ -983,12 +985,24 @@ static uint32_t mix_split(void)
     return best;
 }
 
+/* REV / ECHO THROW: the sends glide to full and back over ~12 ms (529 samples), no click */
+static void thr_block(uint32_t n)
+{
+    uint32_t k, step = 32767u * n / 529u;
+    for (k = 0; k < 2u; k++) {
+        int32_t want = (throw_keys >> k & 1u) ? 32767 : 0;
+        thr_g[k] = thr_g[k] < want ? (want - thr_g[k] < (int32_t)step ? want : thr_g[k] + (int32_t)step)
+                                   : (thr_g[k] - want < (int32_t)step ? want : thr_g[k] - (int32_t)step);
+    }
+}
+
 static void mix_block(int32_t *out, uint32_t n)
 {
     uint32_t i, m;
     for (i = 0; i < n; i++)
         send_c[i] = send_d[i] = send_r[i] = mix_l[i] = mix_r[i] = 0;
     events_block(n);
+    thr_block(n);
     duck_block(clk_adv);                                /* (n x BPM, or the MIDI clock's units: seq.c) */
     analog_nv = (uint8_t)voices_busy();                 /* the superwave's voice count (eng_analog.c) */
     m = C1_ON() && c1_split ? C1_SPLIT() & (((1u << NPART) - 1u) | (song.t4 ? 1u << TRK_DRUM : 0u)) : 0;   /* synth parts */

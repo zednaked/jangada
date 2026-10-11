@@ -313,6 +313,11 @@ typedef struct {
 
 static track_t trk[NTRK];        /* the instrument: three parts and the drum track */
 static song_t song;
+/* Jangada 0.9.7 (after Felucca 1.5.1): REV THROW and ECHO THROW, held in the FX layer (F#3, G#3: seq.c throw_keys):
+ * how far every reverb send (0) and every delay send (1) is pushed to full, 0..32767, gliding (fx.c thr_block) */
+static int32_t thr_g[2];
+static volatile uint8_t throw_keys;      /* FX layer, held: bit 0 F#3 REV THROW, bit 1 G#3 ECHO THROW */
+static inline int32_t thr_send(int32_t s, uint32_t k) { return thr_g[k] ? s + (((32766 - s) * thr_g[k]) >> 15) : s; }
 #define TSEL (&trk[song.sel])    /* the selected track */
 #define TDRUM (&trk[TRK_DRUM])
 static int is_drum(const track_t *t) { return t == TDRUM && !song.t4; }
