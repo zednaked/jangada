@@ -36,6 +36,8 @@ static const uint16_t SCALE_MASK[] = {
 #define KB_SILENT 255u
 static uint32_t kb_prev;
 static uint8_t kb_note[27], kb_trk[27];  /* per key: the note it started and on which track */
+static volatile uint8_t kb_boot_hold;    /* power-on to the end of the splash (main.c): the keys sound nothing, and one
+                                          * held across its end stays silent until let go (after Felucca 1.5, #137) */
 static uint8_t kb_nt[27][4], kb_n[27];    /* Jangada: per key, the chord it started (CHORD on), 0 = none */
 static uint8_t in_key;                   /* the key (+ 1) whose notes go into input_on now (keyboard_block), 0: none */
 /* (after Felucca 1.5, #191) where each track's held[i] came from, so the arp maps it again as it plays: TRN, ROOT,
@@ -733,6 +735,13 @@ static void keyboard_block(void)
     ch = cur ^ kb_prev;                           /* keys also sound while entering steps */
     if (!ch)
         return;
+    if (kb_boot_hold) {                           /* under the splash; their release is silent too */
+        for (k = 0; k < 27u; k++)
+            if ((ch & cur) >> k & 1u)
+                kb_note[k] = KB_SILENT;
+        kb_prev = cur;
+        return;
+    }
     for (k = 0; k < 27u; k++) {
         uint32_t mc;
         if (!((ch >> k) & 1u))

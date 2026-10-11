@@ -51,6 +51,7 @@ static void fm1_irq_off(void) {}
 static void fm1_irq_on(void) {}
 #define NE 7                               /* panel.c: the encoders (ui.c keeps a time per one) */
 static void settings_save(void) {}         /* (MIDI LEARN's map: no flash in the browser) */
+static uint8_t settings_later;             /* (midi_learn.c: kept once stopped; nowhere here) */
 #include "ui.c"
 static void project_save(uint32_t slot) { (void)slot; }
 static void panel_setup(void) {}

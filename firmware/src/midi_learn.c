@@ -62,6 +62,15 @@ static uint32_t ml_learn(uint32_t cc, uint32_t k, uint32_t id)
         }
     return 0;
 }
+/* the learned CCs into flash: at once when stopped; while playing once stopped (a flash write stops the audio
+ * ~50 ms; after Felucca 1.5.1's #197) */
+static void ml_keep(void)
+{
+    if (song.playing)
+        settings_later = 1;
+    else
+        settings_save();
+}
 static int ml_clear_all(void)                    /* MENU > MIDI LEARN: every CC; 1 = there were */
 {
     uint32_t n = ml_count();
@@ -69,7 +78,7 @@ static int ml_clear_all(void)                    /* MENU > MIDI LEARN: every CC;
     memset(ml_tab, 0, sizeof ml_tab);
     fm1_irq_on();
     if (n)
-        settings_save();
+        ml_keep();
     return n != 0u;
 }
 static const char *ml_menu_value(void)          /* MENU > MIDI LEARN: "3 CC", "NONE" */
@@ -147,7 +156,7 @@ static void ml_poll(void)
     ml_ui.pick = 0;
     ml_arm = 0;
     ui.foot_sig = 0;
-    settings_save();
+    ml_keep();
 }
 /* OCT- while learning: the picked parameter's CC goes. 1 = taken (not an octave) */
 static int ml_oct_down(void)
@@ -162,7 +171,7 @@ static int ml_oct_down(void)
     ml_name(b);
     ui_say(b, " CC CLEARED");
     ui.foot_sig = 0;
-    settings_save();
+    ml_keep();
     return 1;
 }
 /* the footer's first row while learning: "LEARN: TURN A KNOB", "T2 CUT: SEND A CC", "T2 CUT = CC74" */

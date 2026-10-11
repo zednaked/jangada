@@ -156,9 +156,26 @@ static void felucca_init(void)
     ui.force = 1;
 }
 
+/* MASTER (after Felucca 1.5's #137): the pot read before the audio starts, so the first block plays at its level
+ * (it was 2048 until the main loop's first read after the splash: the keys, live from the audio ISR at once,
+ * sounded loud under the splash with the knob turned down). Returns the pot x16, the loop's smoothing start */
+static int32_t master_boot(void)
+{
+    uint32_t i;
+    (void)fm1_adc_read(FM1_ADC_MASTER);                 /* (the first conversion after the pin setup: dropped) */
+    for (i = 0; i < 3u; i++) {
+        int32_t a = fm1_adc_read(FM1_ADC_MASTER);
+        if (a >= 0) {
+            song.master_q12 = ((uint32_t)a * (uint32_t)a) >> 8;
+            return a * 16;
+        }
+    }
+    return 512 * 16;                                    /* (no reading: felucca_init's level, the loop glides on) */
+}
+
 static void fm1_main(void)
 {
-    int32_t knob = 512 * 16;
+    int32_t knob;
     persist_boot();
 #if FELUCCA_FLASH
     if (flash_ok)
@@ -190,6 +207,8 @@ static void fm1_main(void)
     fm1_adc_init();
     panel_init();
     felucca_init();
+    knob = master_boot();
+    kb_boot_hold = 1;                         /* no notes from the keys under the splash (seq.c keyboard_block) */
     if (FELUCCA_CPU2 && !bootguard.failed && cpu2_mode != CPU2_OFF) {  /* Jangada 1.0 (after X0X, Melodee): the second core, at power-on,
                                                * before the audio and the timers (started later, it never reaches
                                                * its entry). It starts in the chip's ROM: the PC limits open
@@ -223,6 +242,7 @@ static void fm1_main(void)
     autosave_resume();                        /* Jangada: the project as it was left (project.c) */
 #endif
     lcd_fill(0, 0, 240, 240, C_BLACK);
+    kb_boot_hold = 0;
 
     for (;;) {
         uint32_t m = fm1_ms;
