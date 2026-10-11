@@ -40,6 +40,7 @@ static const uint8_t P_KEY[P_COUNT] = {
     /* Jangada 0.9.7: VIVO */
     [P_VPULS] = 111, [P_VROT] = 112, [P_VDENS] = 113, [P_VMEM] = 114, [P_VCYC] = 115, [P_VACC] = 116,
     [P_VEVOL] = 117, [P_VSEED] = 118, [P_VFRZ] = 119, [P_VRATE] = 120, [P_ESYNC] = 121,
+    [P_LSYNC] = 122, [P_LTRIG] = 123, [P_LPOL] = 124,
 };
 
 /* the P_* index of a key, P_COUNT when this firmware does not know it */

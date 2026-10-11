@@ -405,6 +405,28 @@ int main(void)
         song.g[G_CLICK] = 0;
         song.rec = 0;
     }
+    {   /* Jangada 0.9.7 LFO 2 SYNC: playing, the phase locked to the beat (1/4: a cycle a beat, 0 on each beat); POL UNI */
+        track_t *t = &trk[0];
+        uint32_t beat = (uint32_t)FS * 60u / 120u / CTL, b, near0 = 0, mid = 0, neg = 0;
+        setup();
+        t->p[P_LSYNC] = 6;                                      /* 1/4 */
+        t->p[P_LWAVE] = 2;                                      /* SAW: the phase itself */
+        t->p[P_LPOL] = 1;
+        transport_req = 1;
+        run(1);
+        for (b = 0; b < 4u * beat; b++) {
+            run(1);
+            if (b % beat == 0u && b)
+                near0 += t->lfo_ph < 0x08000000u || t->lfo_ph > 0xF8000000u;
+            if (b % beat == beat / 2u)
+                mid += t->lfo_ph > 0x70000000u && t->lfo_ph < 0x90000000u;
+            neg += t->lfo_val < 0;
+        }
+        ok(near0 >= 3u && mid >= 3u, "LFO SYNC 1/4: a cycle a beat, locked to the beat");
+        ok(!neg, "LFO POL UNI: never below zero");
+        transport_req = 2;
+        run(1);
+    }
     {   /* Jangada 0.9.7 STEP PREVIEW (after Felucca 1.4): stopped, the step plays once for its gate */
         track_t *t = &trk[0];
         uint32_t k, on = 0;

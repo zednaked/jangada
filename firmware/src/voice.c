@@ -37,13 +37,25 @@ static int32_t lfo_wave(track_t *t, uint32_t ph)
 /* once a block for every synth part, after they all rendered (fx.c mix_block; a render uses the LFO as the last
  * block left it): RND draws from rng(), which the parts must not share while they render on two cores. The draws
  * keep their order: nothing else draws between the parts' renders */
+/* Jangada 0.9.7 LFO 2 (after Felucca 1.4): SYNC a note value of the tempo (playing: the phase locked to the beat
+ * clock, from the downbeat, a MIDI clock too; stopped: on at the tempo), TRIG FREE (no new phase on a fresh phrase),
+ * POL UNI (0 .. +1, not -1 .. +1). Every sound of before: OFF, NOTE, BI, as it was */
 static void track_lfo_tick(track_t *t)
 {
-    uint32_t old = t->lfo_ph;
-    t->lfo_ph += LFO_INC[t->p[P_LRATE] & 127];
-    if (t->lfo_ph < old)
+    uint32_t old = t->lfo_ph, u = LSYNC_U96[clamp(t->p[P_LSYNC], 0, 13)];
+    if (!u) {
+        t->lfo_ph += LFO_INC[t->p[P_LRATE] & 127];
+    } else if (song.playing) {                          /* 1/6144 of a beat (BEAT_U / 6144 = 430.6) */
+        uint32_t cyc = u * 64u, pos = (clk_beat % (u * 4u)) * 6144u + clk_pos / 431u;
+        t->lfo_ph = (pos % cyc) * (0xFFFFFFFFu / cyc) + ((uint32_t)t->p[P_LPHASE] << 25);
+    } else {
+        t->lfo_ph += (uint32_t)clamp(song.g[G_BPM], 40, 240) * (CTL * 96u * 1623u) / u;   /* 2^32 / (FS 60) = 1623.2 */
+    }
+    if (t->lfo_ph < old && (!u || !song.playing || old - t->lfo_ph > 0x80000000u))
         t->lfo_rnd = rng();
     t->lfo_val = lfo_wave(t, t->lfo_ph);
+    if (t->p[P_LPOL])
+        t->lfo_val = (t->lfo_val + 32767) >> 1;
     if (t->lfo_fade < 32767) {
         int32_t step = (int32_t)(ENV_LIN[t->p[P_LFADE] & 127] >> 9);
         t->lfo_fade = t->p[P_LFADE] ? clamp(t->lfo_fade + (step ? step : 1), 0, 32767) : 32767;
@@ -370,8 +382,9 @@ static void trk_note_on(track_t *t, uint32_t note, uint32_t vel)
     }
     for (i = 0; i < NVOICE; i++)
         any |= t->v[i].gate;
-    if (!any) {                                        /* fresh phrase: LFO retrigger and fade */
-        t->lfo_ph = (uint32_t)t->p[P_LPHASE] << 25;
+    if (!any) {                                        /* fresh phrase: LFO retrigger and fade (TRIG FREE: the fade) */
+        if (!t->p[P_LTRIG])
+            t->lfo_ph = (uint32_t)t->p[P_LPHASE] << 25;
         t->lfo_fade = 0;
     }
     if (mode == V_POLY) {

@@ -420,9 +420,7 @@ static mixsum_t mx[2];
 /* ---- Jangada: the beat clock (after SLOOP), in units of a sample at 1 BPM: a beat is BEAT_U at any
  * tempo, so a tempo change keeps the place in the beat. seq_start zeroes it with step 0; seq.c
  * events_block advances it while playing. The punch-in loops and gate and the DUCK curve read it. */
-#define BEAT_U ((uint32_t)FS * 60u)
-static uint32_t clk_pos;
-static uint32_t clk_beat;                               /* beats since play (the TRACKS screen: bar.beat) */
+/* (BEAT_U, clk_pos, clk_beat: core.h, so the LFO's SYNC reads them too, voice.c) */
 
 /* ---- DUCK: every kick (GM 35 / 36 on the drum track: drums.kick) dips the synth parts, which come
  * back over an eighth note: depth G_DUCK, the curve (1 - t / T)^2. At 0 nothing changes. */

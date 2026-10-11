@@ -80,6 +80,7 @@ enum {                          /* per-track parameters */
      * FREEZE and the passes between evolutions. All off: the pattern plays as written */
     P_VPULS, P_VROT, P_VDENS, P_VMEM, P_VCYC, P_VACC, P_VEVOL, P_VSEED, P_VFRZ, P_VRATE,
     P_ESYNC,                                   /* Jangada 0.9.7 (after Felucca 1.5): ATK DEC REL as note values */
+    P_LSYNC, P_LTRIG, P_LPOL,                  /* Jangada 0.9.7 (after Felucca 1.4): LFO 2, SYNC TRIG POL (voice.c) */
     P_COUNT
 };
 #define NEDIT 16                 /* engine parameters P_E0.. */
@@ -322,6 +323,10 @@ static track_t trk[NTRK];        /* the instrument: three parts and the drum tra
 static song_t song;
 /* Jangada 0.9.7 (after Felucca 1.5.1): REV THROW and ECHO THROW, held in the FX layer (F#3, G#3: seq.c throw_keys):
  * how far every reverb send (0) and every delay send (1) is pushed to full, 0..32767, gliding (fx.c thr_block) */
+/* Jangada: the beat clock (fx.c), in units of a sample at 1 BPM: a beat is BEAT_U at any tempo */
+#define BEAT_U ((uint32_t)FS * 60u)
+static uint32_t clk_pos;
+static uint32_t clk_beat;                /* beats since play (the TRACKS screen: bar.beat) */
 static int32_t thr_g[2];
 static volatile uint8_t click_due;       /* the metronome: a blip to start, 1 a beat, 2 a bar's first (seq.c, fx.c) */
 static volatile uint8_t throw_keys;      /* FX layer, held: bit 0 F#3 REV THROW, bit 1 G#3 ECHO THROW */

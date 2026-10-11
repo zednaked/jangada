@@ -41,6 +41,11 @@ static const char *const N_DTYPE[] = {"SOFT", "FUZZ", "FOLD", "CRUSH", "RING"};
 static const char *const N_VRULE[] = {"OFF", "R30", "R90", "R110", "R150", "R54", "R184", "R22"};   /* VIVO EVOL */
 static const char *const N_VRATE[] = {"x1", "x2", "x4", "x8"};
 static const char *const N_CLICK[] = {"OFF", "REC", "ON"};          /* Jangada 0.9.7: the metronome */
+static const char *const N_LSYNC[] = {"OFF", "4BAR", "2BAR", "1/1", "1/2", "1/4D", "1/4", "1/4T", "1/8D", "1/8",
+                                      "1/8T", "1/16", "1/16T", "1/32"};   /* Jangada 0.9.7: LFO 2 SYNC */
+static const uint16_t LSYNC_U96[14] = {0, 1536, 768, 384, 192, 144, 96, 64, 72, 48, 32, 24, 16, 12};
+static const char *const N_LTRIG[] = {"NOTE", "FREE"};
+static const char *const N_LPOL[] = {"BI", "UNI"};
 static const char *const N_CLVL[] = {"LOW", "MID", "HIGH"};
 static const char *const N_CNTIN[] = {"OFF", "1BAR", "2BAR"};
 static const char *const N_TRAMP[] = {"OFF", "1BAR", "2BAR", "4BAR", "8BAR", "16BAR", "32BAR"};
@@ -152,6 +157,7 @@ static const param_desc_t TP[P_COUNT] = {
     [P_VFRZ] = PE("FRZ", N_ONOFF, 0),
     [P_VRATE] = PE("LOOP", N_VRATE, 0),
     [P_ESYNC] = PE("ESYNC", N_ONOFF, 0),
+    [P_LSYNC] = PE("SYNC", N_LSYNC, 0), [P_LTRIG] = PE("TRIG", N_LTRIG, 0), [P_LPOL] = PE("POL", N_LPOL, 0),
 };
 
 static const param_desc_t GP[G_COUNT] = {
@@ -389,6 +395,7 @@ static const page_t PAGES[] = {
     {"ENV DEST", FAM_ENV, SC_TRACK, GR_NONE, {P_ED_FLT, P_ED_PIT, P_ED_SHP, P_ESYNC}},   /* (P_ED_FX: nothing reads it;
                                                                                    * ESYNC: Jangada 0.9.7) */
     {"LFO", FAM_LFO, SC_TRACK, GR_LFO, {P_LRATE, P_LWAVE, P_LPHASE, P_LFADE}},
+    {"LFO 2", FAM_LFO, SC_TRACK, GR_NONE, {P_LSYNC, P_LTRIG, P_LPOL, 0xFF}},   /* Jangada 0.9.7 (after Felucca 1.4) */
     {"LFO DEST", FAM_LFO, SC_TRACK, GR_NONE, {P_LD_PIT, P_LD_FLT, P_LD_SHP, P_LD_AMP}},
     {"MOD 1", FAM_LFO, SC_TRACK, GR_NONE, {P_M1SRC, P_M1DST, P_M1AMT, 0xFF}},   /* Jangada: matrix */
     {"MOD 2", FAM_LFO, SC_TRACK, GR_NONE, {P_M2SRC, P_M2DST, P_M2AMT, 0xFF}},
