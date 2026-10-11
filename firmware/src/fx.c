@@ -728,6 +728,34 @@ _Static_assert(sizeof ENG_VCOST / sizeof ENG_VCOST[0] >= NENGINES, "ENG_VCOST: a
 /* one synth part into the dry mix and the sends of s (mx[0], or mx[1] on the second core); a part with no
  * voice sounding costs a cleared buffer only (after the DIST tail has run out) */
 
+/* Jangada 0.9.7 (issue #5): what the engine pictures move with (ui_eng.c). While one shows (want), the selected
+ * part's sound (after its DIST, INSERT, SLICER and FILT, before its LEVEL) is measured: the sum of |x|, the sum
+ * of |x - a low-pass at ~440 Hz| (the brightness) and the samples counted; the UI takes them and clears them each
+ * frame. Read only: the sound is the same with it or without */
+static struct {
+    volatile uint8_t want, part;
+    int32_t lp;
+    volatile uint32_t sum, hi, n;
+} an;
+static void an_measure(const int32_t *b, uint32_t n)
+{
+    int32_t lp = an.lp;
+    uint32_t i, s = 0, h = 0;
+    for (i = 0; i < n; i++) {
+        int32_t x = b[i] >> 4, d;
+        lp += (x - lp) >> 4;
+        d = x - lp;
+        s += (uint32_t)(x < 0 ? -x : x);
+        h += (uint32_t)(d < 0 ? -d : d);
+    }
+    an.lp = lp;
+    if (an.n < 65536u) {                                /* (the UI away a while: no overflow) */
+        an.sum += s;
+        an.hi += h;
+        an.n += n;
+    }
+}
+
 static void mix_part(track_t *t, uint32_t n, mixsum_t *s)
 {
     int32_t *b = s->b;
@@ -763,6 +791,8 @@ static void mix_part(track_t *t, uint32_t n, mixsum_t *s)
             if (djf_block(f, t->p[P_TFLT], &fc))
                 djf_run(f, &fc, b, n, 0, 2);
         }
+        if (an.want && (uint32_t)(t - trk) == an.part)
+            an_measure(b, n);
         for (i = 0; i < n; i++) {
             int32_t x = ((b[i] >> 2) * lvl) >> 10, a, xs;   /* pre-shift: 8 loud voices */
             if (ga < 32767 || gb < 32767) {

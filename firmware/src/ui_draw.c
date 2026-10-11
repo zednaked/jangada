@@ -399,6 +399,8 @@ static uint32_t graph_signature(void)
     uint32_t h = 2166136261u, i;
     if (ui.home)
         return h ^ (ui.frame / 2u);                  /* scope: redraw every other frame */
+    if (big_page(pg) && pg->scope == SC_ENGINE && !is_drum(t))
+        h ^= ui.frame / 2u;                          /* Jangada 0.9.7: the engine's picture moves (ui_eng.c) */
     if (big_page(pg))                                /* the big values: as the columns show them */
         for (i = 0; i < 4u; i++)
             h = str_hash(str_hash(str_hash(h ^ ui.big_c[i] * 31u ^ (uint32_t)ui.big_r[i] * 7919u ^ ui.big_i[i] * 104729u ^ ui.big_k[i] * 15485863u,
@@ -729,7 +731,6 @@ static uint32_t isqrt_u(uint32_t x)
 static void big_circle(int32_t cx, int32_t cy, int32_t R, int32_t v, uint32_t style, uint16_t col, int neg)
 {
     int32_t i, k, mx = neg ? -1 : 1;                    /* below zero: mirrored (a spiral turns the other way) */
-    cv_ring(cx, cy, R, 24, C_RAISE);                    /* the full size, faint */
     switch (style) {
     case BS_DISC:                                       /* a dot that grows into the disc */
         k = 24 + (R - 30) * (int32_t)isqrt_u((uint32_t)v * 1000u) / 1000;
@@ -783,37 +784,107 @@ static void big_circle(int32_t cx, int32_t cy, int32_t R, int32_t v, uint32_t st
     }
 }
 
+#include "ui_eng.c"                                 /* Jangada 0.9.7 (issue #5): the engine's picture */
+
+/* Jangada 0.9.7 (issue #5): a note value as dots, as many as the notes it makes in a bar ("1/8": eight, "8T":
+ * twelve, a dotted one with a dot in the middle); longer than a bar, a share of the disc ("2BAR": half of it).
+ * 0 = not a note value */
+static int32_t frac_notes(const char *v, int *dotted)
+{
+    int32_t n = 0;
+    const char *p = v;
+    *dotted = 0;
+    if (p[0] == '1' && p[1] == '/')
+        p += 2;
+    while (*p >= '0' && *p <= '9')
+        n = n * 10 + *p++ - '0';
+    if (!n || n > 64)
+        return 0;
+    if (*p == 'B' && p[1] == 'A' && p[2] == 'R' && !p[3])
+        return -n;                                      /* bars */
+    if (v[0] == '1' && v[1] == '/') {
+        if (*p == 'D' && !p[1])
+            *dotted = 1;
+        else if (*p == 'T' && !p[1])
+            n = n * 3 / 2;
+        else if (*p)
+            return 0;
+        return n;
+    }
+    return *p == 'T' && !p[1] ? n * 3 / 2 : 0;          /* "8T" */
+}
+static void frac_draw(int32_t cx, int32_t cy, int32_t R, int32_t n, int dotted, uint16_t col)
+{
+    int32_t i;
+    if (n == 1) {
+        cv_disc(cx, cy, R * 62 / 100, col);
+    } else if (n < 0) {                                 /* a share of the disc: 1 / bars of it */
+        int32_t k, steps = 64 / -n + 1;
+        for (k = 0; k < steps; k++) {
+            uint32_t a = (uint32_t)k * (0xFFFFFFFFu / (uint32_t)(-n) / (uint32_t)(steps - 1 > 0 ? steps - 1 : 1));
+            for (i = 0; i <= R * 62 / 100; i += 12)
+                cv_disc(cx + ((i * sine_i(a)) >> 15), cy - ((i * sine_i(a + 0x40000000u)) >> 15), 14, col);
+        }
+    } else {
+        int32_t rr = n <= 4 ? R * 55 / 100 : R * 72 / 100, d = rr * 314 / 100 / n;   /* dots a little apart */
+        if (d > R * 26 / 100)
+            d = R * 26 / 100;
+        if (d < 10)
+            d = 10;
+        for (i = 0; i < n; i++) {
+            uint32_t a = (uint32_t)i * (0xFFFFFFFFu / (uint32_t)n);
+            cv_disc(cx + ((rr * sine_i(a)) >> 15), cy - ((rr * sine_i(a + 0x40000000u)) >> 15), d, i ? col : C_WHITE);
+        }
+    }
+    if (dotted)
+        cv_disc(cx, cy, R * 16 / 100, C_WHITE);
+}
+
+/* one knob's circle at (cx, cy) (px), radius R (px); its name under it, and its value when there is room */
+static void big_one(uint32_t c, int32_t cx, int32_t cy, int32_t R, int with_value)
+{
+    int32_t uw, w, x, fn, dotted;
+    const felucca_font_t *f = &FONT_M;
+    uint16_t vc = ui.big_c[c] == C_WHITE ? C_WHITE : ui.big_c[c] == C_DIM ? C_DIM : C_HI;
+    if (!ui.big_l[c][0])
+        return;
+    uw = ui.big_u[c][0] ? text_w(&FONT_S, ui.big_u[c]) + 3 : 0;
+    fn = ui.big_k[c] == BK_LIST ? frac_notes(ui.big_v[c], &dotted) : 0;
+    if (fn) {
+        frac_draw(cx * 16, cy * 16, R * 16, fn, dotted, vc);
+    } else if (ui.big_r[c] >= 0 && ui.big_k[c] != BK_LIST) {
+        int32_t v = ui.big_r[c] > 1000 ? 1000 : ui.big_r[c], neg = 0;
+        if (ui.big_k[c] == BK_BIPOLAR) {                /* its size: how far from zero */
+            neg = v < 500;
+            v = neg ? (500 - v) * 2 : (v - 500) * 2;
+        }
+        big_circle(cx * 16, cy * 16, R * 16, v, big_style(ui.big_i[c]), vc, neg);
+    } else {                                            /* no gauge: the value large in the circle's place */
+        int32_t room = R * 2 + 8;
+        const felucca_font_t *g = text_w(&FONT_L, ui.big_v[c]) <= room ? &FONT_L : text_w(&FONT_M, ui.big_v[c]) <= room ? &FONT_M : &FONT_S;
+        cv_text(cx - text_w(g, ui.big_v[c]) / 2, cy - (g == &FONT_L ? 15 : 10), g, ui.big_v[c], vc);
+    }
+    cv_text(cx - text_w(&FONT_S, ui.big_l[c]) / 2, cy + R + 6, &FONT_S, ui.big_l[c], C_GRAY);
+    if (!with_value || ((ui.big_r[c] < 0 || ui.big_k[c] == BK_LIST) && !fn))
+        return;
+    if (text_w(f, ui.big_v[c]) + uw > 58)
+        f = &FONT_S;
+    w = text_w(f, ui.big_v[c]) + (text_w(f, ui.big_v[c]) + uw <= 58 ? uw : 0);
+    x = cv_text(cx - w / 2, cy + R + 24, f, ui.big_v[c], vc);
+    if (uw && w > text_w(f, ui.big_v[c]))
+        cv_text(x + 3, f == &FONT_M ? cy + R + 27 : cy + R + 24, &FONT_S, ui.big_u[c], C_DIM);
+}
+
 static void graph_big(void)
 {
     uint32_t c;
-    for (c = 0; c < 4u; c++) {
-        int32_t cx = 30 + 60 * (int32_t)c, uw, w, x;
-        const felucca_font_t *f = &FONT_M;
-        uint16_t vc = ui.big_c[c] == C_WHITE ? C_WHITE : ui.big_c[c] == C_DIM ? C_DIM : C_HI;
-        if (!ui.big_l[c][0])
-            continue;
-        uw = ui.big_u[c][0] ? text_w(&FONT_S, ui.big_u[c]) + 3 : 0;
-        if (ui.big_r[c] >= 0 && ui.big_k[c] != BK_LIST) {
-            int32_t v = ui.big_r[c] > 1000 ? 1000 : ui.big_r[c], neg = 0;
-            if (ui.big_k[c] == BK_BIPOLAR) {            /* its size: how far from zero */
-                neg = v < 500;
-                v = neg ? (500 - v) * 2 : (v - 500) * 2;
-            }
-            big_circle(cx * 16, 38 * 16, 24 * 16, v, big_style(ui.big_i[c]), vc, neg);
-        } else {                                        /* no gauge: the value large in the circle's place */
-            const felucca_font_t *g = text_w(&FONT_L, ui.big_v[c]) <= 56 ? &FONT_L : text_w(&FONT_M, ui.big_v[c]) <= 56 ? &FONT_M : &FONT_S;
-            cv_text(cx - text_w(g, ui.big_v[c]) / 2, 38 - (g == &FONT_L ? 15 : 10), g, ui.big_v[c], vc);
-        }
-        cv_text(cx - text_w(&FONT_S, ui.big_l[c]) / 2, 68, &FONT_S, ui.big_l[c], C_GRAY);
-        if (ui.big_r[c] < 0 || ui.big_k[c] == BK_LIST)
-            continue;
-        if (text_w(f, ui.big_v[c]) + uw > 58)
-            f = &FONT_S;
-        w = text_w(f, ui.big_v[c]) + (text_w(f, ui.big_v[c]) + uw <= 58 ? uw : 0);
-        x = cv_text(cx - w / 2, 86, f, ui.big_v[c], vc);
-        if (uw && w > text_w(f, ui.big_v[c]))
-            cv_text(x + 3, f == &FONT_M ? 89 : 86, &FONT_S, ui.big_u[c], C_DIM);
+    if (cur_page()->scope == SC_ENGINE && eng_view()) {   /* the engine's picture; KNOB 1, 2 left, 3, 4 right */
+        for (c = 0; c < 4u; c++)
+            big_one(c, c < 2u ? 26 : 214, c & 1u ? 82 : 24, 15, 0);
+        return;
     }
+    for (c = 0; c < 4u; c++)
+        big_one(c, 30 + 60 * (int32_t)c, 38, 24, 1);
 }
 
 static void draw_graph(void)
@@ -827,6 +898,8 @@ static void draw_graph(void)
         ui.graph_top = 1;                            /* the next graph draws its top rows again */
         return;
     }
+    if (ui.home || pg->scope != SC_ENGINE || pg->graph != GR_NONE)
+        an.want = 0;                                 /* no engine picture: fx.c measures nothing (ui_eng.c) */
     sig = graph_signature();
     if (!ui.force && sig == ui.graph_sig)
         return;
