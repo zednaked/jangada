@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
 /* Jangada 0.9.7 (issue #5, after gospodindilly-ops' idea): the engine's own picture in the middle of its EDIT
- * pages, the four knobs as small circles around it (ui_draw.c graph_big). The algorithm gives the picture: what
+ * pages, the four knobs as small circles in a row on top, where the columns were (ui_draw.c draw_column, big_one). The algorithm gives the picture: what
  * the engine is made of, read from its state as it plays where it has one (SCAN's masses, GENDY's points, WALSH's
  * wave, GRAIN's grains, FM6's operators, SAMPLE's play position), from its parameters elsewhere. The sound makes
  * it move: fx.c measures the selected part while a picture shows (an), and the picture swells with the level,

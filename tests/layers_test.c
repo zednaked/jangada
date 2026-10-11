@@ -169,6 +169,24 @@ int main(void){
    palette_set(5);
    printf("%-46s ok\n", "visualiser: opens, styles, palettes, closes");
  }
+ { /* 0.9.7 (issue #4): OCT- held + a page button: the page before, wrapping to the family's last; that OCT-
+    * leaves the octave as it was. (issue #5) EDIT of a synth: its knobs as circles in the columns' row */
+   uint32_t p0, p1, n = 0, i;
+   ly.btn = ly.lock = 0; ui.menu = 0; ui.confirm = 0; panel = PANEL_DEFAULT; fm1_in.buttons = 0;
+   open_family(FAM_SEQ); p0 = ui.page; open_family(FAM_SEQ); p1 = ui.page; assert(p1 != p0);
+   open_family_dir(FAM_SEQ, 1); assert(ui.page == p0);
+   for (i = 0; i < NPAGES; i++) n += PAGES[i].fam == FAM_SEQ && page_used(i);
+   for (i = 0; i < n; i++) open_family_dir(FAM_SEQ, 1);
+   assert(ui.page == p0);                                                      /* round the family backwards */
+   open_family_dir(FAM_SEQ, 1); assert(PAGES[ui.page].fam == FAM_SEQ && ui.page != p0 && ui.page != p1);   /* the last */
+   song.octave = 0; oct_was = 0; song.octave = -1;                              /* OCT- pressed (it stepped down) */
+   fm1_in.buttons = 1u << panel.btn[B_OCTDN]; open_family_back(FAM_SEQ); fm1_in.buttons = 0;
+   assert(song.octave == 0 && PAGES[ui.page].fam == FAM_SEQ);
+   song.sel = 0; open_family(FAM_EDIT); ui.force = 1; ui_draw(); assert(ui.ev_cols);
+   open_family(FAM_SEQ); ui.force = 1; ui_draw(); assert(!ui.ev_cols);
+   song.octave = 0;
+   printf("%-46s ok\n", "pages: OCT- + page button goes back; EDIT circles");
+ }
  /* engine layer */
  layer_key(LY_ENGINE,key_of_white(6),1,0); assert(t->eng_req==6);
  printf("%-46s ok\n", "layers: SEQ tools, undo / redo, step keys");

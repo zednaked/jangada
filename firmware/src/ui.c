@@ -77,6 +77,7 @@ static struct {
     uint16_t big_c[4];
     int16_t big_r[4];            /* Jangada 0.9.4: their gauges (0..1000, < 0 none), icons and kinds (BK_*), */
     uint8_t big_i[4], big_k[4];  /* for the circles (ui_draw.c graph_big) */
+    uint8_t ev_cols;             /* Jangada 0.9.7: an engine's picture below, its knobs as circles in the columns' row */
     uint32_t graph_sig, head_sig, foot_sig, frame;
     uint8_t graph_top;           /* the graph strip's top G_OY rows hold something */
 } ui;
@@ -144,9 +145,18 @@ static void note_name(char *b, uint32_t n)
     fmt_int(b + str_len(b), (int32_t)(n / 12u) - 1);
 }
 
-static void open_family(uint32_t fam)
+/* back: 1 = the page before (OCT- held, issue #4), wrapping to the family's last */
+static void open_family_dir(uint32_t fam, int back)
 {
-    if (!ui.home && cur_page()->fam == fam) {          /* same button again: next page */
+    if (!ui.home && cur_page()->fam == fam && back) {  /* same button with OCT- held: the page before */
+        uint32_t f0 = page_first(fam), l = f0, i = ui.page;
+        while (l + 1u < NPAGES && PAGES[l + 1u].fam == fam)
+            l++;
+        do                                             /* (from the first: on to the family's last) */
+            i = i > f0 ? i - 1u : l;
+        while (i != ui.page && !page_used(i));
+        ui.page = (uint8_t)i;
+    } else if (!ui.home && cur_page()->fam == fam) {   /* same button again: next page */
         uint32_t i = ui.page + 1u;
         while (i < NPAGES && PAGES[i].fam == fam && !page_used(i))
             i++;                                       /* EDIT 3 / 4 of an engine without them */
@@ -161,6 +171,7 @@ static void open_family(uint32_t fam)
     ui.home = 0;
     page_entered();
 }
+static void open_family(uint32_t fam) { open_family_dir(fam, 0); }
 
 static void go_home(void)
 {

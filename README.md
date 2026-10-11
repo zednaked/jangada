@@ -280,7 +280,8 @@ and it keeps breathing on its own, even while you play the other tracks.
   each plays its chord.
 
 ### Live: hold a button
-Tap a function button and its pages open. **Hold** it and it becomes a **layer**: the 16 white keys and
+Tap a function button and its pages open; tap again for the next page, with **OCT−** held for the one
+before. **Hold** it and it becomes a **layer**: the 16 white keys and
 the 4 knobs change job, and the screen shows 16 tiles and 4 dials. **HOME** tapped while a layer is held
 **locks** it open. PLAY, REC and OCT keep working inside it.
 
@@ -378,7 +379,7 @@ record opens the **TRACKS** view: BPM, bar.beat, one row per track with its step
   DTN, RATIO, PAN). Bipolar values grow from zero (below it the disc is hollow); lists show the value.
   Note values (1/4, 1/8, 8T, 1/8D…) show as dots, as many as the notes they make in a bar.
 - **The engine on its EDIT pages**: the middle of the screen shows the engine at work, the four knobs as
-  small circles beside it. The picture comes from the engine's own state as it plays (SCAN's masses,
+  small circles in a row on top (a turned knob shows its value in place of its name). The picture comes from the engine's own state as it plays (SCAN's masses,
   GENDY's walking points, WALSH's wave, GRAIN's grains, each FM6 operator's level, SAMPLE's play position,
   WHEEL's drawbars) and moves with the track's sound: it swells with the level, gets busier with the
   brightness and is struck on an attack.

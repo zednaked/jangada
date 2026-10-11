@@ -527,7 +527,7 @@ static void layers_input(uint32_t *pressed, uint32_t now)
                 cursor_set(ui.cursor + 1);
                 ui_message("STEP CLEARED");
             } else {
-                open_family(fam_of_btn(LAYER_BTN[ly.btn]));
+                open_family_back(fam_of_btn(LAYER_BTN[ly.btn]));
             }
         }
         ly.btn = 0;

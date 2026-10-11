@@ -29,6 +29,14 @@ static const uint8_t FAM_BTN[FAM_COUNT] = {B_HOME, B_ENV, B_LFO, B_FX, B_SCL, B_
                                            B_ARP, B_SEQ, B_REC};   /* button of each page family */
 
 static uint32_t cur_fam(void) { return ui.home ? FAM_HOME : cur_page()->fam; }
+static int8_t oct_was;                                  /* the octave before the last OCT- / OCT+ */
+static void open_family_back(uint32_t f)              /* a page button: OCT- held, the page before (issue #4) */
+{
+    int back = (fm1_in.buttons >> panel.btn[B_OCTDN]) & 1u;
+    if (back && !ui.home && cur_page()->fam == f)
+        song.octave = oct_was;                          /* that OCT- was for this, not the octave */
+    open_family_dir(f, back);
+}
 
 static int layer_visible(void);                     /* ui_layers.c */
 static uint32_t layer_now(void);
@@ -525,9 +533,9 @@ static void ui_input(void)
         ui.msg_t = 3;                                   /* (gone a moment after LFO is let go) */
     }
     if (lfo == BT_TAP && !ui.menu && !ui.confirm)
-        open_family(FAM_LFO);
+        open_family_back(FAM_LFO);
     if (arp == BT_TAP && !ui.menu && !ui.confirm)       /* Jangada: ARP acts on release, as HOME: a tap */
-        open_family(FAM_ARP);                           /* opens its page, a hold (below) does not */
+        open_family_back(FAM_ARP);                           /* opens its page, a hold (below) does not */
     if (arp == BT_HOLD) {                               /* Jangada: ARP held: every latched (HOLD) chord off */
         uint32_t i, any = 0;
         for (i = 0; i < NTRK; i++)
@@ -635,6 +643,7 @@ static void ui_input(void)
                 break;
             }
             both = (1u << panel.btn[B_OCTDN]) | (1u << panel.btn[B_OCTUP]);
+            oct_was = song.octave;                      /* (OCT- held + a page button: undone, below) */
             if ((fm1_in.buttons & both) == both)
                 song.octave = 0;
             else
@@ -654,7 +663,7 @@ static void ui_input(void)
             uint32_t f;
             for (f = FAM_HOME + 1u; f < FAM_COUNT; f++)
                 if (FAM_BTN[f] == b)
-                    open_family(f);
+                    open_family_back(f);
             break;
         }
         }

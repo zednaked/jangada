@@ -283,7 +283,8 @@ solte, e ele continua respirando sozinho, inclusive enquanto você toca outras t
   escala e cada uma toca o acorde dela.
 
 ### Ao vivo: segure um botão
-Toque um botão de função e as páginas dele abrem. **Segure** e ele vira uma **camada**: as 16 teclas
+Toque um botão de função e as páginas dele abrem; toque de novo para a próxima página, com **OCT−**
+segurado para a anterior. **Segure** e ele vira uma **camada**: as 16 teclas
 brancas e os 4 knobs mudam de função, e a tela mostra 16 tiles e 4 dials. **HOME** tocado com a camada
 segurada a **trava** aberta. PLAY, REC e OCT continuam valendo dentro dela.
 
@@ -383,7 +384,7 @@ gravar abre a tela **TRACKS**: BPM, compasso.beat, uma linha por trilha com pass
   mostram o valor. Valores de nota (1/4, 1/8, 8T, 1/8D…) aparecem como pontos, tantos quantas notas cabem
   num compasso.
 - **O motor nas páginas EDIT**: o meio da tela mostra o motor trabalhando, e os quatro knobs viram
-  círculos pequenos ao lado. O desenho vem do estado do próprio motor enquanto toca (as massas do SCAN, os
+  círculos pequenos numa linha em cima (o knob girado mostra o valor no lugar do nome). O desenho vem do estado do próprio motor enquanto toca (as massas do SCAN, os
   pontos andando do GENDY, a onda do WALSH, os grãos do GRAIN, o nível de cada operador do FM6, a posição
   do SAMPLE, as drawbars do WHEEL) e se move com o som da trilha: cresce com o nível, fica mais cheio com o
   brilho e leva um golpe no ataque.

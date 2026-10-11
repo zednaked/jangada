@@ -123,6 +123,7 @@ static void draw_frame(void)
 #define LABEL_X (FELUCCA_ICONS ? ICON_CELL + ICON_GAP : 0)
 #define COL_X 4                                         /* the card's content: x 4 .. 55 */
 #define COL_IN 52
+static void big_one(uint32_t c, int32_t cx, int32_t cy, int32_t R, int with_value);
 static void draw_column(uint32_t c, const char *label, const char *val, const char *unit, uint16_t vc,
                         int32_t ratio, uint32_t icon)
 {
@@ -160,12 +161,18 @@ static void draw_column(uint32_t c, const char *label, const char *val, const ch
         key[n] = (char)('A' + (vc == C_WHITE) + (vc == C_DIM) * 2);
         key[n + 1] = (char)(' ' + (ratio < 0 ? 0 : 1 + ratio / 20));
         key[n + 2] = (char)(icon == ICON_NONE ? '~' : '!' + icon % 90u);   /* same label, other icon */
-        key[n + 3] = 0;
+        key[n + 3] = (char)('0' + ui.ev_cols);
+        key[n + 4] = 0;
     }
     if (!ui.force && str_eq(key, ui.col[c]))
         return;
     str_cpy(ui.col[c], key, sizeof ui.col[c]);
     cv_begin(60, COL_H, C_BG);
+    if (ui.ev_cols) {                                   /* (issue #5) no card: the knob's circle, its name under it */
+        big_one(c, 30, 17, 12, 2);
+        cv_blit(c * 60u, COL_Y);
+        return;
+    }
     if (l[0] || v[0])
         cv_card(2, 1, 56, COL_H - 2);                   /* screen rows 22 .. 71 */
     if (FELUCCA_ICONS && icon != ICON_NONE && l[0])
@@ -901,6 +908,11 @@ static void big_one(uint32_t c, int32_t cx, int32_t cy, int32_t R, int with_valu
         const felucca_font_t *g = text_w(&FONT_L, ui.big_v[c]) <= room ? &FONT_L : text_w(&FONT_M, ui.big_v[c]) <= room ? &FONT_M : &FONT_S;
         cv_text(cx - text_w(g, ui.big_v[c]) / 2, cy - (g == &FONT_L ? 15 : 10), g, ui.big_v[c], vc);
     }
+    if (with_value == 2) {                              /* the columns' row: while its knob turns, the value in the name's place */
+        const char *s = vc == C_WHITE && !fn && ui.big_r[c] >= 0 && ui.big_k[c] != BK_LIST ? ui.big_v[c] : ui.big_l[c];
+        cv_text(cx - text_w(&FONT_S, s) / 2, cy + R + 5, &FONT_S, s, s == ui.big_v[c] ? C_WHITE : C_GRAY);
+        return;
+    }
     cv_text(cx - text_w(&FONT_S, ui.big_l[c]) / 2, cy + R + 6, &FONT_S, ui.big_l[c], C_GRAY);
     if (!with_value || ((ui.big_r[c] < 0 || ui.big_k[c] == BK_LIST) && !fn))
         return;
@@ -915,11 +927,8 @@ static void big_one(uint32_t c, int32_t cx, int32_t cy, int32_t R, int with_valu
 static void graph_big(void)
 {
     uint32_t c;
-    if (cur_page()->scope == SC_ENGINE && eng_view()) {   /* the engine's picture; KNOB 1, 2 left, 3, 4 right */
-        for (c = 0; c < 4u; c++)
-            big_one(c, c < 2u ? 26 : 214, c & 1u ? 82 : 24, 15, 0);
+    if (ui.ev_cols && eng_view())                     /* the engine's picture; its knobs are in the columns' row */
         return;
-    }
     for (c = 0; c < 4u; c++)
         big_one(c, 30 + 60 * (int32_t)c, 38, 24, 1);
 }
@@ -1105,6 +1114,7 @@ static void draw_columns(void)
     uint32_t c;
     char val[12];
     const char *unit;
+    ui.ev_cols = (uint8_t)(!ui.home && cur_page()->scope == SC_ENGINE && big_page(cur_page()) && !is_drum(TSEL));
     if (ui.home) {
         for (c = 0; c < 4u; c++) {
             int16_t *vp;
