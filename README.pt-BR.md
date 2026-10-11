@@ -103,10 +103,10 @@ FM-1, e nada sai do seu navegador.
 | **Parâmetros** | 16 por motor, matriz de modulação de 4 slots com 13 origens (4 delas knobs de macro) |
 | **Presets** | 145 de fábrica (45 escuros, drones, industriais e nordestinos da Jangada), 32 de usuário, 72 patches FM6 (8 + dois bancos de 32) |
 | **Bateria** | 5 kits da Jangada + 32 sintetizados + GM; 7 batidas de fábrica |
-| **Sequencer** | 64 passos por trilha, acordes, ratchet, chance, acento, slide, swing; arp UDI / RPT até 4 compassos |
+| **Sequencer** | 64 passos por trilha, acordes, ratchet, chance, velocidade, acento, slide, swing; **VIVO** (Euclides, chance com memória, ciclos, autômato celular); arp com 13 modos até 4 compassos; metrônomo e contagem |
 | **Efeitos** | distorção (5 tipos) e INSERT (8 tipos) por trilha, SLICER, chorus, delay, 3 reverbs, DUST / DUCK / FILT / TAPE / HUM no master, 16 punch-ins |
-| **Ao vivo** | 5 camadas (segurar um botão), drones com HOLD, EVOL, TENS, RAMP |
-| **Conexões** | USB MIDI + áudio (entrada estéreo 44,1 kHz) + console, MIDI TRS, clock in (USB / TRS) e out, MIDI LEARN (16 CCs) |
+| **Ao vivo** | 5 camadas (segurar um botão), MOMENTARY (segurar LFO), REV / ECHO THROW, drones com HOLD, EVOL, TENS, RAMP |
+| **Conexões** | USB MIDI + áudio (entrada estéreo 44,1 kHz) + console, MIDI TRS, clock in (USB / TRS) e out, MIDI LEARN (16 CCs), Program Change |
 | **Memória** | 4 projetos, autosave, backup completo pelo editor, projetos e presets com chaves estáveis |
 | **Hardware** | o FM-1 de fábrica: nada a soldar, a área de boot nunca é tocada |
 
@@ -223,6 +223,9 @@ solte, e ele continua respirando sozinho, inclusive enquanto você toca outras t
   trilha borraria. Preset **SUCATA**. **SPOS** (EDIT 4, knob 4) põe o SAT antes do filtro: **PRE** é
   OSC → SAT → FILTRO → VCA, então o filtro e o envelope dele varrem o que o folder criou (POST, o padrão,
   mantém os harmônicos crus depois do filtro); o custo é o mesmo nos dois. Preset **DOBRA**.
+- **LFO 2** (LFO → LFO 2): **SYNC** o LFO num valor de nota (4BAR a 1/32, pontuadas e tercinas; preso ao
+  tempo enquanto toca, a um clock MIDI também), **TRIG** NOTE ou FREE, **POL** BI ou UNI. **ESYNC** (ENV
+  DEST, knob 4): ATK, DEC e REL em valores de nota do andamento.
 - **Modulação no filtro**: a matriz MOD 1–4 alcança todo parâmetro do motor, então CUT, RES, DRV e SDRV são
   destinos: LFO → RES, ENV → CUT, VEL → DRV, ENV → SDRV. Mexem por voz, a cada bloco.
 - **FM6**: FM de 6 operadores (o núcleo msfa do Dexed), 32 algoritmos, 8 patches de fábrica (PTCH
@@ -286,7 +289,7 @@ segurada a **trava** aberta. PLAY, REC e OCT continuam valendo dentro dela.
 
 | Segure | Teclas | Knobs 1 · 2 · 3 · 4 |
 |---|---|---|
-| **FX** | os 16 efeitos punch-in | FILT · DUST · DUCK · TAPE |
+| **FX** | os 16 efeitos punch-in; pretas **F#3 REV THROW**, **G#3 ECHO THROW** | FILT · DUST · DUCK · TAPE |
 | **GLO** | 1–4 mute, 5–8 solo, 9 segurada = virada (fill), 10 = o próximo compasso é virada, 14 = MIDI LEARN, a última tap tempo | nível das trilhas 1–4 |
 | **SEQ** | os 16 passos da página (vazio = cria, cheio = apertar e soltar apaga); pretas: página, deslocar, metade / dobro, transpor, **F#5 segurada apaga** o que o playhead passa | NOTE · DIV · SWG · LEN; com passos segurados: NOTE · RTCH · CHNC · FLAG |
 | **SCL** | qualquer tecla = o tom da música | CHRD · SCL · QNT · TRN |
@@ -302,9 +305,30 @@ direita do tile marca lock ou deslocamento, um à esquerda a condição (cheio: 
 O **REC** numa página sem nada para
 gravar abre a tela **TRACKS**: BPM, compasso.beat, uma linha por trilha com passos e playhead.
 
+- **MOMENTARY**: segure **LFO** e gire knobs (na HOME ou em qualquer página); solte o LFO e todo valor
+  girado volta. **OCT+** com o LFO segurado mantém. Um toque no LFO abre as páginas dele.
+- **THROWs** (camada FX): **F#3** segurada joga a reverb de todas as trilhas no máximo, **G#3** o send de
+  delay (e o FDBK até 70 % se estiver abaixo); entram e saem em ~12 ms, e nada é salvo.
+
 ### Sequencer e arpejador
-- 64 passos por trilha, acordes, ties, acento, slide; gravação ao vivo.
-- **RTCH** ratchet x1–x4 e **CHNC** chance 100/75/50/25 % por passo (STEP 2).
+- 64 passos por trilha, acordes, ties, acento, slide; gravação ao vivo (guarda a força com que você tocou).
+- **RTCH** ratchet x1–x4, **CHNC** chance 100/75/50/25 % e **VEL** velocidade por passo (STEP 2).
+- **VIVO** (SEQ → VIVO, VIVO 2, VIVO 3), o padrão vivo: uma camada que decide, passo a passo, o que toca,
+  sem mudar o que está escrito (tudo no padrão: o padrão como escrito).
+  - **PULS** o ritmo de Euclides (k batidas espalhadas no LEN, **ROT** gira): cada batida toca a próxima
+    nota programada, então a melodia anda sobre o ritmo; um padrão vazio toca a última tecla tocada.
+  - **DENS** a chance de um passo tocar; **MEM** dá memória a ela (+ rajadas, − alternância).
+  - **CYC** as chances se repetem a cada CYC passos, um ciclo próprio contra o LEN; **ACC** um acento a
+    cada ACC passos, outro ciclo.
+  - **EVOL** um autômato celular (R30, R90, R110, R150, R54, R184, R22) que nasce do ritmo e o muda a cada
+    **LOOP** voltas; **FRZ** segura o que está tocando.
+  - **SEED**: toda chance vem dela e da contagem desde o PLAY, então os mesmos ajustes tocam igual.
+  - A página desenha o padrão como um anel: o ritmo por fora, o que tocou na última volta por dentro, os
+    acentos em branco.
+- **Metrônomo** (GLO → CLICK): **CLICK** OFF, REC (com uma trilha armada) ou ON, um blip em cada tempo,
+  mais agudo no primeiro do compasso; **LEVEL**; **COUNT** OFF, 1BAR, 2BAR: PLAY com uma trilha armada
+  conta antes. Só no fone e no alto-falante, nunca no áudio USB. **PREV**: parado, girar o STEP na página
+  STEP toca o passo onde o cursor para.
 - O **arp** segue TRN, ROOT, SCALE e QNT nas teclas que segura (com HOLD também): mude o tom e o arpejo
   vai junto.
 - **CHORD+**: com um modo de acorde ligado (SCL → CHORD), as teclas pretas mudam o acorde, seguradas
@@ -318,13 +342,18 @@ gravar abre a tela **TRACKS**: BPM, compasso.beat, uma linha por trilha com pass
   no centro desligado; fica quando o som muda e aceita lock por passo.
 - **Micro timing**, **parameter locks** (12 por trilha) e **viradas (fills)** por passo, na camada SEQ;
   ficam salvos no projeto.
-- Arpejador com os modos **UDI** e **RPT**; divisões até **4BAR** (também no sequencer).
+- Arpejador: UP, DN, UPDN, RND, ORD, **UDI**, **RPT**, **DNUP**, **CONV** (de fora para dentro), **DIVG**
+  (de dentro para fora), **PINKY**, **THUMB** (a nota de cima / de baixo a cada duas), **WALK**; divisões
+  até **4BAR** (também no sequencer).
 
 ### MIDI e USB
 - **Entrada MIDI pelo conector TRS** (3,5 mm) e pelo USB: canais 1–3 as trilhas de synth, o 4 a trilha
   4 quando é SYNTH, o canal de bateria (padrão 10) a bateria, os outros a trilha selecionada. **GLO →
   SYSTEM ROUT = SEL**: todo canal toca a trilha selecionada (um teclado no canal 1 toca o que o PRESETS
-  está navegando).
+  está navegando); **CH5-8**, **CH9-12**, **CH13-16**: as trilhas 1–4 em outro bloco de canais (dois FM-1
+  num cabo só).
+- **Program Change** no canal de uma trilha carrega o som n do motor dela, na ordem do PRESETS (FM6: depois
+  as vozes dos bancos); na trilha de bateria, o kit n. Depois do último: ignorado.
 - **MIDI LEARN** (segure **GLO** + tecla 14): gire um knob, mexa num controlador, e aquele CC passa a mover
   aquele parâmetro daquela trilha, em qualquer canal; depois o próximo knob. **OCT−** tira o CC do
   escolhido; GLO + 14 de novo encerra. Até 16, guardados com as settings; HOME → MIDI LEARN mostra quantos e
@@ -337,19 +366,26 @@ gravar abre a tela **TRACKS**: BPM, compasso.beat, uma linha por trilha com pass
   clock e START / STOP e ignora as notas que chegam. Os dois são ajustes do FM-1, não do projeto.
 - **Áudio por USB**: o FM-1 aparece como entrada de áudio estéreo **Jangada** (44,1 kHz, sem driver).
   HOME → USB AUDIO: o nível segue o MASTER, ou FULL. No Linux:
-  `arecord -D hw:Jangada -f S16_LE -r 44100 -c 2 take.wav`.
+  `arecord -D hw:Jangada -f S16_LE -r 44100 -c 2 take.wav`. Desde a 0.9.7 a interface de áudio vem antes
+  do MIDI nos descritores, e o macOS 15 e anteriores mostram a entrada de áudio também.
 
 ### Tela, luzes e menu
 - Fonte suavizada (Inter Tight), ícones, cards; paleta **CHOQUE** (rosa-choque) como padrão, e **NIGHT** (preto puro, verde).
 - Menu (segure **HOME**): COLOR, SPEAKER (corta graves para o alto-falante), **LIGHTS** (os botões
-  brilham fraco, para tocar no escuro), **KEYS** (acende as teclas C ou as brancas), **NOTES** (as
+  brilham fraco, para tocar no escuro), **KEYS** (acende as teclas C, as brancas ou a **SCALE** da trilha, a tônica mais forte), **NOTES** (as
   notas que soam acendem as teclas), USB AUDIO, MIDI OUT, MIDI IN, NEW PROJECT, ABOUT.
 - Páginas sem gráfico (EDIT, DIST, CHORD, GLOBAL, SYSTEM…) mostram os quatro valores **grandes**, cada
   knob como um **círculo** que cresce com o valor, o nome e o valor embaixo; o que você gira em branco. O
   desenho segue o que o parâmetro faz: **disco** (quantidades), **ondulação** (RES, FDBK, REV, DECAY…),
   **espiral** (RATE, TIME, GLIDE…), **onda** que vira tempestade (SHP, DRV, FOLD…) e **interferência**
   (MOD, DTN, RATIO, PAN). Bipolares crescem a partir do zero (abaixo dele o disco é vazado); listas
-  mostram o valor.
+  mostram o valor. Valores de nota (1/4, 1/8, 8T, 1/8D…) aparecem como pontos, tantos quantas notas cabem
+  num compasso.
+- **O motor nas páginas EDIT**: o meio da tela mostra o motor trabalhando, e os quatro knobs viram
+  círculos pequenos ao lado. O desenho vem do estado do próprio motor enquanto toca (as massas do SCAN, os
+  pontos andando do GENDY, a onda do WALSH, os grãos do GRAIN, o nível de cada operador do FM6, a posição
+  do SAMPLE, as drawbars do WHEEL) e se move com o som da trilha: cresce com o nível, fica mais cheio com o
+  brilho e leva um golpe no ataque.
 - **Visualizador**: na tela TRACKS, toque **HOME**: a tela inteira mostra o que toca. **SELECT** troca o
   estilo: **OSC** (a onda com rastro de fósforo), **SONAR** (a onda em volta de um círculo, uma varredura
   por compasso), **VU** (um medidor por trilha e o mix), **ESTEIRA** (o nível de cada trilha passando) e
@@ -424,7 +460,9 @@ A Jangada é GPL-3.0-only, como o Felucca. O trabalho original é de **Leo Kuros
 Hügelton Instruments**. Partes vêm de outros forks, com nossos agradecimentos:
 
 - [Felucca 1.0](https://github.com/hugelton/Felucca): o FM6, o áudio USB, a reverb SPRING, o visual
-  (Inter Tight, ícones Fukiai), o banco FM6.
+  (Inter Tight, ícones Fukiai), o banco FM6. Da 1.1 à 1.5.1: o INSERT, o MIDI LEARN, o metrônomo e a
+  contagem, o MOMENTARY, os THROWs, o LFO SYNC, o ENV SYNC, o Program Change (PR do renebohne), os modos de
+  arp, as correções do áudio USB no macOS e dos encoders.
 - [SLOOP](https://github.com/isod89/sloop-fm1) (isod89): as camadas, o punch FX, o master, os kits
   sintetizados, os acordes, a PLATE, o autosave, a atualização segura e o resgate, as luzes, o MIDI TRS,
   o micro timing, os parameter locks e as viradas.
@@ -434,6 +472,8 @@ Hügelton Instruments**. Partes vêm de outros forks, com nossos agradecimentos:
 - [X0X](https://github.com/charlesvestal/fm1-x0x) (Charles Vestal): o segundo núcleo, a partir do trabalho do Melodee
   (AUTO, com um BOOST opcional da tensão: veja o [BUILDING.md](BUILDING.md#the-second-core-auto-and-an-opt-in-boost)).
 - msfa / Dexed (Google, Pascal Gauthier): o núcleo do FM6 (Apache-2.0).
+- [gospodindilly-ops](https://github.com/gospodindilly-ops): as ideias por trás do ROBO, do VIVO e dos
+  desenhos dos motores (issues #4 e #5).
 
 Veja [README.felucca.md](README.felucca.md) e [LICENSING.md](LICENSING.md) para os créditos completos
 (fontes, amostras, motores).

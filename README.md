@@ -104,10 +104,10 @@ and nothing leaves your browser.
 | **Parameters** | 16 per engine, a 4-slot modulation matrix with 13 sources (4 of them macro knobs) |
 | **Presets** | 145 factory (45 dark, drone, industrial and northeastern ones by Jangada), 32 user, 72 FM6 patches (8 + two banks of 32) |
 | **Drums** | 5 Jangada kits + 32 synthesised + GM; 7 factory beats |
-| **Sequencer** | 64 steps per track, chords, ratchet, chance, accent, slide, swing; UDI / RPT arp up to 4 bars |
+| **Sequencer** | 64 steps per track, chords, ratchet, chance, velocity, accent, slide, swing; **VIVO** (Euclid, chance with memory, cycles, a cellular automaton); 13 arp modes up to 4 bars; metronome and count-in |
 | **Effects** | per-track distortion (5 types) and INSERT (8 types), SLICER, chorus, delay, 3 reverbs, DUST / DUCK / FILT / TAPE / HUM on the master, 16 punch-ins |
-| **Live** | 5 layers (hold a button), drones with HOLD, EVOL, TENS, RAMP |
-| **Connections** | USB MIDI + audio (stereo 44.1 kHz input) + console, TRS MIDI, clock in (USB / TRS) and out, MIDI LEARN (16 CCs) |
+| **Live** | 5 layers (hold a button), MOMENTARY (hold LFO), REV / ECHO THROW, drones with HOLD, EVOL, TENS, RAMP |
+| **Connections** | USB MIDI + audio (stereo 44.1 kHz input) + console, TRS MIDI, clock in (USB / TRS) and out, MIDI LEARN (16 CCs), Program Change |
 | **Storage** | 4 projects, autosave, full backup from the editor, projects and presets with stable keys |
 | **Hardware** | a stock FM-1: nothing to solder, the boot area is never touched |
 
@@ -223,6 +223,9 @@ and it keeps breathing on its own, even while you play the other tracks.
   would smear them. Preset **SUCATA**. **SPOS** (EDIT 4, knob 4) moves it before the filter: **PRE** is
   OSC → SAT → FILTER → VCA, so the filter and its envelope sweep through what the folder made (POST, the
   default, keeps the raw harmonics after the filter); the same cost either way. Preset **DOBRA**.
+- **LFO 2** (LFO → LFO 2): **SYNC** the LFO to a note value (4BAR to 1/32, dotted and triplets; locked to
+  the beat while playing, a MIDI clock too), **TRIG** NOTE or FREE, **POL** BI or UNI. **ESYNC** (ENV DEST,
+  knob 4): ATK, DEC and REL as note values of the tempo.
 - **Modulation into the filter**: the MOD 1–4 matrix reaches every engine parameter, so CUT, RES, DRV and SDRV
   are destinations: LFO → RES, ENV → CUT, VEL → DRV, ENV → SDRV. They move per voice, every block.
 - **FM6**: 6-operator FM (Dexed's msfa core), 32 algorithms, 8 factory patches (PTCH F1–F8) and
@@ -283,7 +286,7 @@ the 4 knobs change job, and the screen shows 16 tiles and 4 dials. **HOME** tapp
 
 | Hold | Keys | Knobs 1 · 2 · 3 · 4 |
 |---|---|---|
-| **FX** | the 16 punch-in effects | FILT · DUST · DUCK · TAPE |
+| **FX** | the 16 punch-in effects; black keys **F#3 REV THROW**, **G#3 ECHO THROW** | FILT · DUST · DUCK · TAPE |
 | **GLO** | 1–4 mute, 5–8 solo, 9 held = a fill, 10 = the next bar a fill, 14 = MIDI LEARN, the last one tap tempo | levels of tracks 1–4 |
 | **SEQ** | the 16 steps of the page (empty = set, set = press and release clears); black keys: page, shift, half / double, transpose, **F#5 held erases** what the playhead passes | NOTE · DIV · SWG · LEN; steps held: NOTE · RTCH · CHNC · FLAG |
 | **SCL** | any key = the key of the song | CHRD · SCL · QNT · TRN |
@@ -299,9 +302,31 @@ the top right of a tile marks a lock or a nudge, one at the top left a condition
 NO FILL). **REC** on a page with nothing to
 record opens the **TRACKS** view: BPM, bar.beat, one row per track with its steps and playhead.
 
+- **MOMENTARY**: hold **LFO** and turn knobs (HOME or any page); let go of LFO and every value you turned
+  goes back. **OCT+** while holding LFO keeps them. A tap of LFO opens its pages.
+- **THROWs** (FX layer): **F#3** held sends every track's reverb to full, **G#3** every delay send (and
+  FDBK up to 70 % if lower); they glide in and out in ~12 ms and nothing is saved.
+
 ### Sequencer and arpeggiator
-- 64 steps per track, chords, ties, accent, slide; live recording.
-- **RTCH** ratchet x1–x4 and **CHNC** chance 100/75/50/25 % per step (STEP 2).
+- 64 steps per track, chords, ties, accent, slide; live recording (it keeps how hard you played).
+- **RTCH** ratchet x1–x4, **CHNC** chance 100/75/50/25 % and **VEL** velocity per step (STEP 2).
+- **VIVO** (SEQ → VIVO, VIVO 2, VIVO 3), the pattern alive: a layer that decides step by step what plays,
+  without changing what is written (all at their defaults: the pattern as written).
+  - **PULS** Euclid's rhythm (k hits spread over LEN, **ROT** turns them): each hit plays the next note
+    step of the pattern in turn, so the melody walks over the rhythm; an empty pattern plays the key played
+    last.
+  - **DENS** the chance a step plays; **MEM** gives it memory (+ bursts, − alternation).
+  - **CYC** the chances repeat every CYC steps, a cycle of their own against LEN; **ACC** an accent every
+    ACC steps, another cycle.
+  - **EVOL** a cellular automaton (R30, R90, R110, R150, R54, R184, R22) born from the rhythm, changing
+    it every **LOOP** passes; **FRZ** holds what you hear.
+  - **SEED**: every chance comes from it and the count since PLAY, so the same settings play the same.
+  - The page draws the pattern as a ring: the rhythm outside, what played in the last pass inside, accents
+    white.
+- **Metronome** (GLO → CLICK): **CLICK** OFF, REC (while a track is armed) or ON, a blip on each beat,
+  higher on the bar's first; **LEVEL**; **COUNT** OFF, 1BAR, 2BAR: PLAY with a track armed counts in
+  first. To the headphones and the speaker only, never into USB audio. **PREV**: stopped, turning STEP
+  on the STEP page plays the step the cursor lands on.
 - The **arp** follows TRN, ROOT, SCALE and QNT on the keys it holds (HOLD too): change the key and the
   arpeggio moves with it.
 - **CHORD+**: with a chord mode on (SCL → CHORD), the black keys change the chord, held before the white
@@ -314,12 +339,17 @@ record opens the **TRACKS** view: BPM, bar.beat, one row per track with its step
   when the sound changes and can be locked on a step.
 - **Micro timing**, **parameter locks** (12 a track) and **fills** per step, in the SEQ layer; they are
   saved with the project.
-- Arpeggiator with the **UDI** and **RPT** modes; divisions up to **4BAR** (in the sequencer too).
+- Arpeggiator: UP, DN, UPDN, RND, ORD, **UDI**, **RPT**, **DNUP**, **CONV** (outside in), **DIVG** (inside
+  out), **PINKY**, **THUMB** (the top / bottom note every other), **WALK**; divisions up to **4BAR** (in the
+  sequencer too).
 
 ### MIDI and USB
 - **MIDI in on the TRS jack** (3.5 mm) and over USB: channels 1–3 the synth tracks, 4 track 4 when it
   is a SYNTH, the drum channel (default 10) the drums, the others the selected track. **GLO → SYSTEM
-  ROUT = SEL**: every channel plays the selected track (a keyboard on channel 1 plays what PRESETS browses).
+  ROUT = SEL**: every channel plays the selected track (a keyboard on channel 1 plays what PRESETS browses);
+  **CH5-8**, **CH9-12**, **CH13-16**: tracks 1–4 on another block of channels (two FM-1s on one cable).
+- **Program Change** on a track's channel loads its engine's sound n, in PRESETS' order (FM6: then the bank
+  voices); on the drum track, kit n. Past the last: ignored.
 - **MIDI LEARN** (hold **GLO** + key 14): turn a knob, move a controller, and that CC drives that
   parameter of that track, on any channel; then the next knob. **OCT−** clears the picked one's CC; GLO +
   14 again is done. Up to 16, kept with the settings; HOME → MIDI LEARN shows how many and clears them.
@@ -331,18 +361,26 @@ record opens the **TRACKS** view: BPM, bar.beat, one row per track with its step
   clock and START / STOP and ignores incoming notes. Both are settings of the FM-1, not of the project.
 - **USB audio**: the FM-1 shows up as a stereo audio input named **Jangada** (44.1 kHz, no driver).
   HOME → USB AUDIO: the level follows MASTER, or FULL. On Linux:
-  `arecord -D hw:Jangada -f S16_LE -r 44100 -c 2 take.wav`.
+  `arecord -D hw:Jangada -f S16_LE -r 44100 -c 2 take.wav`. Since 0.9.7 the audio interface comes before
+  MIDI in the descriptors, so macOS 15 and earlier show the audio input too.
 
 ### Screen, lights and menu
 - Antialiased font (Inter Tight), icons, cards; the **CHOQUE** palette (hot pink) by default, and **NIGHT** (true black, green).
 - Menu (hold **HOME**): COLOR, SPEAKER (a low cut for the speaker), **LIGHTS** (the buttons glow
-  dimly, for playing in the dark), **KEYS** (lights the C keys or the white ones), **NOTES** (sounding
+  dimly, for playing in the dark), **KEYS** (lights the C keys, the white ones or the track's **SCALE**, its root
+  brighter), **NOTES** (sounding
   notes light their keys), USB AUDIO, MIDI OUT, MIDI IN, NEW PROJECT, ABOUT.
 - Pages without a graph (EDIT, DIST, CHORD, GLOBAL, SYSTEM…) show their four values **large**, each knob
   as a **circle** that grows with its value, its name and value below; the one you turn in white. The
   shape follows what the parameter does: a **disc** (amounts), **ripples** (RES, FDBK, REV, DECAY…), a
   **spiral** (RATE, TIME, GLIDE…), a **wave** turning stormy (SHP, DRV, FOLD…) and **interference** (MOD,
   DTN, RATIO, PAN). Bipolar values grow from zero (below it the disc is hollow); lists show the value.
+  Note values (1/4, 1/8, 8T, 1/8D…) show as dots, as many as the notes they make in a bar.
+- **The engine on its EDIT pages**: the middle of the screen shows the engine at work, the four knobs as
+  small circles beside it. The picture comes from the engine's own state as it plays (SCAN's masses,
+  GENDY's walking points, WALSH's wave, GRAIN's grains, each FM6 operator's level, SAMPLE's play position,
+  WHEEL's drawbars) and moves with the track's sound: it swells with the level, gets busier with the
+  brightness and is struck on an attack.
 - **Visualiser**: on the TRACKS screen, tap **HOME**: the whole screen shows what plays. **SELECT** changes
   the style: **OSC** (the wave with a phosphor trail), **SONAR** (the wave round a circle, a sweep a bar),
   **VU** (a meter per track and the mix), **ESTEIRA** (each track's level scrolling by) and **MAR** (the
@@ -417,7 +455,9 @@ Jangada is GPL-3.0-only, as Felucca is. The original work is **Leo Kuroshita's (
 Hügelton Instruments**. Parts come from other forks, with our thanks:
 
 - [Felucca 1.0](https://github.com/hugelton/Felucca): FM6, USB audio, the SPRING reverb, the look
-  (Inter Tight, Fukiai icons), the FM6 bank.
+  (Inter Tight, Fukiai icons), the FM6 bank. From 1.1 to 1.5.1: the INSERT, MIDI LEARN, the metronome and
+  count-in, MOMENTARY, the THROWs, LFO SYNC, ENV SYNC, Program Change (renebohne's PR), the arp modes, the
+  macOS USB audio and encoder fixes.
 - [SLOOP](https://github.com/isod89/sloop-fm1) (isod89): the layers, punch FX, the master, the
   synthesised kits, the chords, PLATE, autosave, safe updates and rescue, the lights, TRS MIDI, micro
   timing, parameter locks and fills.
@@ -427,6 +467,8 @@ Hügelton Instruments**. Parts come from other forks, with our thanks:
 - [X0X](https://github.com/charlesvestal/fm1-x0x) (Charles Vestal): the second core, from Melodee's work
   (AUTO, with an opt-in BOOST of the supply: see [BUILDING.md](BUILDING.md#the-second-core-auto-and-an-opt-in-boost)).
 - msfa / Dexed (Google, Pascal Gauthier): the FM6 core (Apache-2.0).
+- [gospodindilly-ops](https://github.com/gospodindilly-ops): the ideas behind ROBO, VIVO and the pictures
+  of the engines (issues #4 and #5).
 
 Going the other way: the ratchets went upstream and ship in
 [Felucca 1.0.5](https://github.com/hugelton/Felucca/releases/tag/v1.0.5) ([PR #100](https://github.com/hugelton/Felucca/pull/100)).
