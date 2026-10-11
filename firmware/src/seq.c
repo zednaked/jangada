@@ -64,10 +64,12 @@ static const uint8_t DRUM_KEYS[27] = {
 
 static uint32_t trk_index(const track_t *t) { return (uint32_t)(t - trk); }
 
+/* the first channel of the tracks' block (ROUT CH1-4, CH5-8, CH9-12, CH13-16; SEL: 1..4 out) */
+static uint32_t midi_base(void) { return song.g[G_ROUTE] >= 2 ? (uint32_t)(song.g[G_ROUTE] - 1) * 4u : 0u; }
 static uint32_t trk_midi_ch(uint32_t i)    /* MIDI channel 0..15 of track i (keys -> MIDI out) */
 {
     if (trk_synth(i))
-        return i;                                      /* track 4 as a synth: channel 4 */
+        return (midi_base() + i) & 15u;                /* track 4 as a synth: channel 4 */
     return song.g[G_DRCH] ? (uint32_t)song.g[G_DRCH] - 1u : 9u;
 }
 
@@ -1464,6 +1466,7 @@ static void seq_tick(track_t *t, uint32_t n, uint32_t adv)
  * plays the selected track, so a keyboard on channel 1 plays what the PRESETS page browses (after Felucca, #192) */
 static int midi_own(uint32_t ch)
 {
+    ch -= midi_base();                                /* (a channel below the block wraps far above it) */
     return ch < NTRK && trk_synth(ch) && song.g[G_ROUTE] != 1;
 }
 
@@ -1472,7 +1475,7 @@ static track_t *midi_track(uint32_t ch)
 {
     if (song.g[G_DRCH] && ch + 1u == (uint32_t)song.g[G_DRCH] && is_drum(TDRUM))
         return TDRUM;
-    return midi_own(ch) ? &trk[ch] : TSEL;
+    return midi_own(ch) ? &trk[(ch - midi_base()) % NTRK] : TSEL;
 }
 
 /* a channel that plays the selected track: its note-off goes to the track its note-on went to,

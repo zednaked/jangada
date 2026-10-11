@@ -100,6 +100,12 @@ int main(void)
     run(1);
     ok(pc_req[0] == 6 && pc_req[1] == 1, "program change: marked for the main loop, per channel's track");
     pc_req[0] = pc_req[1] = 0;
+    song.g[G_ROUTE] = 2;                                      /* 0.9.7: ROUT CH5-8 */
+    ok(midi_track(4) == &trk[0] && midi_track(6) == &trk[2] && midi_track(0) == TSEL && trk_midi_ch(1) == 5u,
+       "ROUT CH5-8: channels 5..8 play tracks 1..4, channel 1 the selected one");
+    song.g[G_ROUTE] = 4;
+    ok(midi_track(12) == &trk[0] && midi_track(4) == TSEL, "ROUT CH13-16");
+    song.g[G_ROUTE] = 0;
     midi(0xE1, 0x00, 0x00);
     run(1);
     ok(trk[1].bend16 == -32 && t->bend16 == 0, "bend on channel 2 moves track 2 only");

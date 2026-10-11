@@ -28,7 +28,9 @@ static const char *const N_ALLOC[] = {"ROT", "REUSE"};
 static const char *const N_ORDER[] = {"NOTE", "PLAY"};
 static const char *const N_CLOCK[] = {"INT", "USB", "TRS"};   /* Jangada: follow the MIDI clock of USB or the TRS jack */
 static const char *const N_SYNC[] = {"OFF", "OUT"};    /* Jangada: OUT = send MIDI clock (USB) */
-static const char *const N_ROUTE[] = {"CH1-4", "SEL"};   /* Jangada: MIDI IN, channels 1..4 = tracks 1..4, or every one the selected track (seq.c midi_track) */
+static const char *const N_ROUTE[] = {"CH1-4", "SEL", "CH5-8", "CH9-12", "CH13-16"};   /* Jangada: MIDI IN, channels 1..4 =
+                                         * tracks 1..4, or every one the selected track (seq.c midi_track); 0.9.7 (after
+                                         * Felucca 1.4): tracks 1..4 on another block of four channels */
 static const char *const N_CHORD[] = {"OFF", "TRIAD", "7TH", "9TH", "SUS4", "POWER"};   /* seq.c CHORD_DEG (Jangada) */
 static const char *const N_KIT[] = {"GM", DS_KIT_NAME_LIST};   /* drums.c DRUM_KIT_NAMES (Jangada) */
 static const char *const N_BEAT[] = {"--", DS_BEAT_NAME_LIST};  /* Jangada: GLO > KIT BEAT (DS_BEATS) */
