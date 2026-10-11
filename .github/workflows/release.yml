@@ -45,8 +45,13 @@ jobs:
         run: |
           f="build/jangada-${GITHUB_REF_NAME#v}.fwsc"
           sha256sum "$f" > "$f.sha256"
-          gh release create "$GITHUB_REF_NAME" "$f" "$f.sha256" --prerelease --generate-notes \
-            --title "Jangada ${GITHUB_REF_NAME#v}"
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then    # made by hand first: keep its package
+            gh release view "$GITHUB_REF_NAME" --json assets -q '.assets[].name' | grep -qx "${f##*/}" ||
+              gh release upload "$GITHUB_REF_NAME" "$f" "$f.sha256"
+          else
+            gh release create "$GITHUB_REF_NAME" "$f" "$f.sha256" --prerelease --generate-notes \
+              --title "Jangada ${GITHUB_REF_NAME#v}"
+          fi
       - name: Web installer (pages.yml)
         env:
           GH_TOKEN: ${{ github.token }}

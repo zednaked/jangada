@@ -338,8 +338,11 @@ record opens the **TRACKS** view: BPM, bar.beat, one row per track with its step
 - Menu (hold **HOME**): COLOR, SPEAKER (a low cut for the speaker), **LIGHTS** (the buttons glow
   dimly, for playing in the dark), **KEYS** (lights the C keys or the white ones), **NOTES** (sounding
   notes light their keys), USB AUDIO, MIDI OUT, MIDI IN, NEW PROJECT, ABOUT.
-- Pages without a graph (EDIT, DIST, CHORD, GLOBAL, SYSTEM…) show their four values **large**, in four
-  cards placed as the knobs; the one you turn in white.
+- Pages without a graph (EDIT, DIST, CHORD, GLOBAL, SYSTEM…) show their four values **large**, each knob
+  as a **circle** that grows with its value, its name and value below; the one you turn in white. The
+  shape follows what the parameter does: a **disc** (amounts), **ripples** (RES, FDBK, REV, DECAY…), a
+  **spiral** (RATE, TIME, GLIDE…), a **wave** turning stormy (SHP, DRV, FOLD…) and **interference** (MOD,
+  DTN, RATIO, PAN). Bipolar values grow from zero (below it the disc is hollow); lists show the value.
 - **Visualiser**: on the TRACKS screen, tap **HOME**: the whole screen shows what plays. **SELECT** changes
   the style: **OSC** (the wave with a phosphor trail), **SONAR** (the wave round a circle, a sweep a bar),
   **VU** (a meter per track and the mix), **ESTEIRA** (each track's level scrolling by) and **MAR** (the
