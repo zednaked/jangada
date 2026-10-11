@@ -14,7 +14,7 @@ static const char *const MI_NAME[MI_COUNT] = {"COLOR", "SPEAKER", "LIGHTS", "KEY
                                               "MIDI OUT", "MIDI IN", "MIDI LEARN", "2ND CORE", "NEW PROJECT", "ABOUT"};
 static const char *const CPU2_NAME[CPU2_N] = {"AUTO", "OFF", "BOOST"};
 static const char *const LIGHTS_NAME[LIGHTS_N] = {"OFF", "LOW", "MID", "HIGH"};
-static const char *const KEYS_NAME[KEYS_N] = {"OFF", "C KEYS", "WHITE KEYS"};
+static const char *const KEYS_NAME[KEYS_N] = {"OFF", "C KEYS", "WHITE KEYS", "SCALE"};
 #define MI_DY 16                                    /* rows between two menu lines */
 static uint8_t menu_new_armed;                      /* NEW PROJECT: OCT+ once arms, again clears */
 static void felucca_init(void);                     /* main.c */

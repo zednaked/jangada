@@ -94,7 +94,7 @@ static uint8_t cpu2_parked;                     /* AUTO turned itself OFF this s
  * audio level (menu USB AUDIO: fx.c usb_full), settings of the FM-1: kept in flash with the others (project.c
  * persist_t.lights), not in a project; not in .noinit, so nothing there moves */
 enum { LIGHTS_OFF, LIGHTS_LOW, LIGHTS_MID, LIGHTS_HIGH, LIGHTS_N };
-enum { KEYS_OFF, KEYS_C, KEYS_WHITE, KEYS_N };
+enum { KEYS_OFF, KEYS_C, KEYS_WHITE, KEYS_SCALE, KEYS_N };   /* SCALE: Jangada 0.9.7 (after Felucca 1.1.5) */
 static uint8_t lights_lvl, lights_keys;         /* every button glows (LIGHTS); the C or white keys too (KEYS) */
 static uint8_t lights_notes;                    /* 1: the notes sounding light their keys */
 static const uint16_t LIGHTS_NS[LIGHTS_N] = {0u, 500u, 1000u, 2000u};   /* the backlight pulse a frame (ns): a lit

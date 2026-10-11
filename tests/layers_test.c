@@ -220,10 +220,17 @@ int main(void){
  }
  printf("%-46s ok\n", "columns: no label / value / unit cut (Inter Tight)");
  { /* menu LIGHTS / KEYS / NOTES (after SLOOP 2.3): which keys glow, which light; the settings word */
-   uint32_t m, w; int n = 0;
-   lights_lvl = 0; lights_keys = KEYS_C; assert(!lights_keys_mask());           /* KEYS needs LIGHTS */
-   lights_lvl = LIGHTS_LOW; m = lights_keys_mask(); assert(m == (1u << 7 | 1u << 19));   /* C4, C5 */
-   lights_keys = KEYS_WHITE; m = lights_keys_mask(); for (; m; m &= m - 1) n++; assert(n == 16);
+   uint32_t m, w, rt; int n = 0;
+   lights_lvl = 0; lights_keys = KEYS_C; assert(!lights_keys_mask(&rt));        /* KEYS needs LIGHTS */
+   lights_lvl = LIGHTS_LOW; m = lights_keys_mask(&rt); assert(m == (1u << 7 | 1u << 19));   /* C4, C5 */
+   { /* 0.9.7 SCALE: the selected track's scale from ROOT, the root's keys apart; QNT WHITE: the white keys */
+     int16_t sc = TSEL->p[P_SCALE], ro = TSEL->p[P_ROOT], qn = TSEL->p[P_QUANT]; uint32_t c = 0;
+     lights_keys = KEYS_SCALE; TSEL->p[P_SCALE] = 1; TSEL->p[P_ROOT] = 2; TSEL->p[P_QUANT] = 0;   /* D major */
+     m = lights_keys_mask(&rt); for (w = m; w; w &= w - 1) c++;
+     assert(c == 16 && rt == (1u << 9 | 1u << 21) && (m >> 1 & 1u) && !(m & 1u));   /* D4 D5; F#3 in, F3 out */
+     TSEL->p[P_QUANT] = 2; m = lights_keys_mask(&rt); assert(rt == (1u << 7 | 1u << 19) && !(m >> 1 & 1u));
+     TSEL->p[P_SCALE] = sc; TSEL->p[P_ROOT] = ro; TSEL->p[P_QUANT] = qn; }
+   lights_keys = KEYS_WHITE; m = lights_keys_mask(&rt); for (; m; m &= m - 1) n++; assert(n == 16);
    lights_notes = 1; usb_full = 1; lights_lvl = LIGHTS_HIGH; w = lights_word();
    lights_lvl = lights_keys = lights_notes = usb_full = 0; lights_from_word(w);
    assert(lights_lvl == LIGHTS_HIGH && lights_keys == KEYS_WHITE && lights_notes && usb_full);

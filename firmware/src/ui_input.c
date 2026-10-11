@@ -66,15 +66,32 @@ static uint32_t keys_sounding(const track_t *t)
     return m;
 }
 
-static uint32_t lights_keys_mask(void)             /* menu KEYS: the Cs, or every white key (with LIGHTS) */
+/* menu KEYS: the Cs, or every white key, or (0.9.7) the selected track's scale, *root its root key(s) (with LIGHTS).
+ * SCALE: QNT WHITE walks the scale on the white keys, from C; otherwise the keys of the scale from ROOT. Not on the
+ * drum track */
+static uint32_t lights_keys_mask(uint32_t *root)
 {
-    uint32_t k, m = 0;
+    uint32_t k, m = 0, sm = 0, r = 0, white = 0;
+    *root = 0;
     if (!lights_lvl || !lights_keys)
         return 0u;
+    if (lights_keys == KEYS_SCALE) {
+        if (is_drum(TSEL))
+            return 0u;
+        white = TSEL->p[P_QUANT] == 2;
+        sm = scale_mask(TSEL);
+        r = (uint32_t)TSEL->p[P_ROOT] % 12u;
+    }
     for (k = 0; k < 27u; k++) {
         uint32_t pc = (53u + k) % 12u;             /* key 0 = F3 (53) */
-        if (lights_keys == KEYS_C ? pc == 0u : ((0xAB5u >> pc) & 1u) != 0u)   /* 0xAB5: C D E F G A B */
+        if (lights_keys == KEYS_SCALE) {
+            if (white ? ((0xAB5u >> pc) & 1u) != 0u : ((sm >> ((pc + 12u - r) % 12u)) & 1u) != 0u)
+                m |= 1u << k;
+            if (white ? pc == 0u : pc == r)
+                *root |= 1u << k;
+        } else if (lights_keys == KEYS_C ? pc == 0u : ((0xAB5u >> pc) & 1u) != 0u) {   /* 0xAB5: C D E F G A B */
             m |= 1u << k;
+        }
     }
     return m;
 }
@@ -107,7 +124,12 @@ static void ui_leds(void)
     } else {
         keys = fm1_in.notes | sounding;                 /* menu NOTES: what sounds lights its key */
     }
-    back = lights_keys_mask() & ~keys & ~glow;
+    {
+        uint32_t root;
+        back = lights_keys_mask(&root) & ~keys & ~glow;
+        glow |= root & back;                            /* SCALE: the root a little brighter */
+        back &= ~root;
+    }
     for (k = 0; k < 27u; k++) {
         led_put(nl, 14u + k, (int)((keys >> k) & 1u));
         led_put(dl, 14u + k, (int)((glow >> k) & 1u));
