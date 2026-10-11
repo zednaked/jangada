@@ -194,6 +194,12 @@ int main(void)
     for (k = 0; k < 40u; k++) click(1, 2);
     frames(300);
     check("a fast spin of 40", 40);
+    for (k = 0; k < 60u; k++) click(1, 1);         /* (Jangada 0.9.7, after Felucca's #126: 1 frame a transition, */
+    frames(300);                                   /* ~230 clicks/s; the 2-sample filter lost them all) */
+    check("a flick of 60 (1 frame a transition)", 60);
+    for (k = 0; k < 30u; k++) click(-1, 1);
+    frames(300);
+    check("and 30 back", -30);
     for (k = 0; k < 5u; k++) {                     /* a slow turn that stops mid-click (50 ms) */
         move(1, 6); move(1, 45); move(1, 6); move(1, 30);
     }

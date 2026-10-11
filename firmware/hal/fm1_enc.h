@@ -8,6 +8,10 @@
  * on arriving back at it, the net transitions rounded to whole cycles (>= 2 counts one: a lost
  * transition or two is forgiven; a two-state jump counts on in the direction of travel). One
  * click = one step at any speed; bounce and back-and-forth cancel out.
+ * Jangada 0.9.7 (after Felucca 1.1.5, its #126): every frame's state counts. The 2-sample filter took a state
+ * only when two frames in a row saw it, and a turn faster than ~110 clicks/s (~60 with the transitions bunched)
+ * lost whole clicks: a flick counted next to nothing. A two-state jump on the detent goes the way of a click in
+ * the last FM1_ENC_GO frames (else nowhere). Counted up to ~300 clicks/s.
  * Never a second rest state. Felucca 0.9 learned rest states from any 25 ms pause, and Jangada
  * 0.2 from ~260 ms rests counted as evidence (a state and its complement): a knob held mid-click
  * that long, often enough, taught the complement as a rest and every click counted twice from
@@ -17,12 +21,15 @@
 #include <stdint.h>
 
 #define FM1_ENC_REST 900u         /* frames still off the detent state (~1 s): that is the detent */
+#define FM1_ENC_GO 20u            /* a 2-state jump from the detent goes on the way of a click this recent (~22 ms) */
 
 typedef struct {
-    uint8_t prev, last;           /* the last decoded state; the last raw sample (2-sample filter) */
+    uint8_t prev, last;           /* the last decoded state; the last raw sample */
     uint8_t rest;                 /* the detent state (0..3) */
     int8_t sub;                   /* net transitions since the last time on the detent */
     uint16_t still;               /* frames in the same state */
+    int8_t dir;                   /* the last click's direction, and the frames since it (to FM1_ENC_GO + 1) */
+    uint8_t since;
 } fm1_enc_t;
 
 static void fm1_enc_init(fm1_enc_t *s)
@@ -31,6 +38,8 @@ static void fm1_enc_init(fm1_enc_t *s)
     s->rest = 0;
     s->sub = 0;
     s->still = 0;
+    s->dir = 0;
+    s->since = 0xFF;
 }
 
 /* one frame: cur = this frame's A (bit 1) and B (bit 0); returns the steps it emits (+ = clockwise) */
@@ -38,10 +47,11 @@ static int fm1_enc_frame(fm1_enc_t *s, uint32_t cur)
 {
     uint32_t idx;
     int32_t n;
-    if (cur != s->last) {                          /* 2-sample filter */
+    if (s->since <= FM1_ENC_GO)
+        s->since++;
+    if (cur != s->last) {                          /* (no 2-sample filter: every frame's state counts) */
         s->last = (uint8_t)cur;
         s->still = 0;
-        return 0;
     }
     if (s->prev == 0xFF) {                         /* first frame: the knob rests here */
         s->prev = (uint8_t)cur;
@@ -58,10 +68,9 @@ static int fm1_enc_frame(fm1_enc_t *s, uint32_t cur)
         s->sub++;
     else if ((0x2814u >> idx) & 1u)
         s->sub--;
-    else if (s->sub > 0)                           /* two states in one sample: a fast turn, */
-        s->sub = (int8_t)(s->sub + 2);             /* the way it was going */
-    else if (s->sub < 0)
-        s->sub = (int8_t)(s->sub - 2);
+    else                                           /* two states in one sample: a fast turn, the way it was */
+        s->sub = (int8_t)(s->sub + 2 * (s->sub > 0 ? 1 : s->sub < 0 ? -1 : s->since <= FM1_ENC_GO ? s->dir : 0));
+                                                   /* going (on the detent: a click of the last FM1_ENC_GO frames) */
     s->prev = (uint8_t)cur;
     if (s->sub > 100 || s->sub < -100)
         s->sub = 0;                                /* (never off the detent that long) */
@@ -71,5 +80,9 @@ static int fm1_enc_frame(fm1_enc_t *s, uint32_t cur)
     n = n >= 2 ? (n + 2) / 4 : 0;                  /* or two forgiven (one click = 4 transitions) */
     n = s->sub < 0 ? -n : n;
     s->sub = 0;
+    if (n) {
+        s->dir = (int8_t)(n < 0 ? -1 : 1);
+        s->since = 0;
+    }
     return (int)n;
 }
