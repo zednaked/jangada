@@ -764,6 +764,13 @@ static void chord_retune(void)
     }
 }
 
+/* Jangada 0.9.9 FX LATCH: two taps of an effect's key within PX_TAP_MS keep it on after the key is up, and out of
+ * the FX layer too; a tap of that key again lets it go (another effect's key replaces it) */
+#define PX_TAP_MS 350u
+static volatile uint8_t px_latch;
+static int8_t px_tap_fx = -1;
+static uint32_t px_tap_ms;
+
 static void keyboard_block(void)
 {
     uint32_t cur = fm1_in.notes, ch, k;
@@ -786,7 +793,15 @@ static void keyboard_block(void)
                 kb_note[k] = KB_SILENT;           /* and none to release */
                 if (kb_layer == LY_FX) {          /* FX: a white key = a punch-in effect (punch.c) */
                     int32_t fx = punch_key(k);
-                    if (fx >= 0) {
+                    if (fx >= 0 && px_latch && punch.req == fx) {   /* the latched one tapped: off */
+                        px_latch = 0;
+                        px_tap_fx = -1;
+                        punch.req = -1;
+                        punch.keybit = 0;
+                    } else if (fx >= 0) {
+                        px_latch = (uint8_t)(px_tap_fx == fx && fm1_ms - px_tap_ms < PX_TAP_MS);
+                        px_tap_fx = (int8_t)fx;
+                        px_tap_ms = fm1_ms;
                         punch.req = (int8_t)fx;
                         punch.keybit = 1u << k;
                     } else if (k == 1u || k == 3u) {   /* a black key: F#3 REV THROW, G#3 ECHO THROW */
@@ -832,9 +847,10 @@ static void keyboard_block(void)
         } else {
             if ((k == 1u || k == 3u) && throw_keys)   /* a THROW let go: the sends glide back, the tails ring */
                 throw_keys &= (uint8_t)~(k == 1u ? 1u : 2u);
-            if (punch.keybit == 1u << k) {        /* the punch-in key is up: the mix comes back */
+            if (punch.keybit == 1u << k) {        /* the punch-in key is up: the mix comes back (not latched) */
                 punch.keybit = 0;
-                punch.req = -1;
+                if (!px_latch)
+                    punch.req = -1;
             }
             if (kb_lkeys & 1u << k) {             /* a UI layer's key is up (its layer may be gone) */
                 kb_lkeys &= ~(1u << k);

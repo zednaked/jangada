@@ -522,6 +522,10 @@ static void ui_input(void)
         if (punch_shown >= 0)
             ui_message(PUNCH_NAME[punch_shown]);
     }
+    if (px_latch && punch.req >= 0 && !mom_held()) {   /* 0.9.9 FX LATCH: the top bar says which, on any screen */
+        ui_say("LATCH: ", PUNCH_NAME[punch.req]);
+        ui.msg_t = 3;
+    }
     if (!mom_held()) {
         mom_release();
         mom.kept = 0;

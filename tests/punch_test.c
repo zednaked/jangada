@@ -138,6 +138,46 @@ int main(void)
         printf("%-46s ok\n", "punch: FX held = white keys pick, no notes");
     }
 
+    {   /* 0.9.9 FX LATCH: two quick taps keep it on, out of the layer too; a tap of it again lets it go */
+        setup();
+        kb_layer = LY_FX;
+        fm1_ms = 1000;
+        fm1_in.notes = 1u << 2;              /* one tap: on while held */
+        run(4, 0, 0);
+        fm1_in.notes = 0;
+        run(4, 0, 0);
+        assert(punch.req == -1 && !px_latch);
+        fm1_ms = 1200;                       /* again within PX_TAP_MS: latched */
+        fm1_in.notes = 1u << 2;
+        run(4, 0, 0);
+        fm1_in.notes = 0;
+        run(4, 0, 0);
+        assert(punch.req == PX_LOOP8 && px_latch);
+        kb_layer = 0;                        /* out of the FX layer: still on */
+        run(4, 0, 0);
+        assert(punch.req == PX_LOOP8);
+        kb_layer = LY_FX;
+        fm1_ms = 5000;
+        fm1_in.notes = 1u << 2;              /* tapped again: off */
+        run(4, 0, 0);
+        fm1_in.notes = 0;
+        run(4, 0, 0);
+        assert(punch.req == -1 && !px_latch);
+        fm1_ms = 6000;                       /* slow taps: never latched */
+        fm1_in.notes = 1u << 4;
+        run(4, 0, 0);
+        fm1_in.notes = 0;
+        run(4, 0, 0);
+        fm1_ms = 7000;
+        fm1_in.notes = 1u << 4;
+        run(4, 0, 0);
+        fm1_in.notes = 0;
+        run(4, 0, 0);
+        assert(punch.req == -1 && !px_latch);
+        kb_layer = 0;
+        printf("%-46s ok\n", "punch: FX LATCH (2 taps), out of the layer too");
+    }
+
     {   /* DUST and the DJ filter change the mix, bounded; at 0 they are bypassed */
         static const struct { uint32_t g; int16_t v; const char *name; } M[] = {
             {G_DUST, 127, "DUST 100 %"}, {G_DUST, 40, "DUST 31 %"}, {G_FILT, -50, "FILT LP"}, {G_FILT, 50, "FILT HP"}};

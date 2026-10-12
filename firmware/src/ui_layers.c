@@ -836,7 +836,8 @@ static void layer_screen_draw(void)
     if (layer == LY_FX) {                               /* the 16 punch-in effects */
         static const char *const PSHORT[16] = {"LOOP4", "LOOP8", "LOOP16", "LOOP32", "STUTT", "REV", "STOP", "HALF",
                                                "LOW", "HIGH", "PHONE", "CRUSH", "ALIAS", "GATE", "ECHO", "WOBBL"};
-        sub = throw_keys & 1u ? "REV THROW" : throw_keys & 2u ? "ECHO THROW" : "KEY; F# G#: THROW";
+        sub = throw_keys & 1u ? "REV THROW" : throw_keys & 2u ? "ECHO THROW" : px_latch && punch.req >= 0 ? "LATCHED: TAP IT TO STOP"
+            : "KEY, 2x LATCH; F# G#: THROW";
         for (i = 0; i < 16u; i++) {
             int on = punch.req == (int8_t)i;
             str_cpy(tl[i].lab, PSHORT[i], 8);
