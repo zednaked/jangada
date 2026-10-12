@@ -58,7 +58,7 @@ All rendered by the firmware's own DSP (the same C code that runs on the FM-1, r
 |---|---|
 | [FERRUGEM](docs/sounds/drone-ferrugem.mp3) | a superwave that rusts, its tension rising over 16 bars |
 | [SERTAO](docs/sounds/drone-sertao.mp3) | the accordion that turns sour |
-| [CINZA](docs/sounds/drone-cinza.mp3) | piano ash in grains |
+| [CINZA](docs/sounds/drone-cinza.mp3) | the ash of a struck plate, in grains |
 | [ABISMO](docs/sounds/drone-abismo.mp3) | FM that keeps opening |
 | [tension ramp](docs/sounds/drone-tension-ramp.mp3) | TENS from 0 to 100 % over 16 bars |
 | [static × evolving](docs/sounds/drone-static-vs-evolving.mp3) | the same drone without and with EVOL |
@@ -383,7 +383,12 @@ record opens the **TRACKS** view: BPM, bar.beat, one row per track with its step
   small circles in a row on top (a turned knob shows its value in place of its name). The picture comes from the engine's own state as it plays (SCAN's masses,
   GENDY's walking points, WALSH's wave, GRAIN's grains, each FM6 operator's level, SAMPLE's play position,
   WHEEL's drawbars) and moves with the track's sound: it swells with the level, gets busier with the
-  brightness and is struck on an attack.
+  brightness and is struck on an attack. **ENV**, **LFO** and **MOD 1–4** have the same row on top: the
+  envelope drawn filled with a dot where the playing voice is, the LFO's waves with a dot at its phase, and
+  the matrix slot as SRC → DST → SOUND with the source's shape as tall as its amount.
+- **Its own samples**: SAMPLE and GRAIN play **IRON** (a struck steel plate), **WIRE** (a plucked wire),
+  **TABLE** (a wavetable sweep: in GRAIN, POS walks the timbre) and **MOTOR** (a machine running), all
+  synthesized by Jangada, plus PERC and your own three slots. Presets **SCRAP BELL** and **ENGINE ROOM**.
 - **Visualiser**: on the TRACKS screen, tap **HOME**: the whole screen shows what plays. **SELECT** changes
   the style: **OSC** (the wave with a phosphor trail), **SONAR** (the wave round a circle, a sweep a bar),
   **VU** (a meter per track and the mix), **ESTEIRA** (each track's level scrolling by) and **MAR** (the

@@ -57,7 +57,7 @@ Tudo gerado pelo próprio DSP do firmware (o mesmo código C que roda no FM-1, r
 |---|---|
 | [FERRUGEM](docs/sounds/drone-ferrugem.mp3) | superwave que enferruja, a tensão subindo em 16 compassos |
 | [SERTAO](docs/sounds/drone-sertao.mp3) | a sanfona que azeda |
-| [CINZA](docs/sounds/drone-cinza.mp3) | cinza de piano em grãos |
+| [CINZA](docs/sounds/drone-cinza.mp3) | cinza de uma chapa golpeada, em grãos |
 | [ABISMO](docs/sounds/drone-abismo.mp3) | FM que vai abrindo |
 | [tensão em rampa](docs/sounds/drone-tension-ramp.mp3) | TENS de 0 a 100 % em 16 compassos |
 | [parado × evoluindo](docs/sounds/drone-static-vs-evolving.mp3) | o mesmo drone sem e com EVOL |
@@ -388,7 +388,13 @@ gravar abre a tela **TRACKS**: BPM, compasso.beat, uma linha por trilha com pass
   círculos pequenos numa linha em cima (o knob girado mostra o valor no lugar do nome). O desenho vem do estado do próprio motor enquanto toca (as massas do SCAN, os
   pontos andando do GENDY, a onda do WALSH, os grãos do GRAIN, o nível de cada operador do FM6, a posição
   do SAMPLE, as drawbars do WHEEL) e se move com o som da trilha: cresce com o nível, fica mais cheio com o
-  brilho e leva um golpe no ataque.
+  brilho e leva um golpe no ataque. **ENV**, **LFO** e **MOD 1–4** têm a mesma linha em cima: o envelope
+  desenhado cheio, com um ponto onde a voz que toca está; as ondas do LFO com um ponto na fase; e o slot da
+  matriz como SRC → DST → SOUND, com a forma da fonte da altura do AMT.
+- **Samples próprios**: SAMPLE e GRAIN tocam **IRON** (uma chapa de aço golpeada), **WIRE** (um arame
+  dedilhado), **TABLE** (uma wavetable que varre o timbre: no GRAIN, o POS anda por ela) e **MOTOR** (uma
+  máquina ligada), todos sintetizados pela Jangada, mais o PERC e os seus três slots. Presets **SCRAP BELL**
+  e **ENGINE ROOM**.
 - **Visualizador**: na tela TRACKS, toque **HOME**: a tela inteira mostra o que toca. **SELECT** troca o
   estilo: **OSC** (a onda com rastro de fósforo), **SONAR** (a onda em volta de um círculo, uma varredura
   por compasso), **VU** (um medidor por trilha e o mix), **ESTEIRA** (o nível de cada trilha passando) e
