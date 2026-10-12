@@ -258,6 +258,11 @@ and it keeps breathing on its own, even while you play the other tracks.
   shift register clocked above the key) and **META** (a short register sequence: a metallic tone); COLR
   from white to pink to brown, a filter from low-pass to a narrow band, DRFT, CRSH. Jangada's presets:
   **FORNALHA** and **CHAMINE** (brown-noise drones), **ESTATICA**, **ENGRENAGEM**, **VAPOR**, **SUCATA NZ**.
+  Two machines of Jangada's own: **MOTR** (bursts of noise, a gear's teeth, struck in time with the key: DIV
+  divides it from a pitched saw blade down to slow pistons, GRIT from a click to a grind, every 4th tooth
+  harder; the picture is a gear turning) and **COMB** (the noise rung by a comb tuned to the key: a pipe, a
+  plate, a hammer on iron; FDBK how long it rings). Presets **SERRA**, **PISTAO**, **BETONEIRA**, **ESTEIRA**,
+  **TUBO**, **MARRETA**, **GARGANTA**.
 - **ROBO**: machine voices (ideas from issue #4). **VOSIM** (bursts of sin² pulses at a formant, each smaller
   than the last: vowels, buzzes, a talking chip; FORM, PULS, DCAY, TRK), **GENDY** (Xenakis' dynamic stochastic
   synthesis: the period's breakpoints walk in level and length every cycle while the pitch holds; STEP, PTS,
@@ -309,6 +314,8 @@ record opens the **TRACKS** view: BPM, bar.beat, one row per track with its step
   values will go back, KEPT). A tap of LFO opens its pages.
 - **THROWs** (FX layer): **F#3** held sends every track's reverb to full, **G#3** every delay send (and
   FDBK up to 70 % if lower); they glide in and out in ~12 ms and nothing is saved.
+- **FX LATCH**: tap an effect's key twice, quickly, and it stays on after you let go, out of the FX layer too
+  (the top line says **LATCH:** and which); a tap of that key again lets it go, another effect replaces it.
 
 ### Sequencer and arpeggiator
 - 64 steps per track, chords, ties, accent, slide; live recording (it keeps how hard you played).

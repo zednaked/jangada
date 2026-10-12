@@ -260,7 +260,11 @@ solte, e ele continua respirando sozinho, inclusive enquanto você toca outras t
   registrador com clock acima da nota) e **META** (uma sequência curta de registrador: um tom metálico); COLR
   do branco ao rosa e ao marrom, filtro de passa-baixa a passa-banda estreito, DRFT, CRSH. Presets da
   Jangada: **FORNALHA** e **CHAMINE** (drones de ruído marrom), **ESTATICA**, **ENGRENAGEM**, **VAPOR**,
-  **SUCATA NZ**.
+  **SUCATA NZ**. Duas máquinas da Jangada: **MOTR** (golpes de ruído, os dentes de uma engrenagem, batidos no
+  tempo da nota: DIV divide de uma serra afinada até pistões lentos, GRIT vai do clique à raspagem, a cada 4
+  dentes um mais forte; o desenho é uma engrenagem girando) e **COMB** (o ruído ressoando num pente afinado na
+  nota: um tubo, uma chapa, uma marreta no ferro; FDBK, quanto tempo soa). Presets **SERRA**, **PISTAO**,
+  **BETONEIRA**, **ESTEIRA**, **TUBO**, **MARRETA**, **GARGANTA**.
 - **ROBO**: vozes de máquina (ideias da issue #4). **VOSIM** (rajadas de pulsos sin² num formante, cada um
   menor que o anterior: vogais, zumbidos, um chip que fala; FORM, PULS, DCAY, TRK), **GENDY** (a síntese
   estocástica dinâmica de Xenakis: os pontos do período andam em nível e duração a cada ciclo e a afinação
@@ -312,6 +316,8 @@ gravar abre a tela **TRACKS**: BPM, compasso.beat, uma linha por trilha com pass
   KNOB, quantos valores vão voltar, KEPT). Um toque no LFO abre as páginas dele.
 - **THROWs** (camada FX): **F#3** segurada joga a reverb de todas as trilhas no máximo, **G#3** o send de
   delay (e o FDBK até 70 % se estiver abaixo); entram e saem em ~12 ms, e nada é salvo.
+- **FX LATCH**: dois toques rápidos na tecla de um efeito e ele fica ligado depois de soltar, até fora da
+  camada FX (a linha de cima mostra **LATCH:** e qual); mais um toque nessa tecla desliga, outro efeito troca.
 
 ### Sequencer e arpejador
 - 64 passos por trilha, acordes, ties, acento, slide; gravação ao vivo (guarda a força com que você tocou).
