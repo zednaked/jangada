@@ -14,7 +14,7 @@
  *   TRIO     three bodies on orbits at the intervals
  *   WHEEL    tonewheels turning, sized by the drawbars, ROTR turning them all
  *   GRAIN    the grains: where they read in the sample, in their windows
- *   NOISE    a cloud of specks, coarser as COLR goes brown
+ *   NOISE    a cloud of specks, coarser as COLR goes brown; MOTR a gear turning, COMB a pipe's rings (0.9.9)
  *   PHYS     a resonator struck or bowed: a bell's ring, a string, a drum head, a string with three beside it
  *   ROBO     VOSIM's pulse trains, GENDY's walking points, WALSH's wave, SCAN's masses on their springs
  * Drawn in the main loop every other frame, from dots: a ring of dots costs its length, an anti-aliased ring
@@ -341,7 +341,26 @@ static void ev_grain(const track_t *t, uint16_t c)
 /* NOISE: a cloud of specks, as many as the sound is loud and DENS asks, larger and softer as COLR goes brown */
 static void ev_noise(const track_t *t, uint16_t c)
 {
-    int32_t i, n = 8 + EV_A * (20 + EP(5)) / 2000, sz = 10 + EP(1) / 6;
+    int32_t i, n = 8 + EV_A * (20 + EP(5)) / 2000, sz = 10 + EP(1) / 6, mode = EP(0) % NZ_COUNT;
+    if (mode == NZ_MOTR) {                              /* MOTR (0.9.9): a gear, turning at DIV's pace; GRIT chips its teeth */
+        int32_t r[48], base = EV_R * (58 + EV_A / 60) / 100, th = EV_R * 16 / 100;
+        uint32_t a0 = ev.t * (90000000u >> ((EP(7) >> 4) & 7));
+        for (i = 0; i < 48; i++)
+            r[i] = base + ((i & 3) < 2 ? th - (int32_t)(ev_rnd() % (uint32_t)(1 + th * EP(5) / 254)) : 0);
+        ev_polar(r, 48, a0, 18, c);
+        ev_ring(EV_R * 22 / 100, 12, 12, mix565(c, C_BG, 30));
+        if (ev.hit > 300)                               /* a tooth strikes */
+            ev_dot(ev_px(a0, base + th), ev_py(a0, base + th), 20 + ev.hit / 40, C_WHITE);
+        return;
+    }
+    if (mode == NZ_COMB) {                              /* COMB (0.9.9): a pipe's mouth, its rings as long as FDBK */
+        int32_t k, nr = 2 + EP(5) / 42;
+        for (k = 0; k < nr; k++) {
+            int32_t r = EV_R * (90 - k * 70 / nr) / 100 + ((EV_A * (nr - k)) >> 6);
+            ev_ring(r, 48 - k * 6, 18 - k * 2, k ? mix565(c, C_BG, 25 + k * 12) : c);
+        }
+        return;
+    }
     ev.rng ^= ev.t * 2654435761u;
     for (i = 0; i < n; i++) {
         uint32_t a = ev_rnd() << 8;

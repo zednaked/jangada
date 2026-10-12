@@ -9,6 +9,11 @@
  *   DUST  the impulses only: crackle, drops (through a resonant filter)
  *   LFSR  a long shift register (LEN: 23 down to 7 bits) clocked CLK semitones above the key
  *   META  one cycle of a short register sequence per period of the key (LEN: which one): a metallic tone
+ *   MOTR  Jangada 0.9.9: a machine. Bursts of noise, the teeth of a gear, struck in time with the key (DIV
+ *         divides it: /1 a pitched rasp, a saw blade; /128 slow pistons), every 4th harder; GRIT is how long a
+ *         tooth scrapes (a click .. a grind), DRFT wanders the speed
+ *   COMB  Jangada 0.9.9: the noise through a comb tuned to the key, a pipe, a plate, a hammer on iron; FDBK
+ *         how long it rings (its delay lines: the track's engine arena)
  * COLR tilts the source from white (0) through pink (64, -3 dB/oct) to brown (127, -6 dB/oct).
  * FREQ / RES: a trapezoidal SVF that morphs from low-pass (RES 0) to a narrow band-pass (RES 127);
  * TRK key-tracks FREQ (127 = one semitone a semitone, around C4). DRFT: a slow random wander of FREQ
@@ -19,13 +24,27 @@
  * note from silence sounds the same each time), s[3] the drift target and its countdown, s[4..6] the pink
  * poles, s[7] the brown pole; ph[0] the clock phase (LFSR, META) or the hold count (CRSH), ph[1] the
  * register, the held sample or META's DC blocker, ph[2] the drift. */
-static const char *const N_NOISE_MODE[] = {"ANLG", "DUST", "LFSR", "META"};
-enum { NZ_ANLG, NZ_DUST, NZ_LFSR, NZ_META };
+static const char *const N_NOISE_MODE[] = {"ANLG", "DUST", "LFSR", "META", "MOTR", "COMB"};
+enum { NZ_ANLG, NZ_DUST, NZ_LFSR, NZ_META, NZ_MOTR, NZ_COMB, NZ_COUNT };
 static const char *const N_NOISE_LONG[] = {"L23", "L20", "L17", "L15", "L13", "L11", "L9", "L7", 0};
 static const char *const N_NOISE_META[] = {"127", "127B", "93", "63", "63B", "31", "15", "7", 0};
 static const param_desc_t NOISE_LONG = {"LEN", F_INT, 0, 127, 0, N_NOISE_LONG, 0};   /* = edit[5] but the names */
 static const param_desc_t NOISE_META = {"LEN", F_INT, 0, 127, 0, N_NOISE_META, 0};
 static const param_desc_t NOISE_CLK = {"CLK", F_INT, 0, 127, 0, 0, "st"};           /* = edit[7]: above the key */
+static const char *const N_NOISE_DIV[] = {"1", "2", "4", "8", "16", "32", "64", "128", 0};
+static const param_desc_t NOISE_DIV = {"DIV", F_INT, 0, 127, 0, N_NOISE_DIV, 0};      /* MOTR: edit[7], octaves down */
+static const param_desc_t NOISE_GRIT = {"GRIT", F_PCT, 0, 127, 0, 0, 0};             /* MOTR: edit[5] */
+static const param_desc_t NOISE_FDBK = {"FDBK", F_PCT, 0, 127, 0, 0, 0};             /* COMB: edit[5] */
+
+/* COMB: a delay line a voice, in the track's engine arena (engines.c); a note below its reach rings an octave
+ * (or more) up */
+#define NZ_CL 384u                                  /* 115 Hz at 44.1 kHz */
+typedef struct {
+    int16_t buf[NVOICE][NZ_CL];
+    uint16_t w[NVOICE];
+    int32_t lp[NVOICE];                             /* the loop's low-pass: the high partials die first */
+    int32_t dc[NVOICE];                             /* and its DC, kept out of the loop (it would grow 1 / (1 - FDBK)) */
+} nz_arena_t;
 
 /* Galois taps of the long registers (maximal length: 2^n - 1 clocks) */
 static const uint32_t NOISE_TAPS[8] = {0x420000u, 0x90000u, 1u << 16 | 1u << 13, 0x6000u, 0x100Du, 0x500u, 0x110u, 0x60u};
@@ -47,10 +66,11 @@ static const struct { uint32_t w[4]; uint8_t len; int16_t hi, lo; } NOISE_SEQ[8]
 static const param_desc_t *noise_desc(const track_t *t, uint32_t k)
 {
     int32_t mode = t->p[P_E0];
-    if (k == 5u && mode >= NZ_LFSR)
-        return mode == NZ_LFSR ? &NOISE_LONG : &NOISE_META;
-    if (k == 7u && mode >= NZ_LFSR)
-        return &NOISE_CLK;
+    if (k == 5u)
+        return mode == NZ_LFSR ? &NOISE_LONG : mode == NZ_META ? &NOISE_META : mode == NZ_MOTR ? &NOISE_GRIT
+             : mode == NZ_COMB ? &NOISE_FDBK : 0;
+    if (k == 7u)
+        return mode == NZ_LFSR || mode == NZ_META ? &NOISE_CLK : mode == NZ_MOTR ? &NOISE_DIV : 0;
     return 0;
 }
 
@@ -86,7 +106,14 @@ static uint32_t isqrt32(uint32_t x)
 static void noise_note_on(track_t *t, voice_t *v)
 {
     uint32_t seed = (v->note + 1u) * 0x9E3779B9u ^ (uint32_t)v->fine * 0x85EBCA6Bu;   /* UNISON: each its own */
-    (void)t;
+    if (t->p[P_E0] == NZ_COMB) {                      /* a fresh delay line */
+        nz_arena_t *A = (nz_arena_t *)eng_arena_of(t, ENGI_NOISE);
+        uint32_t vi = (uint32_t)(v - t->v) % NVOICE;
+        memset(A->buf[vi], 0, sizeof A->buf[vi]);
+        A->w[vi] = 0;
+        A->lp[vi] = 0;
+        A->dc[vi] = 0;
+    }
     v->s[0] = v->s[1] = 0;
     v->s[2] = (int32_t)(seed ? seed : 1u);
     v->s[3] = 0;                                      /* a new drift target at once */
@@ -99,12 +126,16 @@ static void noise_note_on(track_t *t, voice_t *v)
 static void noise_render(track_t *t, voice_t *v, int32_t *out, uint32_t n, const vmod_t *m)
 {
     const int16_t *p = t->p;
-    uint32_t mode = (uint32_t)p[P_E0] & 3u, sel = ((uint32_t)p[P_E5] >> 4) & 7u, i;
-    int32_t res = p[P_E3], drft = p[P_E6], crsh = mode < NZ_LFSR ? p[P_E7] : 0;
+    uint32_t mode = (uint32_t)p[P_E0] % NZ_COUNT, sel = ((uint32_t)p[P_E5] >> 4) & 7u, i;
+    int32_t res = p[P_E3], drft = p[P_E6], crsh = mode < NZ_LFSR || mode == NZ_COMB ? p[P_E7] : 0;
     int32_t ic1 = v->s[0], ic2 = v->s[1], rng = v->s[2], b0 = v->s[4], b1 = v->s[5], b2 = v->s[6], br = v->s[7];
     uint32_t ph = v->ph[0], reg = v->ph[1];         /* state in locals: out[] may alias v->s[] */
     int32_t drift = (int32_t)v->ph[2], d16 = 0, gain = 32767, gq, colr, cut, k, a1, a2, a3, g, bpg, mix, cf, thr = 0;
     uint32_t inc = 0, taps = NOISE_TAPS[sel];
+    int32_t kdec = 0, fb = 0, pq8 = 0, clp = 0, cdc = 0;       /* MOTR: a tooth's decay; COMB: feedback, delay (Q8), low-pass */
+    int16_t *cb = 0;
+    uint32_t cw = 0, vi = (uint32_t)(v - t->v) % NVOICE;
+    nz_arena_t *A = 0;
     /* drift: a new random target every 0.7..3 s, followed with a 0.7 s lag */
     if (drft) {
         int32_t tg = v->s[3] >> 16, cnt = v->s[3] & 0xFFFF;
@@ -136,7 +167,7 @@ static void noise_render(track_t *t, voice_t *v, int32_t *out, uint32_t n, const
     {   /* level: make up most of what the filter takes from white noise (less for pink and brown), +12 dB for
          * the sparse DUST, the drift's level; Q12, mk in 1/256 octave: 2^(mk / 256), at most x 16 */
         int32_t wf = 32767 - ((colr * 230) >> 8), mk = (((((127 << 8) - cut) >> 8) * 7) * wf) >> 15;
-        mk += 214 + (mode == NZ_DUST ? 512 : 0);
+        mk += 214 + (mode == NZ_DUST ? 512 : mode == NZ_MOTR ? 256 : 0);
         if (mk > 1279)
             mk = 1279;
         gq = (4096 + ((mk & 255) << 4)) << (mk >> 8);
@@ -162,6 +193,26 @@ static void noise_render(track_t *t, voice_t *v, int32_t *out, uint32_t n, const
         reg &= mask;
     } else if (mode == NZ_META) {
         inc = p[P_E7] || d16 ? noise_inc(m->pitch16 + p[P_E7] * 16 + d16) : m->inc;
+    } else if (mode == NZ_MOTR) {                     /* the teeth: DIV octaves under the key; GRIT 16 .. 2048 samples */
+        int32_t gs = 16 << (p[P_E5] / 18);
+        gs += (gs * (p[P_E5] % 18)) / 18;
+        inc = noise_inc(m->pitch16 + d16 - ((p[P_E7] >> 4) & 7) * 192);
+        kdec = 32768 / gs;
+        if (!reg)                                     /* a new note: the first tooth at once */
+            reg = 32767u;
+    } else if (mode == NZ_COMB) {                     /* the delay: one period of the key, octaves up past NZ_CL */
+        uint32_t k1 = noise_inc(m->pitch16 + d16) >> 8;
+        A = (nz_arena_t *)eng_arena_of(t, ENGI_NOISE);
+        cb = A->buf[vi];
+        cw = A->w[vi] % NZ_CL;
+        clp = A->lp[vi];
+        cdc = A->dc[vi];
+        pq8 = (int32_t)(0xFFFFFFFFu / (k1 ? k1 : 1u));
+        while (pq8 > (int32_t)((NZ_CL - 2u) << 8))
+            pq8 >>= 1;
+        if (pq8 < (2 << 8))
+            pq8 = 2 << 8;
+        fb = p[P_E5] * 255;                           /* Q15, up to 0.99 */
     }
     for (i = 0; i < n; i++) {
         int32_t w, x, v1, v2, v3, y;
@@ -184,6 +235,23 @@ static void noise_render(track_t *t, voice_t *v, int32_t *out, uint32_t n, const
             w = (reg & 1u) ? 12000 : -12000;
             break;
         }
+        case NZ_MOTR: {                               /* a tooth at each turn, every 4th the hardest */
+            uint32_t o = ph, r = noise32(&rng);
+            int32_t e = (int32_t)(reg & 0xFFFFu);
+            ph += inc;
+            if (ph < o) {
+                uint32_t c = (reg >> 16) + 1u;
+                e = (c & 3u) ? 19000 : 32767;
+                reg = c << 16;
+            }
+            w = (((int32_t)(r >> 17) - 16384) * e) >> 15;
+            e -= (e * kdec) >> 15;
+            reg = (reg & 0xFFFF0000u) | (uint32_t)(e > 0 ? e : 0);
+            break;
+        }
+        case NZ_COMB:
+            w = (int32_t)(noise32(&rng) >> 17) - 16384;
+            break;
         default: {
             uint32_t j = ((ph >> 16) * NOISE_SEQ[sel].len) >> 16;
             ph += inc;
@@ -204,6 +272,19 @@ static void noise_render(track_t *t, voice_t *v, int32_t *out, uint32_t n, const
                 br = ((br * 32580) >> 15) + ((w * 3480) >> 15);
                 x = pk + mulq15(br - pk, cf);
             }
+        }
+        if (cb) {                                     /* COMB: the line read one period back, low-passed, fed back */
+            int32_t pos = (int32_t)(cw << 8) - pq8, i0, i1, d;
+            if (pos < 0)
+                pos += (int32_t)(NZ_CL << 8);
+            i0 = pos >> 8;
+            i1 = i0 + 1 == (int32_t)NZ_CL ? 0 : i0 + 1;
+            d = cb[i0] + (((cb[i1] - cb[i0]) * (pos & 255)) >> 8);
+            clp += (d - clp) >> 1;
+            cdc += (clp - cdc) >> 9;
+            x = clamp((x >> 2) + (((clp - cdc) * fb) >> 15), -32000, 32000);
+            cb[cw] = (int16_t)x;
+            cw = cw + 1u == NZ_CL ? 0u : cw + 1u;
         }
         /* the SVF (dsp.c tsvf_lp, with the band-pass), rounded: at low cutoffs the floor of the shifts
          * walked the integrators off zero (DC) */
@@ -228,6 +309,11 @@ static void noise_render(track_t *t, voice_t *v, int32_t *out, uint32_t n, const
         }
         out[i] += voice_amp(y, m, i);
     }
+    if (A) {
+        A->w[vi] = (uint16_t)cw;
+        A->lp[vi] = clp;
+        A->dc[vi] = cdc;
+    }
     v->s[0] = ic1;
     v->s[1] = ic2;
     v->s[2] = rng;
@@ -240,7 +326,7 @@ static void noise_render(track_t *t, voice_t *v, int32_t *out, uint32_t n, const
     v->ph[2] = (uint32_t)drift;
 }
 
-/* {MODE, COLR, FREQ, RES, TRK, DENS, DRFT, CRSH / CLK} */
+/* {MODE, COLR, FREQ, RES, TRK, DENS / LEN / GRIT / FDBK, DRFT, CRSH / CLK / DIV} */
 static const preset_t NOISE_PRESETS[] = {
     {"WIND", {NZ_ANLG, 64, 70, 100, 127, 0, 70, 0}, {90, 90, 110, 90}, 0, 0, FX(0, 30, 20, 80), CAT(FX)},
     {"RAIN", {NZ_DUST, 30, 88, 80, 64, 105, 40, 0}, {10, 90, 127, 70}, 0, 0, FX(0, 0, 20, 70), CAT(FX)},
@@ -270,20 +356,35 @@ static const preset_t NOISE_PRESETS[] = {
      ARP(5, 2, 2, 40), SET({P_DTYPE, 3}), CAT(PERC)},
     {"CHAMINE", {NZ_ANLG, 110, 30, 120, 127, 0, 50, 0}, {120, 90, 127, 118}, 0, 0, FX(10, 30, 30, 100),
      ARP(7, 9, 1, 127), SET({P_AHOLD, 1}, {P_TENS, 70}, {P_TRAMP, 4}), CAT(DRONE)},
+    /* Jangada 0.9.9, the machines (MOTR) and the iron (COMB). SERRA: a saw blade, a tooth every period of the key,
+     * pitched, driven; PISTAO: pistons a few times a second, HOLD keeps the engine running; BETONEIRA: a cement
+     * mixer, slow, long scrapes, wandering, brown; ESTEIRA: a conveyor ticking along; TUBO: a pipe the noise blows
+     * through, ringing at the key; MARRETA: a sledgehammer on iron; GARGANTA: a throat of rusty pipe */
+    {"SERRA", {NZ_MOTR, 10, 105, 50, 110, 20, 15, 0}, {0, 80, 90, 40}, 0, 0, FX(50, 0, 20, 30),
+     SET({P_DTYPE, 1}), CAT(LEAD)},
+    {"PISTAO", {NZ_MOTR, 90, 60, 60, 30, 40, 25, 96}, {40, 90, 127, 90}, 0, 0, FX(30, 0, 20, 80),
+     ARP(7, 9, 1, 127), SET({P_AHOLD, 1}, {P_EVOL, 50}), CAT(DRONE)},
+    {"BETONEIRA", {NZ_MOTR, 120, 45, 80, 0, 90, 90, 80}, {90, 90, 127, 110}, 0, 0, FX(30, 20, 10, 90),
+     ARP(7, 9, 1, 127), SET({P_AHOLD, 1}), CAT(DRONE)},
+    {"ESTEIRA", {NZ_MOTR, 40, 85, 70, 64, 10, 10, 64}, {0, 80, 127, 40}, 0, 0, FX(20, 0, 30, 40), CAT(FX)},
+    {"TUBO", {NZ_COMB, 60, 100, 20, 127, 120, 20, 0}, {60, 90, 120, 90}, 0, 0, FX(0, 30, 30, 90), CAT(PAD)},
+    {"MARRETA", {NZ_COMB, 0, 110, 10, 127, 110, 0, 0}, {0, 50, 0, 50}, 0, 0, FX(60, 0, 10, 40),
+     SET({P_DTYPE, 1}), CAT(PERC)},
+    {"GARGANTA", {NZ_COMB, 100, 70, 90, 127, 100, 60, 30}, {30, 90, 127, 80}, 0, 0, FX(20, 10, 20, 70), CAT(LEAD)},
 };
 
 static const engine_t ENG_NOISE = {
     .name = "NOISE",
     .page_title = {"SRC", "MOVE"},
     .edit = {
-        {"MODE", F_ENUM, 0, 3, 0, N_NOISE_MODE, 0},
+        {"MODE", F_ENUM, 0, NZ_COUNT - 1, 0, N_NOISE_MODE, 0},
         {"COLR", F_PCT, 0, 127, 64, 0, 0},
         {"FREQ", F_CUTOFF, 0, 127, 80, 0, 0},
         {"RES", F_PCT, 0, 127, 30, 0, 0},
         {"TRK", F_PCT, 0, 127, 64, 0, 0},
-        {"DENS", F_PCT, 0, 127, 0, 0, 0},           /* LFSR, META: the register (noise_desc) */
+        {"DENS", F_PCT, 0, 127, 0, 0, 0},           /* LFSR, META: the register; MOTR GRIT; COMB FDBK (noise_desc) */
         {"DRFT", F_PCT, 0, 127, 0, 0, 0},
-        {"CRSH", F_PCT, 0, 127, 0, 0, 0},           /* LFSR, META: the clock above the key */
+        {"CRSH", F_PCT, 0, 127, 0, 0, 0},           /* LFSR, META: the clock above the key; MOTR: DIV */
     },
     .presets = NOISE_PRESETS,
     .npresets = sizeof NOISE_PRESETS / sizeof NOISE_PRESETS[0],

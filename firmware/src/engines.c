@@ -25,7 +25,9 @@ typedef union {
     fm6_note_t fm6[FM6_POLY];
     uint32_t phys[PHYS_ARENA / 4u];      /* eng_phys.c: two SYMP slots or three small ones */
     robo_part_t robo;                    /* eng_robo.c: GENDY's points, WALSH's wave */
+    nz_arena_t noise;                    /* eng_noise.c: COMB's delay lines (0.9.9) */
 } eng_arena_t;
+_Static_assert(sizeof(nz_arena_t) <= sizeof(gr_part_t), "COMB fits in the arena GRAIN already takes");
 static eng_arena_t eng_arena[NTRK] __attribute__((section(".pool")));   /* (track 4 too: G_T4 SYNTH) */
 static uint8_t eng_arena_own[NTRK];      /* the engine + 1 whose state is in it, 0 = none */
 static void *eng_arena_of(const track_t *t, uint32_t eng)
