@@ -22,6 +22,7 @@
 #define EV_CX (120 * 16)
 #define EV_CY (62 * 16)
 #define EV_R (52 * 16)                                  /* the picture's reach */
+#define EV_HW (104 * 16)                                /* a string's half length: the strip's width (issue #6) */
 static struct {
     int32_t lvl, brt, hit, prev;                        /* 0..1000: level (up at once, down slowly), brightness, a strike */
     uint32_t t, rng;
@@ -373,10 +374,10 @@ static void ev_phys(const track_t *t, uint16_t c)
         ph += ev_rnd() << 2;
     if (m == 1 || m == 3) {
         int32_t amp = a * EV_R / 1800, pos = 80 + EP(4) * 840 / 127;
-        ev_string(EV_CY - (m == 3 ? 160 : 0), EV_R * 95 / 100, amp, ph, pos, 18, c);
+        ev_string(EV_CY - (m == 3 ? 160 : 0), EV_HW, amp, ph, pos, 18, c);
         if (m == 3)                                     /* SYMP: three strings ringing along, fainter */
             for (i = 0; i < 3; i++)
-                ev_string(EV_CY + 140 + i * 130, EV_R * (80 - i * 10) / 100, amp * EP(5) / 200 + amp / 6, ph * (uint32_t)(2 + i),
+                ev_string(EV_CY + 140 + i * 130, EV_HW * (88 - i * 8) / 100, amp * EP(5) / 200 + amp / 6, ph * (uint32_t)(2 + i),
                           500, 10, mix565(c, C_BG, 40 + i * 10));
         return;
     }

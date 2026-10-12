@@ -192,52 +192,138 @@ static void draw_column(uint32_t c, const char *label, const char *val, const ch
 
 /* Matches voice.c: attack is linear, decay and release are exponential
  * (env += (target - env) * k each tick, ~99 % after the set time). Time
- * axis is the parameter value (the times themselves are exponential). */
+ * axis is the parameter value (the times themselves are exponential).
+ * Jangada 0.9.8 (issue #6): with the knobs in a row on top (ui.ev_cols) the whole strip, the shape
+ * filled, and a dot where the loudest voice of the track is on it. */
 static void graph_adsr(const track_t *t, uint16_t c)
 {
     int32_t a = 4 + t->p[P_ATK] * 50 / 127, d = 6 + t->p[P_DEC] * 50 / 127, r = 6 + t->p[P_REL] * 60 / 127;
-    int32_t top = 8, bot = 90, sus = t->p[P_SUS] * 1000 / 127;          /* 0..1000 */
-    int32_t x0 = 6, x1 = x0 + a, x3 = 232 - r, i, px, py;
+    int32_t top = ui.ev_cols ? 14 : 8, bot = ui.ev_cols ? 108 : 90, sus = t->p[P_SUS] * 1000 / 127;   /* 0..1000 */
+    int32_t x0 = 6, x1 = x0 + a, x2 = x1 + d, x3 = 232 - r, x, px = x0, py = bot, lvl = 0, best = -1, bs = 0;
     int32_t e = 32768;                                                  /* exp(-4.6 u), Q15 */
-#define EGY(lvl) (bot - (lvl) * (bot - top) / 1000)
-    cv_line(x0, bot, x1, top, c);                                       /* attack: linear */
-    px = x1;
-    py = top;
-    for (i = 1; i <= d; i++) {                                          /* decay: exponential to SUS */
-        int32_t lvl;
-        e = (e * (32768 - 150733 / d)) >> 15;           /* k^d = exp(-4.6) */
-        lvl = sus + ((1000 - sus) * e >> 15);
-        cv_line(px, py, x1 + i, EGY(lvl), c);
-        px = x1 + i;
+    uint16_t fill = mix565(c, C_BG, 78);
+    uint32_t i;
+#define EGY(l) (bot - (l) * (bot - top) / 1000)
+    for (x = x0; x <= 232; x++) {
+        if (x <= x1)                                                    /* attack: linear */
+            lvl = (x - x0) * 1000 / a;
+        else if (x <= x2) {                                             /* decay: exponential to SUS */
+            e = (e * (32768 - 150733 / d)) >> 15;                       /* k^d = exp(-4.6) */
+            lvl = sus + ((1000 - sus) * e >> 15);
+        } else if (x <= x3) {                                           /* sustain */
+            lvl = sus;
+            e = 32768;
+        } else {                                                        /* release: exponential to 0 */
+            e = (e * (32768 - 150733 / r)) >> 15;
+            lvl = sus * e >> 15;
+        }
+        if (ui.ev_cols && EGY(lvl) < bot)
+            cv_rect(x, EGY(lvl), 1, bot - EGY(lvl), fill);
+        cv_line(px, py, x, EGY(lvl), c);
+        px = x;
         py = EGY(lvl);
     }
-    cv_line(px, py, x3, EGY(sus), c);                                    /* sustain */
-    px = x3;
-    py = EGY(sus);
-    e = 32768;
-    for (i = 1; i <= r; i++) {                                          /* release: exponential to 0 */
-        e = (e * (32768 - 150733 / r)) >> 15;
-        cv_line(px, py, x3 + i, EGY(sus * e >> 15), c);
-        px = x3 + i;
-        py = EGY(sus * e >> 15);
-    }
     cv_line(0, bot + 1, 239, bot + 1, C_LINE);
+    for (i = 0; i < NVOICE && ui.ev_cols; i++)                          /* the loudest voice sounding */
+        if (t->v[i].active && t->v[i].stage && t->v[i].env > best) {
+            best = t->v[i].env;
+            bs = t->v[i].stage;
+        }
+    if (best >= 0) {
+        lvl = clamp(best >> 14, 0, 1000);                               /* Q24 -> 0..1000 */
+        x = bs == 1 ? x0 + a * lvl / 1000
+          : bs == 3 ? x3 + r * clamp(sus - lvl, 0, sus) / (sus | 1)
+          : lvl > sus + 8 ? x1 + d * (1000 - lvl) / (1000 - sus + 1) : (x2 + x3) / 2;
+        cv_rect(x, top, 1, bot - top, mix565(c, C_BG, 60));
+        cv_disc(x * 16, EGY(lvl) * 16, 56, C_WHITE);
+    }
 #undef EGY
 }
 
+/* the LFO: two cycles from its PHS; with the knobs in a row on top, the whole strip and a dot at the
+ * phase it is at (Jangada 0.9.8) */
 static void graph_lfo(const track_t *t, uint16_t c)
 {
-    int32_t x, py = 50;
+    int32_t x, yc = ui.ev_cols ? 62 : 50, amp = ui.ev_cols ? 46 : 38, py = yc;
     uint32_t ph = (uint32_t)t->p[P_LPHASE] << 25;
     for (x = 0; x < 240; x++) {                      /* (lfo_wave only reads the track) */
-        int32_t y = 50 - lfo_wave((track_t *)t, ph + (uint32_t)x * (0xFFFFFFFFu / 120u)) * 38 / 32768;
+        int32_t y = yc - lfo_wave((track_t *)t, ph + (uint32_t)x * (0xFFFFFFFFu / 120u)) * amp / 32768;
         if (t->p[P_LWAVE] == 4)
-            y = 50 - ((int32_t)((x / 20 * 2654435761u) >> 16) - 32768) * 38 / 32768;
+            y = yc - ((int32_t)((x / 20 * 2654435761u) >> 16) - 32768) * amp / 32768;
         if (x)
             cv_line(x - 1, py, x, y, c);
         py = y;
     }
-    cv_line(0, 50, 239, 50, C_LINE);
+    cv_line(0, yc, 239, yc, C_LINE);
+    if (ui.ev_cols) {
+        int32_t y = t->p[P_LWAVE] == 4 ? yc - t->lfo_val * amp / 32768 : yc - lfo_wave((track_t *)t, t->lfo_ph) * amp / 32768;
+        x = (int32_t)((t->lfo_ph - ph) / (0xFFFFFFFFu / 120u));
+        cv_disc(x * 16, y * 16, 56, C_WHITE);
+        cv_disc((x + 120) * 16, y * 16, 40, mix565(C_WHITE, C_BG, 40));
+    }
+}
+
+/* MOD 1..4 (Jangada 0.9.8, issue #6): SRC -> DST -> SOUND, the amount as a bar from the middle, and
+ * the source's shape under it, as tall as the amount (upside down when it is negative) */
+static int32_t mod_shape(const track_t *t, uint32_t src, int32_t x)   /* x 0..223 -> Q15 */
+{
+    switch (src) {
+    case 1:                                          /* LFO: two cycles */
+        return lfo_wave((track_t *)t, ((uint32_t)t->p[P_LPHASE] << 25) + (uint32_t)x * (0xFFFFFFFFu / 112u));
+    case 2: {                                        /* ENV: rise, fall to SUS, hold, let go */
+        int32_t a = 8 + t->p[P_ATK] / 3, d = 10 + t->p[P_DEC] / 3, r = 10 + t->p[P_REL] / 2, s = t->p[P_SUS] * 258;
+        return x < a ? x * 32767 / a : x < a + d ? 32767 - (32767 - s) * (x - a) / d : x < 223 - r ? s : s * (223 - x) / r;
+    }
+    case 5:                                          /* RND: a new value a note */
+        return (int32_t)(((uint32_t)(x / 28 + 1) * 2654435761u) >> 16) - 32768;
+    case 9:                                          /* DRIFT: slow, wandering */
+        return (sine_i((uint32_t)x * 19173961u) >> 1) + (sine_i((uint32_t)x * 47934903u + 0x40000000u) >> 2);
+    case 10: case 11: case 12: case 13:              /* MAC1..4: where the macro is */
+        return song.g[G_MAC1 + src - 10u] * 258;
+    default:                                         /* VEL KEY MODW AT EXPR: over their range */
+        return src ? x * 32767 / 223 : 0;
+    }
+}
+static void graph_mod(const track_t *t, uint16_t c)
+{
+    const page_t *pg = cur_page();
+    uint32_t src = (uint32_t)t->p[pg->id[0]], i;
+    int32_t amt = t->p[pg->id[2]], on = src && amt, x, py = 0, yc = 88, h;
+    uint16_t col = on ? c : C_DIM;
+    for (i = 0; i < 3u; i++) {                       /* SRC -> DST -> SOUND */
+        char v[12];
+        const char *u, *s = v;
+        int32_t bx = 4 + (int32_t)i * 80;
+        if (i < 2u) {                                /* as the knobs name them (DST: the engine's own) */
+            int16_t *vp;
+            const param_desc_t *pd = page_desc(pg, i, &vp);
+            param_format(pd, *vp, v, &u);
+        } else
+            s = "SOUND";
+        cv_card(bx, 4, 72, 30);
+        cv_text(bx + 36 - text_w(&FONT_S, s) / 2, 12, &FONT_S, s, i < 2u ? col : C_GRAY);
+        if (i < 2u) {                                /* the arrow */
+            cv_line(bx + 73, 19, bx + 79, 19, col);
+            cv_line(bx + 76, 16, bx + 79, 19, col);
+            cv_line(bx + 76, 22, bx + 79, 19, col);
+        }
+    }
+    cv_rect(8, 44, 224, 3, C_RAISE);                 /* AMT from the middle */
+    cv_rect(amt < 0 ? 120 + amt * 112 / 64 : 120, 44, amt < 0 ? -amt * 112 / 64 : amt * 112 / 63, 3, col);
+    cv_rect(120, 42, 1, 7, C_GRAY);
+    h = 2 + (amt < 0 ? -amt : amt) * 26 / 64;
+    cv_line(8, yc, 231, yc, C_LINE);
+    for (x = 0; x < 224; x++) {
+        int32_t y = yc - mod_shape(t, src, x) * h / 32768 * (amt < 0 ? -1 : 1);
+        if (x)
+            cv_line(7 + x, py, 8 + x, y, col);
+        py = y;
+    }
+    if (src == 1u && on) {                           /* the LFO: where it is */
+        uint32_t d = t->lfo_ph - ((uint32_t)t->p[P_LPHASE] << 25);
+        x = (int32_t)(d / (0xFFFFFFFFu / 112u));
+        cv_disc((8 + x) * 16, (yc - lfo_wave((track_t *)t, t->lfo_ph) * h / 32768 * (amt < 0 ? -1 : 1)) * 16, 48, C_WHITE);
+    }
 }
 
 static void graph_steps(const track_t *t, uint16_t c)
@@ -430,6 +516,13 @@ static uint32_t str_hash(uint32_t h, const char *s)
 
 /* Jangada 0.7 (after SLOOP 2.4): a page without a graph shows its values large (graph_big) */
 static int big_page(const page_t *pg) { return pg->graph == GR_NONE && pg->scope != SC_STEP && pg->scope != SC_TRK; }
+/* the knobs as a row of circles on top, a picture under them: an engine's EDIT pages (0.9.7), ENV, LFO and
+ * MOD 1..4 (0.9.8, issue #6); not on the drum track */
+static int row_page(const page_t *pg)
+{
+    return !is_drum(TSEL) && ((pg->scope == SC_ENGINE && big_page(pg)) || pg->graph == GR_ADSR || pg->graph == GR_LFO ||
+                              pg->graph == GR_MOD);
+}
 static uint32_t graph_signature(void)
 {
     const page_t *pg = cur_page();
@@ -437,8 +530,8 @@ static uint32_t graph_signature(void)
     uint32_t h = 2166136261u, i;
     if (ui.home)
         return h ^ (ui.frame / 2u);                  /* scope: redraw every other frame */
-    if (big_page(pg) && pg->scope == SC_ENGINE && !is_drum(t))
-        h ^= ui.frame / 2u;                          /* Jangada 0.9.7: the engine's picture moves (ui_eng.c) */
+    if (row_page(pg))
+        h ^= ui.frame / 2u;                          /* Jangada 0.9.7: the engine's picture moves (ui_eng.c); 0.9.8: ENV LFO MOD */
     if (big_page(pg))                                /* the big values: as the columns show them */
         for (i = 0; i < 4u; i++)
             h = str_hash(str_hash(str_hash(h ^ ui.big_c[i] * 31u ^ (uint32_t)ui.big_r[i] * 7919u ^ ui.big_i[i] * 104729u ^ ui.big_k[i] * 15485863u,
@@ -951,7 +1044,7 @@ static void draw_graph(void)
         return;
     ui.graph_sig = sig;
     cv_begin(240, H_GRAPH, C_BG);
-    card = ui.home || drum_note || (pg->graph != GR_NONE && pg->graph != GR_ARP);   /* (ARP: no graph) */
+    card = ui.home || drum_note || (pg->graph != GR_NONE && pg->graph != GR_ARP && !(ui.ev_cols && row_page(pg)));   /* (ARP: no graph) */
     if (card)                                        /* the graph's card (rows Y_GRAPH .. + 122) */
         cv_card(2, 0, 236, H_GRAPH - 1);
     cv_clip(4, 2, 236, H_GRAPH - 3);
@@ -965,10 +1058,18 @@ static void draw_graph(void)
     } else {
         switch (pg->graph) {
         case GR_ADSR:
+            if (ui.ev_cols)
+                cv_oy = 0;
             graph_adsr(t, c);
             break;
         case GR_LFO:
+            if (ui.ev_cols)
+                cv_oy = 0;
             graph_lfo(t, c);
+            break;
+        case GR_MOD:
+            cv_oy = 0;
+            graph_mod(t, c);
             break;
         case GR_STEPS:
             graph_steps(t, c);
@@ -1012,7 +1113,7 @@ static void draw_graph(void)
         }
     }
     top = !ui.home && !drum_note && (pg->graph == GR_BROWSE || pg->graph == GR_SLOTS || pg->graph == GR_USER ||
-                                     big_page(pg));   /* these draw from the top */
+                                     pg->graph == GR_MOD || big_page(pg) || (ui.ev_cols && row_page(pg)));   /* these draw from the top */
     cv_oy = 0;
     cv_noclip();
     /* graphs keep out of the top G_OY rows: skip them unless something is (or was) there */
@@ -1114,7 +1215,7 @@ static void draw_columns(void)
     uint32_t c;
     char val[12];
     const char *unit;
-    ui.ev_cols = (uint8_t)(!ui.home && cur_page()->scope == SC_ENGINE && big_page(cur_page()) && !is_drum(TSEL));
+    ui.ev_cols = (uint8_t)(!ui.home && row_page(cur_page()));
     if (ui.home) {
         for (c = 0; c < 4u; c++) {
             int16_t *vp;

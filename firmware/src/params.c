@@ -381,7 +381,7 @@ enum { FAM_HOME, FAM_ENV, FAM_LFO, FAM_FX, FAM_SCL, FAM_EDIT, FAM_GLO, FAM_SAVE,
        FAM_COUNT };
 enum { SC_TRACK, SC_GLOBAL, SC_ENGINE, SC_STEP, SC_TRK };   /* SC_TRK: the TRACKS page (ui_input.c tracks_edit) */
 enum { GR_NONE, GR_ADSR, GR_LFO, GR_STEPS, GR_ARP, GR_SCALE, GR_FX, GR_ROLL, GR_BROWSE, GR_SLOTS, GR_USER, GR_TRK,
-       GR_SLCR, GR_DRONE, GR_VIVO };
+       GR_SLCR, GR_DRONE, GR_VIVO, GR_MOD };
 
 typedef struct {
     const char *title;
@@ -397,10 +397,10 @@ static const page_t PAGES[] = {
     {"LFO", FAM_LFO, SC_TRACK, GR_LFO, {P_LRATE, P_LWAVE, P_LPHASE, P_LFADE}},
     {"LFO 2", FAM_LFO, SC_TRACK, GR_NONE, {P_LSYNC, P_LTRIG, P_LPOL, 0xFF}},   /* Jangada 0.9.7 (after Felucca 1.4) */
     {"LFO DEST", FAM_LFO, SC_TRACK, GR_NONE, {P_LD_PIT, P_LD_FLT, P_LD_SHP, P_LD_AMP}},
-    {"MOD 1", FAM_LFO, SC_TRACK, GR_NONE, {P_M1SRC, P_M1DST, P_M1AMT, 0xFF}},   /* Jangada: matrix */
-    {"MOD 2", FAM_LFO, SC_TRACK, GR_NONE, {P_M2SRC, P_M2DST, P_M2AMT, 0xFF}},
-    {"MOD 3", FAM_LFO, SC_TRACK, GR_NONE, {P_M3SRC, P_M3DST, P_M3AMT, 0xFF}},
-    {"MOD 4", FAM_LFO, SC_TRACK, GR_NONE, {P_M4SRC, P_M4DST, P_M4AMT, 0xFF}},
+    {"MOD 1", FAM_LFO, SC_TRACK, GR_MOD, {P_M1SRC, P_M1DST, P_M1AMT, 0xFF}},   /* Jangada: matrix */
+    {"MOD 2", FAM_LFO, SC_TRACK, GR_MOD, {P_M2SRC, P_M2DST, P_M2AMT, 0xFF}},
+    {"MOD 3", FAM_LFO, SC_TRACK, GR_MOD, {P_M3SRC, P_M3DST, P_M3AMT, 0xFF}},
+    {"MOD 4", FAM_LFO, SC_TRACK, GR_MOD, {P_M4SRC, P_M4DST, P_M4AMT, 0xFF}},
     {"MACRO", FAM_LFO, SC_GLOBAL, GR_NONE, {G_MAC1, G_MAC2, G_MAC3, G_MAC4}},   /* Jangada 0.8: the matrix's MAC1..4 */
     {"FX", FAM_FX, SC_TRACK, GR_FX, {P_DIST, P_CHOR, P_DLY, P_REV}},
     {"DIST", FAM_FX, SC_TRACK, GR_NONE, {P_DTYPE, P_DIST, P_DRING, P_TFLT}},   /* Jangada GRIT: TYPE, DIST, FREQ (RING); the
