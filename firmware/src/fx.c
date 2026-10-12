@@ -1005,7 +1005,7 @@ static void click_add(int32_t *out, uint32_t n)   /* (audio.c, after the USB tap
         out[2u * i] += x;
         out[2u * i + 1u] += x;
         blip.ph += blip.inc;
-        blip.env -= blip.env >> 9;
+        blip.env -= (blip.env >> 9) + 1;           /* (+ 1: under 512 the shift is 0 and the blip rang on forever) */
     }
 }
 

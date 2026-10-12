@@ -404,6 +404,8 @@ int main(void)
         run(1);
         song.g[G_CLICK] = 0;
         song.rec = 0;
+        run((uint32_t)FS / CTL);                                /* 0.9.9: a second after the last blip, silence */
+        ok(blip.env < 64, "CLICK: the blip dies away (no tone left behind)");
     }
     {   /* Jangada 0.9.7 LFO 2 SYNC: playing, the phase locked to the beat (1/4: a cycle a beat, 0 on each beat); POL UNI */
         track_t *t = &trk[0];
