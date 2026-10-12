@@ -480,7 +480,13 @@ KIT_FIRST = ["RUST", "FORGE", "PISTON", "HURT", "MANGUE"]
 # Notes of MANGUE: 36 alfaia, 43 alfaia meiao, 35 zabumba, 38 caixa, 40 bacalhau, 37 tamanco (rim),
 # 42 / 46 triangulo closed / open, 70 ganza, 51 / 53 gongue low / high, 56 / 75 agogo, 63 / 48 cuica,
 # 39 palmas.
+# Every beat has its virada ("fill": FILL, GLO + 9 held or key 10 for the next bar). "c": a step's chance,
+# 1..3 = 75 / 50 / 25 % (SF_CHANCE). GM notes on the other kits: 35 / 36 kick, 37 rim, 38 / 40 snare, 39 clap,
+# 42 / 44 / 46 hat closed / pedal / open, 41 43 45 low toms, 47 48 50 high toms, 49 crash, 51 ride, 53 its
+# bell, 54 tambourine, 56 cowbell, 60 / 61 bongos, 62 / 63 / 64 congas (mute / open / low), 65 timbale,
+# 67 agogo, 69 cabasa, 70 maracas, 75 clave, 76 woodblock, 78 cuica, 80 triangle.
 BEATS = [
+    # ---- the Jangada kits' own
     ("MARACATU", "MANGUE", {                    # baque virado: alfaias, caixa in 16ths, gongue, ganza
         36: "X..X..X...X.X...",
         43: "........X.....X.",
@@ -489,19 +495,22 @@ BEATS = [
         38: "XXXXXXXXXXXXXXXX",
         70: "XXXXXXXXXXXXXXXX",
         "v": "A46945958494A486",
-        "r": ".......2.......2"}),
+        "r": ".......2.......2",
+        "fill": {"keep": "XXXXXXXXX.X.X.X."}}),         # the parada: the alfaias answer alone
     ("BAIAO", "MANGUE", {                       # zabumba (grave and bacalhau) and triangulo
         35: "X..X....X..X....",
         40: "..X...X...X...X.",
         42: "XX.XXX.XXX.XXX.X",
         46: "..X...X...X...X.",
-        "v": "A4895484A4895484"}),
+        "v": "A4895484A4895484",
+        "fill": {"keep": "XXXXXXXXX..X..XX"}}),
     ("COCO", "MANGUE", {                        # zabumba, palmas, tamancos, ganza
         35: "X.....X.X.....X.",
         39: "....X..X....X..X",
         37: "..XX......XX....",
         70: "XXXXXXXXXXXXXXXX",
-        "v": "A4799498A4799498"}),
+        "v": "A4799498A4799498",
+        "fill": {"keep": "XXXXXXXX.X.X.XXX"}}),
     ("GRIND", "RUST", {                         # the industrial march
         36: "X.....X.X..X....",
         38: "....X.......X...",
@@ -509,7 +518,9 @@ BEATS = [
         40: "...............X",
         51: "..........X.....",
         "v": "A363A383938AA367",
-        "r": "..............2."}),
+        "r": "..............2.",
+        "fill": {38: ".........X...X..", 43: ".......X........",
+                 "v": ".......8.9...A..", "r": ".........3...4.."}}),
     ("ANVIL", "FORGE", {                        # hammer, anvil, chains
         36: "X.......X..X....",
         38: "....X.......X...",
@@ -517,7 +528,9 @@ BEATS = [
         56: "..X.......X....X",
         51: "X...............",
         42: "...X...X...X...X",
-        "v": "A585A585A585A585"}),
+        "v": "A585A585A585A585",
+        "fill": {36: ".........X......", 43: ".....X.......X..", 38: ".X..............",
+                 "v": ".6...8...A...A..", "r": ".............3.."}}),
     ("ENGINE", "PISTON", {                      # pistons, ticks, valves, a relay
         36: "X...X...X...X...",
         35: "..X.......X.....",
@@ -527,40 +540,401 @@ BEATS = [
         38: "....X.......X...",
         39: "...............X",
         "v": "A4759484A4759486",
-        "r": ".......2.......3"}),
+        "r": ".......2.......3",
+        "fill": {"keep": "XXXXXXXXXXXXX..X"}}),         # the engine stalls, a relay restarts it
     ("FRAGILE", "HURT", {                       # a heartbeat, breaths, a music box
         36: "X.........X.....",
         38: "....X.......X...",
         42: "..X...X...X...X.",
         56: "X......X........",
         43: "............X...",
-        "v": "7.3.5.34..6.5.3."}),
+        "v": "7.3.5.34..6.5.3.",
+        "fill": {36: ".........X......", 43: ".............X..", 41: "...............X",
+                 "v": ".........6...5.4"}}),         # the heart skips
+    # ---- Brasil (on the MANGUE kit)
+    ("IJEXA", "MANGUE", {                       # afoxe: agogo, zabumba, tamanco, ganza
+        75: "X.X.....X.X.....",
+        56: "....X.X.....X.X.",
+        35: "X......X..X.....",
+        37: "...X......X..X..",
+        70: "X.XXX.XXX.XXX.XX",
+        "v": "A5795697A5795697",
+        "fill": {43: ".X...X...X......", "v": ".6...7...8......"}}),
+    ("SAMBA", "MANGUE", {                       # surdo on 2, tamborim, caixa, ganza
+        35: "....X.......X...",
+        36: "X.......X.......",
+        37: "X..X..X.X.X..X..",
+        38: "..XX.XX...XX.XX.",
+        70: "XXXXXXXXXXXXXXXX",
+        "v": "8567A5679567A576",
+        "fill": {"keep": "XXXXXXXXXXXXX.XX"}}),
+    ("XOTE", "MANGUE", {                        # zabumba, bacalhau, triangulo: the forro's slow one
+        35: "X.......X..X....",
+        40: "....X.......X...",
+        42: "X.XXX.XXX.XXX.XX",
+        46: ".X...X...X...X..",
+        "v": "A457A457A457A457",
+        "fill": {"keep": "XXXXXXXXXXXX...X"}}),
+    ("FREVO", "MANGUE", {                       # caixa in 16ths, surdo, the fast march
+        36: "X...X...X...X...",
+        35: "..X.......X.....",
+        38: "XXXXXXXXXXXXXXXX",
+        39: "....X.......X...",
+        "v": "A496A496A496A49A",
+        "r": "...2...2...2...3",
+        "fill": {"keep": "XXXXXXXXXXXXX..X"}}),
+    ("FUNK", "MANGUE", {                        # tamborzao: the baile's alfaia and caixa
+        36: "X..X..X...X..X..",
+        38: "....X.X.....X...",
+        39: "....X.......X...",
+        42: "X.X.X.X.X.X.X.X.",
+        "v": "A47A8A47A47AA47.",
+        "fill": {36: ".X.......X......", 38: "...........X...X",
+                 "v": ".7.......9.A...A", "r": "...........2...3"}}),
+    # ---- dark, industrial
+    ("CORRODE", "RUST", {                       # the march rusting: late kicks, a broken hat
+        36: "X......X..X.....",
+        40: "....X.......X...",
+        42: "X.X...X.X.X...X.",
+        51: "...X.......X....",
+        "v": "A.5.A.6799A.A.6.",
+        "c": "..1...1...2...1.",
+        "fill": {40: ".........X...X.X", 43: ".....X..........",
+                 "v": ".....8...7...9.A", "r": ".............3.4"}}),
+    ("FOUNDRY", "FORGE", {                      # slow hammers, a chain dragged
+        36: "X.......X.......",
+        38: "....X.......X...",
+        56: "..X...X...X...X.",
+        39: ".......X......X.",
+        "v": "A.8.A.8A9.8.A.AA",
+        "r": ".......3........",
+        "fill": {36: ".........X.X....", 43: ".X.X............",
+                 "v": ".7.8.....9.A....", "r": "...........2...."}}),
+    ("TURBINE", "PISTON", {                     # a turbine winding up in 16ths
+        36: "X..X..X...X..X..",
+        42: "XXXXXXXXXXXXXXXX",
+        75: "..X.......X.....",
+        38: "....X.......X...",
+        "v": "A345A345A345A345",
+        "c": ".2.2.2.2.2.2.2.2",
+        "fill": {"keep": "XXXXXXXXXXXXXX.."}}),
+    ("WOUND", "HURT", {                         # a heart that stumbles, breath, a bell far off
+        36: "X..X......X.....",
+        38: "........X.......",
+        42: "..X...X.....X...",
+        56: "...............X",
+        "v": "8.5.3.4.7.6.4..5",
+        "c": "......1.....2...",
+        "fill": {43: ".....X.......X..", 41: ".............X..", 36: ".........X......",
+                 "v": ".....5...6...7.."}}),
+    ("DESCENT", "RUST", {                       # halftime, falling toms
+        36: "X.........X.....",
+        38: "........X.......",
+        42: "X.X.X.X.X.X.X.X.",
+        46: "......X.........",
+        "v": "A.5.6.7.A.5.6.5.",
+        "fill": {50: ".......X........", 47: ".........X......", 45: "...........X....",
+                 43: ".............X..", 41: "...............X", "keep": "XXXXXXXXX.XX.X.X",
+                 "v": ".......A.A.9.8.7"}}),
+    # ---- one for each kit, in the browser's order
+    ("HIPHOP", "808", {
+        36: "X..X......X..X..",
+        38: "....X.......X...",
+        42: "X.X.X.X.X.X.X.X.",
+        "v": "A.5AA.6.7.A5A.6.",
+        "fill": {38: ".........X.X...X", "v": ".........6.7...A", "r": "...............2"}}),
+    ("CLUB", "909", {                           # four to the floor
+        36: "X...X...X...X...",
+        39: "....X.......X...",
+        42: "..X...X...X...X.",
+        54: "......X.......X.",
+        "v": "A5859585A5859587",
+        "fill": {38: ".........X.X.X.X",
+                 "v": ".........5.6.8.A", "r": ".............2.3"}}),
+    ("ACID", "606", {
+        36: "X...X...X...X...",
+        38: "....X.......X..X",
+        42: "XX.XXX.XXX.XXX..",
+        46: "..X...X...X...X.",
+        "v": "A575A575A575A57A",
+        "c": ".1...1...1...1..",
+        "fill": {"keep": "XXXXXXXXXXXXX..X"}}),
+    ("POP80", "80S", {
+        36: "X.......X.X.....",
+        38: "....X.......X...",
+        39: "....X.......X...",
+        42: "X.X.X.X.X.X.X.X.",
+        "v": "A.6.A.6.9.8.A.6.",
+        "fill": {48: ".........X.X....", 45: ".............X..", 41: "...............X",
+                 "v": ".........9.8.8.A"}}),
+    ("SLOWROCK", "VINTAGE", {                   # the rhythm box's own
+        36: "X.....X.X.......",
+        37: "....X.......X...",
+        69: "X.X.X.X.X.X.X.X.",
+        62: "...X.......X....",
+        "v": "A.5.A.8.8.5.A.5.",
+        "fill": {37: ".............X.X", 63: ".........X......", "v": ".........7...9.A",
+                 "r": "...............3"}}),
+    ("TRAP", "TRAP", {                          # half time, rolling hats
+        36: "X......X..X.....",
+        39: "........X.......",
+        42: "X.X.X.X.X.X.X.X.",
+        "v": "A.6.7.8A9.A.7.8.",
+        "r": "......2.......4.",
+        "fill": {42: ".........X.X.X.X", 39: "...............X",
+                 "v": ".........6.7.8.A", "r": ".........3.2.4.."}}),
+    ("DRILL", "DRILL", {                        # sliding kicks, the late snare
+        36: "X......X..X...X.",
+        38: "....X......X....",
+        42: "X..X..X...X..X..",
+        "v": "A.7A9.6A.6A9.7A.",
+        "fill": {38: "........XX.....X", "v": "........78.....A", "r": "........23......"}}),
+    ("BOOMBAP", "BOOMBAP", {
+        36: "X......X.XX.....",
+        38: "....X.......X...",
+        42: "X.X.X.X.X.X.X.X.",
+        "v": "A.5.A.57A6A.A.6.",
+        "c": "......1.........",
+        "fill": {38: "...........X.X.X", "v": "...........7.8.9"}}),
+    ("LOFI", "LO-FI", {                         # lazy, behind the beat
+        36: "X......X..X.....",
+        37: "....X.......X...",
+        42: "X.X.X.X.X.X.X.X.",
+        "v": "8.4.8.47.4A.8.4.",
+        "c": "..2.....2.....2.",
+        "fill": {37: ".............X.X", 36: "...........X....", "v": "...........6.7.8"}}),
+    ("PHONK", "PHONK", {                        # cowbell melody over a dirty 808
+        36: "X..X......X.....",
+        39: "....X.......X...",
+        56: "X.X..X.X..X..X.X",
+        42: ".X.X.X.X.X.X.X.X",
+        "v": "A6A7A7A6A6A7A7A6",
+        "fill": {"keep": "XXXXXXXXXXXX.X.X"}}),
+    ("HOUSE", "HOUSE", {
+        36: "X...X...X...X...",
+        39: "....X.......X...",
+        46: "..X...X...X...X.",
+        42: ".X.X.X.X.X.X.X.X",
+        "v": "A49.A49.A49.A49.",
+        "fill": {"keep": "XXXXXXXXXXXXX.X."}}),
+    ("DEEP", "D.HOUSE", {
+        36: "X...X...X...X...",
+        37: "...X.......X..X.",
+        42: "..X...X...X...X.",
+        70: ".X...X...X...X..",
+        "v": "A.8.A.8.A.8.A.8.",
+        "c": ".2...2...2...2..",
+        "fill": {37: ".......X.......X", "keep": "XXXXXXXXXXXXX.XX", "v": ".......6.......8"}}),
+    ("TECHNO", "TECHNO", {
+        36: "X...X...X...X...",
+        42: "..X...X...X...X.",
+        51: ".X.X.X.X.X.X.X.X",
+        39: "....X.......X...",
+        "v": "A.9.A.9.A.9.A.9.",
+        "c": ".1.1.1.1.1.1.1.1",
+        "fill": {"keep": "XXXXXXXXXXXXX..."}}),
+    ("MINIMAL", "MINIMAL", {
+        36: "X...X...X...X...",
+        37: "......X.......X.",
+        42: "..X.......X.....",
+        76: ".X.......X...X..",
+        "v": "A.7.A.6.A.7.A.6.",
+        "c": ".1.......2...1..",
+        "fill": {37: "...........X...X", "v": "...........5...7"}}),
+    ("ELECTRO", "ELECTRO", {                    # the 808 funk: syncopated kicks
+        36: "X......X..X.....",
+        38: "....X.......X...",
+        42: "X.XXX.XXX.XXX.XX",
+        39: "...............X",
+        "v": "A.5AA.6A8.A5A.6A",
+        "fill": {"keep": "XXXXXXXXXXXXXX.X"}}),
+    ("DISCO", "DISCO", {
+        36: "X...X...X...X...",
+        39: "....X.......X...",
+        46: "..X...X...X...X.",
+        42: "X...X...X...X...",
+        "v": "A.9.A.9.A.9.A.9.",
+        "fill": {48: ".........X......", 45: "...........X....", 41: ".............X..",
+                 "v": ".........9.8.8.."}}),
+    ("2STEP", "GARAGE", {                       # the skipping kick
+        36: "X.........X.....",
+        38: "....X.......X...",
+        42: "X.XXX.X.X.XXX.X.",
+        37: ".......X......X.",
+        "v": "A.5AA.6.9.A5A.6.",
+        "fill": {36: ".....X...X......", "v": ".....8...8......"}}),
+    ("JUNGLE", "JUNGLE", {                      # a break chopped at 170
+        36: "X.........X.....",
+        38: "....X..X.X..X...",
+        42: "X.X.X.X.X.X.X.X.",
+        40: "..............X.",
+        "v": "A.6.A.6A7A9.A.8.",
+        "c": ".......1........",
+        "fill": {38: ".X.X.........X.X", "v": ".6.7.........9.A", "r": "...............2"}}),
+    ("DUBSTEP", "DUBSTEP", {                    # half time at 140
+        36: "X.........X.....",
+        38: "........X.......",
+        42: "X.X.X.X.X.X.X.X.",
+        "v": "A.5.6.5.A.5.A.5.",
+        "fill": {38: ".............X.X", 36: "...........X....", "v": "...........9.A.A",
+                 "r": ".............2.4"}}),
+    ("DEMBOW", "DEMBOW", {                      # the reggaeton tresillo
+        36: "X...X...X...X...",
+        38: "...X..X....X..X.",
+        42: "X.X.X.X.X.X.X.X.",
+        "v": "A.6AA.A.A.6AA.A.",
+        "fill": {38: ".........X...X.X", "v": ".........8...9.A"}}),
+    ("AMAPIANO", "AMAPIANO", {                  # the log drum's space, shakers
+        36: "X...X...X...X...",
+        37: "...X......X.....",
+        70: "XXXXXXXXXXXXXXXX",
+        39: "......X.......X.",
+        "v": "A453A453A453A453",
+        "c": ".2.2.2.2.2.2.2.2",
+        "fill": {"keep": "XXXXXXXXXXXXX..."}}),
+    ("AFRO", "AFRO", {                          # afrobeats: the bell and the congas
+        36: "X......X..X.....",
+        37: "...X..X.......X.",
+        56: "X.X.XX.X.XX.X.X.",
+        63: "......X.......X.",
+        "v": "A.7AA6A.8A6.A.A.",
+        "fill": {62: ".X.........X.X.X", "v": ".6.........7.8.A"}}),
+    ("LATIN", "LATIN", {                        # clave 3-2, congas, cowbell
+        75: "X..X..X...X.X...",
+        62: "..X...X...X...X.",
+        63: "...X.......X.XX.",
+        56: "X...X...X...X...",
+        36: "X.......X.......",
+        "v": "A.6A7.A.A.A6A.A.",
+        "fill": {65: ".X...X...X......", 66: ".......X.......X",
+                 "v": ".7...8.9.A.....A"}}),
+    ("TRIBAL", "TRIBAL", {                      # toms and a low drum
+        36: "X.....X...X.....",
+        43: "..X.......X..X..",
+        48: "....X..X....X...",
+        70: "X.X.X.X.X.X.X.X.",
+        "v": "A.7.A.AA7.A.A6..",
+        "fill": {45: ".X.X.X..........", 41: ".........X.X...X",
+                 "v": ".6.7.8...9.A...A"}}),
+    ("DRIVE", "SYNTHWV", {                      # the 80s highway: gated snare
+        36: "X...X...X...X...",
+        38: "....X.......X...",
+        42: "X.X.X.X.X.X.X.X.",
+        "v": "A.6.A.6.A.6.A.6.",
+        "fill": {50: ".........X......", 47: "...........X....", 43: ".............X..",
+                 41: "...............X", "v": ".........A.9.9.A"}}),
+    ("CHIP", "CHIP", {
+        36: "X.......X.X.....",
+        38: "....X.......X...",
+        42: "..X...X...X...X.",
+        "v": "A...A.8.A.A.A.8.",
+        "fill": {38: ".........X.X.X.X", "v": ".........9.A.A.A", "r": ".............2.3"}}),
+    ("ARCADE", "ARCADE", {
+        36: "X..X..X...X.....",
+        38: "....X.......X...",
+        42: "X.X.X.X.X.X.X.X.",
+        56: "...............X",
+        "v": "A6.7A.8.8.AA.A.A",
+        "fill": {48: ".........X......", 45: "...........X....", 41: ".............X..",
+                 "keep": "XXXXXXXXXXXXXXXX", "v": ".........A.A.A.."}}),
+    ("GLITCH", "GLITCH", {                      # stutters and gaps
+        36: "X..X.....X.X....",
+        38: "....X.......X...",
+        42: "XX..X.XX.X..X.XX",
+        "v": "A6.7A.68.A.AA.67",
+        "r": ".2....3.......4.",
+        "c": ".1....2.......1.",
+        "fill": {38: "..X..X..X.X..X..", "keep": "XXXXXXXXXXXXXX.X",
+                 "v": "..9..A..A.A..A..", "r": "..4..2..3.2..4.."}}),
+    ("EBM", "INDUSTR", {                        # body music: 16th bass drum push
+        36: "X...X...X...X...",
+        38: "....X.......X...",
+        42: "..X...X...X...X.",
+        40: ".......X......X.",
+        "v": "A.8.A.8AA.8.A.AA",
+        "fill": {36: ".X.X.X..........", 38: ".........X.X.X.X",
+                 "v": ".7.8.9...8.9.A.A", "r": ".............2.3"}}),
+    ("HYPER", "HYPER", {
+        36: "X......X..X.....",
+        39: "....X.......X...",
+        42: "X.XXX.XXX.XXX.XX",
+        "v": "A.6AA.6A9.A6A.6A",
+        "r": "...2.......2...3",
+        "fill": {"keep": "XXXXXXXXXXXX...X"}}),
+    ("DRIFT", "AMBIENT", {                      # almost nothing
+        36: "X.........X.....",
+        37: "......X.........",
+        70: "..X.......X...X.",
+        80: "X.......X.......",
+        "v": "6.3.....5.5.4.3.",
+        "c": "..2...1...2...3.",
+        "fill": {37: ".............X..", 43: "...............X", "v": ".............4.5"}}),
+    ("SWING", "JAZZ", {                         # ride, feathered kick, the hats on 2 and 4
+        51: "X...X..XX...X..X",
+        44: "....X.......X...",
+        36: "X.......X.......",
+        37: "..............X.",
+        "v": "7...8..5A...8.45",
+        "c": "..............2.",
+        "fill": {38: "..X..X...X.X.X..", "v": "..4..5...5.6.7.."}}),
 ]
 
 
+FC_NORM, FC_FILL, FC_NOFILL = 0, 1, 2                                   # core.h FC_*
+
+
 def beat_rows(name, rows):
-    notes, vel, flags = [[] for _ in range(16)], [0] * 16, [0] * 16
-    for k, r in rows.items():
-        assert len(r) == 16, (name, k)
-        if isinstance(k, int):
-            for i, c in enumerate(r):
-                if c != ".":
-                    notes[i].append(k)
+    """A beat's steps: the notes the bar and its virada play, the velocity, the flags and the conditions.
+    "fill": the virada (FILL: GLO + 9 held, key 10 for the next bar). Its note rows add hits on the bar's
+    rests; "keep" ("X" = the bar's step plays in the virada too, "." = it is silent there; default all X).
+    A step is one set of notes: where both hit, they hit the same."""
+    def hits(rr):
+        ns = [[] for _ in range(16)]
+        for k, r in rr.items():
+            if isinstance(k, int):
+                assert len(r) == 16, (name, k)
+                for i, c in enumerate(r):
+                    if c != ".":
+                        ns[i].append(k)
+        return ns
+    a = hits(rows)
+    f = [list(x) for x in a]
+    fill = rows.get("fill")
+    if fill:
+        assert all(len(r) == 16 for k, r in fill.items() if k != "keep" and isinstance(r, str)), name
+        fb, keep = hits(fill), fill.get("keep", "X" * 16)
+        assert len(keep) == 16, name
+        for i in range(16):
+            f[i] = fb[i] or (a[i] if keep[i] == "X" else [])
+    assert f != a, (name, "a virada like the bar")
+    notes, vel, flags, cond = [[] for _ in range(16)], [0] * 16, [0] * 16, 0
     for i in range(16):
+        if sorted(a[i]) == sorted(f[i]):
+            notes[i], c = a[i], FC_NORM
+        elif not f[i]:
+            notes[i], c = a[i], FC_NOFILL
+        else:
+            assert not a[i], (name, "the bar and its virada both hit, differently, on step", i + 1, a[i], f[i])
+            notes[i], c = f[i], FC_FILL
+        cond |= c << (2 * i)
         assert len(notes[i]) <= 4, (name, i, notes[i])
-        v = rows.get("v", "." * 16)[i]
+        src = fill if c == FC_FILL and fill else rows                   # a virada's own steps: its own v / r / c
+        v = src.get("v", rows.get("v", "." * 16))[i]
         if v == "A":
             vel[i], flags[i] = 127, 1                                   # SF_ACCENT
         elif v != ".":
             vel[i] = 14 * int(v)
         else:
             vel[i] = 96
-        r = rows.get("r", "." * 16)[i]
+        r = src.get("r", "." * 16)[i]
         if r != ".":
             flags[i] |= (int(r) - 1) << 3                               # SF_RATCH
+        ch = src.get("c", "." * 16)[i]
+        if ch != ".":
+            flags[i] |= int(ch) << 5                                    # SF_CHANCE: 1..3 = 75 50 25 %
         if not notes[i]:
             vel[i], flags[i] = 0, 0
-    return notes, vel, flags
+    return notes, vel, flags, cond
 
 
 def beats_c():
@@ -568,9 +942,9 @@ def beats_c():
     L = [f"#define DS_NBEATS {len(BEATS)}u", "static const dbeat_t DS_BEATS[DS_NBEATS] = {"]
     for name, kitname, rows in BEATS:
         assert len(name) <= 8 and kitname in names, name
-        notes, vel, flags = beat_rows(name, rows)
+        notes, vel, flags, cond = beat_rows(name, rows)
         L.append(f'    {{"{name}", {{' + ", ".join("{" + ", ".join(str(n) for n in ns) + "}" for ns in notes) + "},")
-        L.append("     {" + ", ".join(map(str, vel)) + "}, {" + ", ".join(map(str, flags)) + "}},")
+        L.append("     {" + ", ".join(map(str, vel)) + "}, {" + ", ".join(map(str, flags)) + f"}}, 0x{cond:08X}u}},")
     L.append("};")
     L.append("#define DS_BEAT_NAME_LIST " + ", ".join(f'"{b[0]}"' for b in BEATS))
     first = [names.index(n) + 1 for n in KIT_FIRST]

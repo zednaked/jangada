@@ -286,6 +286,8 @@ static void load_beat(uint32_t b)
         s->vel = n ? bt->vel[i] : 0;
     }
     memset(&t->x, 0, sizeof t->x);                  /* (as load_pat16) */
+    for (i = 0; i < 16u; i++)                       /* the virada: steps only in the fill, or never in it */
+        step_cond_set(t, i, bt->cond >> (2u * i) & 3u);
     t->p[P_SLEN] = 16;
     pat_sig[TRK_DRUM] = seq_sig(t);
     drums.beat = (int16_t)(b % DS_NBEATS + 1u);

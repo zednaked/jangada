@@ -102,7 +102,7 @@ FM-1, e nada sai do seu navegador.
 | **Vozes e trilhas** | 8 vozes por 4 trilhas (3 synths + bateria, ou 4 synths) |
 | **Parâmetros** | 16 por motor, matriz de modulação de 4 slots com 13 origens (4 delas knobs de macro) |
 | **Presets** | 145 de fábrica (45 escuros, drones, industriais e nordestinos da Jangada), 32 de usuário, 72 patches FM6 (8 + dois bancos de 32) |
-| **Bateria** | 5 kits da Jangada + 32 sintetizados + GM; 7 batidas de fábrica |
+| **Bateria** | 5 kits da Jangada + 32 sintetizados + GM; 49 batidas de fábrica, cada uma com a sua virada |
 | **Sequencer** | 64 passos por trilha, acordes, ratchet, chance, velocidade, acento, slide, swing; **VIVO** (Euclides, chance com memória, ciclos, autômato celular); arp com 13 modos até 4 compassos; metrônomo e contagem |
 | **Efeitos** | distorção (5 tipos) e INSERT (8 tipos) por trilha, SLICER, chorus, delay, 3 reverbs, DUST / DUCK / FILT / TAPE / HUM no master, 16 punch-ins |
 | **Ao vivo** | 5 camadas (segurar um botão), MOMENTARY (segurar LFO), REV / ECHO THROW, drones com HOLD, EVOL, TENS, RAMP |
@@ -146,7 +146,8 @@ e confere o SHA-256 do que baixou.
    evoluindo sozinho. Toque ARP até a página **DRONE** e gire **TENS**. **Segure ARP** para soltar o
    drone; segure de novo para calar as caudas.
 2. **O mangue.** ALGORITHM até a trilha 4, PRESETS até o kit **MANGUE**: a batida de maracatu já vem
-   junto. Aperte PLAY. Em **GLO → KIT**, o knob BEAT troca para baião ou coco.
+   junto. Aperte PLAY. Em **GLO → KIT**, o knob BEAT troca para baião, coco, ijexá, samba, xote, frevo
+   ou funk. Segure **GLO + 9** e a batida faz a virada dela.
 3. **Sujeira.** Segure **FX**: as teclas brancas viram 16 efeitos (loops, reverse, tape stop…) e os
    knobs viram FILT, DUST, DUCK e TAPE.
 4. **Mix ao vivo.** Segure **GLO**: teclas 1–4 mute, 5–8 solo, 9 segurada uma virada, 10 o próximo
@@ -177,8 +178,9 @@ solte, e ele continua respirando sozinho, inclusive enquanto você toca outras t
 ### Mangue e Nordeste
 - Kit **MANGUE**: alfaia e meião, zabumba e bacalhau, caixa de maracatu, gonguê grave e agudo, agogô,
   cuíca que sobe, ganzá, triângulo (o fechado abafa o aberto), palmas e tamanco, com o peso do mangue.
-- **Batidas de fábrica** (GLO → KIT, knob **BEAT**): **MARACATU** (baque virado), **BAIAO**, **COCO**.
-  Num kit da Jangada com a trilha de bateria vazia, a batida dele já vem junto; sobre um padrão seu,
+- **Batidas de fábrica** (GLO → KIT, knob **BEAT**): **MARACATU** (baque virado), **BAIAO**, **COCO**,
+  **IJEXA** (afoxé), **SAMBA**, **XOTE**, **FREVO** e **FUNK** (tamborzão), todas no kit MANGUE.
+  Num kit com a trilha de bateria vazia, a batida dele já vem junto; sobre um padrão seu,
   o BEAT pede uma segunda volta do knob.
 - Escala **NORD** (SCL): mixolídio com a 4ª aumentada, o modo nordestino. NORD ou MIX no baião, DOR no
   xote e na toada.
@@ -207,7 +209,15 @@ solte, e ele continua respirando sozinho, inclusive enquanto você toca outras t
   **RUST** (industrial seco: bumbo distorcido, caixa com gate, hats esmagados), **FORGE** (bigorna,
   correntes, chapas), **PISTON** (estalos, vapor, válvulas), **HURT** (baixo, abafado, respirado) e
   **MANGUE**, cada um com a sua batida (**GRIND**, **ANVIL**, **ENGINE**, **FRAGILE**, maracatu).
-- Mais 32 kits sintetizados (808, 909, TECHNO, INDUSTR, GLITCH, DUBSTEP, JUNGLE…) e o kit GM sampleado.
+  Mais cinco escuras para eles: **CORRODE**, **FOUNDRY**, **TURBINE**, **WOUND** e **DESCENT**.
+- Mais 32 kits sintetizados (808, 909, TECHNO, INDUSTR, GLITCH, DUBSTEP, JUNGLE…) e o kit GM sampleado,
+  cada kit sintetizado com a sua batida (HIPHOP, CLUB, ACID, TRAP, DRILL, BOOMBAP, LOFI, PHONK, HOUSE,
+  DEEP, TECHNO, ELECTRO, 2STEP, JUNGLE, DUBSTEP, DEMBOW, AMAPIANO, AFRO, LATIN, EBM, SWING…).
+- **Viradas:** toda batida de fábrica traz a sua. Segure **GLO + 9** (ou GLO + 10 para o próximo
+  compasso) e ela toca no lugar do compasso: os passos dela são passos com condição FILL / NO
+  FILL, então dá para editá-los na camada SEQ. Alguns passos têm chance (75–25 %), para a batida
+  respirar.
+- O knob BEAT acelera quando é girado rápido.
 - **Trilha 4: DRUM ou SYNTH** (TRACKS, knob 1 TYPE): vira uma quarta parte de synth.
 
 ### Motores

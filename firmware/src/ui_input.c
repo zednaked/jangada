@@ -366,7 +366,7 @@ static void edit_param(uint32_t slot, int32_t steps)
             return;
         }
         ui.arm = 0;
-        v = clamp(*vp + (steps > 0 ? 1 : -1), 1, d->max);
+        v = clamp(*vp + accel(EN_K1 + slot, steps, d->max - d->min), 1, d->max);
         load_beat((uint32_t)v - 1u);
         ui_say("BEAT ", d->names[v]);
         return;

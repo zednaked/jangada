@@ -320,6 +320,7 @@ int main(void){
    song.g[G_KIT] = 0; track_defaults_steps(TDRUM);
    edit_param(0, 1); assert(!strcmp(DRUM_KIT_NAMES[drum_kit()], "RUST") && drum_kit() == DRUM_KITS - 5u);
    assert(drums.beat && !strcmp(DS_BEATS[drums.beat - 1].name, "GRIND") && td->step[0].n == 2 && td->step[0].note[0] == 36);
+   assert(step_cond(td, 9) == FC_FILL && step_cond(td, 0) == FC_NORM);                 /* GRIND's virada */
    edit_param(0, 1); assert(!strcmp(DRUM_KIT_NAMES[drum_kit()], "FORGE") && !strcmp(DS_BEATS[drums.beat - 1].name, "ANVIL"));
    TDRUM->step[1].n = 1; TDRUM->step[1].note[0] = 49; TDRUM->step[1].time = ST_NOTE;   /* the user's now */
    edit_param(0, 1); assert(!strcmp(DRUM_KIT_NAMES[drum_kit()], "PISTON") && td->step[1].note[0] == 49);
@@ -327,7 +328,7 @@ int main(void){
    edit_param(3, 1); assert(!strcmp(DS_BEATS[drums.beat - 1].name, "ENGINE") && td->step[1].note[0] == 42);
    edit_param(0, 1); edit_param(0, 1); assert(!strcmp(DRUM_KIT_NAMES[drum_kit()], "MANGUE"));
    assert(!strcmp(DS_BEATS[drums.beat - 1].name, "MARACATU"));
-   edit_param(0, 1); assert(drum_kit() == 1u && !strcmp(DS_BEATS[drums.beat - 1].name, "MARACATU"));   /* 808: no beat of its own */
+   edit_param(0, 1); assert(drum_kit() == 1u && !strcmp(DS_BEATS[drums.beat - 1].name, "HIPHOP"));     /* 808: its own too */
    song.g[G_KIT] = 1; edit_param(0, -1); assert(!strcmp(DRUM_KIT_NAMES[drum_kit()], "MANGUE"));
    song.g[G_KIT] = 0; edit_param(0, -1); assert(drum_kit() == 0u);                     /* the knob stops at GM */
    song.t4 = 1; edit_param(3, 1); assert(!strcmp(DS_BEATS[drums.beat - 1].name, "MARACATU")); song.t4 = 0;

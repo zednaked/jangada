@@ -103,7 +103,7 @@ and nothing leaves your browser.
 | **Voices and tracks** | 8 voices over 4 tracks (3 synths + drums, or 4 synths) |
 | **Parameters** | 16 per engine, a 4-slot modulation matrix with 13 sources (4 of them macro knobs) |
 | **Presets** | 145 factory (45 dark, drone, industrial and northeastern ones by Jangada), 32 user, 72 FM6 patches (8 + two banks of 32) |
-| **Drums** | 5 Jangada kits + 32 synthesised + GM; 7 factory beats |
+| **Drums** | 5 Jangada kits + 32 synthesised + GM; 49 factory beats, each with its own fill |
 | **Sequencer** | 64 steps per track, chords, ratchet, chance, velocity, accent, slide, swing; **VIVO** (Euclid, chance with memory, cycles, a cellular automaton); 13 arp modes up to 4 bars; metronome and count-in |
 | **Effects** | per-track distortion (5 types) and INSERT (8 types), SLICER, chorus, delay, 3 reverbs, DUST / DUCK / FILT / TAPE / HUM on the master, 16 punch-ins |
 | **Live** | 5 layers (hold a button), MOMENTARY (hold LFO), REV / ECHO THROW, drones with HOLD, EVOL, TENS, RAMP |
@@ -147,7 +147,8 @@ checks the SHA-256 of what it downloaded.
    evolving on its own. Tap ARP until the **DRONE** page and turn **TENS**. **Hold ARP** to let the
    drone go; hold it again to cut the tails.
 2. **The mangue.** ALGORITHM to track 4, PRESETS to the **MANGUE** kit: its maracatu beat comes with
-   it. Press PLAY. In **GLO → KIT**, the BEAT knob switches to baião or coco.
+   it. Press PLAY. In **GLO → KIT**, the BEAT knob switches to baião, coco, ijexá, samba, xote, frevo
+   or funk. Hold **GLO + 9** and the beat plays its fill.
 3. **Grit.** Hold **FX**: the white keys become 16 effects (loops, reverse, tape stop…) and the knobs
    become FILT, DUST, DUCK and TAPE.
 4. **Live mix.** Hold **GLO**: keys 1–4 mute, 5–8 solo, 9 held a fill, 10 the next bar a fill, the last
@@ -179,8 +180,9 @@ and it keeps breathing on its own, even while you play the other tracks.
 - **MANGUE** kit: alfaia and its middle drum, zabumba and its bacalhau stick, maracatu snare, low and
   high gonguê, agogô, rising cuíca, ganzá, triangle (closed chokes open), claps and tamanco, with the
   mangue's weight.
-- **Factory beats** (GLO → KIT, **BEAT** knob): **MARACATU** (baque virado), **BAIAO**, **COCO**. A
-  Jangada kit on an empty drum track brings its beat along; over a pattern of yours, BEAT asks for a
+- **Factory beats** (GLO → KIT, **BEAT** knob): **MARACATU** (baque virado), **BAIAO**, **COCO**,
+  **IJEXA** (afoxé), **SAMBA**, **XOTE**, **FREVO** and **FUNK** (tamborzão), all on the MANGUE kit. A
+  kit on an empty drum track brings its beat along; over a pattern of yours, BEAT asks for a
   second turn of the knob.
 - **NORD** scale (SCL): mixolydian with a raised 4th, the northeastern mode. NORD or MIX for baião, DOR
   for xote and toada.
@@ -207,8 +209,15 @@ and it keeps breathing on its own, even while you play the other tracks.
 - Jangada's kits, first in the list (PRESETS on the drum track, or GLO → KIT): **RUST** (dry
   industrial: distorted kick, gated snare, crushed hats), **FORGE** (anvil, chains, plates), **PISTON**
   (clicks, steam, valves), **HURT** (low, muffled, breathy) and **MANGUE**, each with its beat
-  (**GRIND**, **ANVIL**, **ENGINE**, **FRAGILE**, maracatu).
-- 32 more synthesised kits (808, 909, TECHNO, INDUSTR, GLITCH, DUBSTEP, JUNGLE…) and the sampled GM kit.
+  (**GRIND**, **ANVIL**, **ENGINE**, **FRAGILE**, maracatu), and five more dark ones for them:
+  **CORRODE**, **FOUNDRY**, **TURBINE**, **WOUND** and **DESCENT**.
+- 32 more synthesised kits (808, 909, TECHNO, INDUSTR, GLITCH, DUBSTEP, JUNGLE…) and the sampled GM kit,
+  each synthesised kit with its own beat (HIPHOP, CLUB, ACID, TRAP, DRILL, BOOMBAP, LOFI, PHONK, HOUSE,
+  DEEP, TECHNO, ELECTRO, 2STEP, JUNGLE, DUBSTEP, DEMBOW, AMAPIANO, AFRO, LATIN, EBM, SWING…).
+- **Fills:** every factory beat brings its own. Hold **GLO + 9** (or GLO + 10 for the next bar) and it
+  plays in place of the bar: its steps are steps with a FILL / NO FILL condition, so they can be
+  edited on the SEQ layer. Some steps have a chance (75–25 %), so the beat breathes.
+- The BEAT knob speeds up when turned fast.
 - **Track 4: DRUM or SYNTH** (TRACKS, knob 1 TYPE): it becomes a fourth synth part.
 
 ### Engines

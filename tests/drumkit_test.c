@@ -65,6 +65,9 @@ static void put_beat(uint32_t b)
         s->flags = DS_BEATS[b].flags[i];
         s->vel = DS_BEATS[b].vel[i];
     }
+    memset(&TDRUM->x, 0, sizeof TDRUM->x);
+    for (i = 0; i < 16u; i++)
+        step_cond_set(TDRUM, i, DS_BEATS[b].cond >> (2u * i) & 3u);
     TDRUM->p[P_SLEN] = 16;
 }
 
@@ -264,8 +267,15 @@ int main(void)
                     printf("beat %s on %s: peak %d\n", DS_BEATS[b].name, DRUM_KIT_NAMES[kit], pk);
                     bad++;
                 }
+                fill_held = 1;                      /* its virada (FILL held): plays, differs, no clip */
+                pk = play(4, 0);
+                fill_held = 0;
+                if (pk >= 32700 || pk < 2000 || !DS_BEATS[b].cond) {
+                    printf("beat %s on %s, virada: peak %d\n", DS_BEATS[b].name, DRUM_KIT_NAMES[kit], pk);
+                    bad++;
+                }
             }
-        printf("%-46s %s\n", "beats: every beat on its kit and on GM", bad ? "FAIL" : "ok");
+        printf("%-46s %s\n", "beats: every beat and its virada, kit and GM", bad ? "FAIL" : "ok");
         fails += bad;
     }
     if (getenv("KIT_DEMOS"))

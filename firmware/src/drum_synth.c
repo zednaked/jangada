@@ -47,7 +47,8 @@ typedef struct {
 typedef struct {                 /* Jangada: a factory beat for the drum track (16 steps of GM notes) */
     const char *name;
     uint8_t note[16][4];         /* up to 4 hits a step, 0 = none */
-    uint8_t vel[16], flags[16];  /* step_t vel and flags (SF_ACCENT, SF_RATCH) */
+    uint8_t vel[16], flags[16];  /* step_t vel and flags (SF_ACCENT, SF_RATCH, SF_CHANCE) */
+    uint32_t cond;               /* 2 bits a step: FC_* (the fill, GLO + 9 / key 10: the beat's own virada) */
 } dbeat_t;
 #include "felucca_drumkits.h"    /* DS_KITS[], DS_NKITS; Jangada: DS_BEATS[], DS_KIT_NAV[], DS_KIT_BEAT[]
                                   * (tools/gen_drumkits.py) */
