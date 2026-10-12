@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-only
 # Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments
-"""Download the CC0 samples used by the SAMPLE engine into assets/samples-cc0/.
+"""Download the CC0 samples used by the PERC kit into assets/samples-cc0/ (Jangada 0.9.8: the
+melodic sets are its own now, tools/gen_sets.py).
 
 The files are already in the tree; this re-creates them from the source:
   https://github.com/sgossner/VSCO-2-CE  (CC0 1.0)
@@ -22,13 +23,6 @@ VCSL = "VCSL"
 VSCO = "VSCO-2-CE"
 # set: (repo, directory, [filename regexes, one file per regex, first match wins])
 PICK = {
-    "PIANO": (VCSL, "Chordophones/Zithers/Grand Piano, Kawai/Sustains",
-              [r"_C1_v2_rr1", r"_C2_v2_rr1", r"_C3_v2_rr1", r"_C4_v2_rr1", r"_C5_v2_rr1"]),
-    "TRANH": (VCSL, "Chordophones/Zithers/Dan Tranh/Normal",
-              [r"^B1_mf_1", r"^F#2_mf_1", r"^C#3_mf_1", r"^G#3_mf_1", r"^D#4_mf_1", r"^B4_mf_1"]),
-    "FLUTE": (VSCO, "Woodwinds/Flute/susvib", [r"_C4_v1_1", r"_C5_v1_1", r"_C6_v1_1"]),
-    "SAX": (VCSL, "Aerophones/Reed Aerophones/Tenor Saxophone/Non-Vibrato",
-            [r"_A#1_vl2_rr1", r"_A#2_vl2_rr1", r"_A#3_vl2_rr1"]),
     "KIT": (VCSL, None, [
         ("Idiophones/Struck Idiophones/Tambourine 1", r"Tamb1_Hit_v2"),
         ("Idiophones/Struck Idiophones/Shaker, Small", r"ShakerDouble_Down_rr1"),

@@ -57,10 +57,11 @@ Build options (environment, `0` or `1`; defaults in `firmware/src/felucca.c`):
 
 ## Samples
 
-The CC0 instrument samples that the SAMPLE engine uses are in `assets/samples-cc0/`
-(Versilian Studios, see `ATTRIBUTION.txt` there). `tools/fetch_cc0.py` downloads them
-again from the source repositories. Without that folder the build still works and the
-SAMPLE engine has only the generated drum kit.
+The SAMPLE and GRAIN sets are Jangada's own, synthesized at build time by `tools/gen_sets.py`
+(IRON, WIRE, TABLE, MOTOR); the drum sounds come from `tools/gen_waves.py`. The PERC kit adds
+CC0 hand percussion from `assets/samples-cc0/KIT` (Versilian Studios, see `ATTRIBUTION.txt`
+there); `tools/fetch_cc0.py` downloads it again from the source repositories. Without that
+folder the build still works and PERC has only the generated drums.
 
 ## Tests
 

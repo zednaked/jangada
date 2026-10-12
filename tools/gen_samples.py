@@ -8,8 +8,9 @@ from the WAV 'smpl' chunk; the ADPCM state at the loop start is stored so loops
 restart exactly.
 
 Sources:
-  assets/samples-cc0/   Versilian Studios samples (CC0): PIANO, TRANH, FLUTE, SAX,
-                        and hand percussion for the GM kit
+  gen_sets.py           Jangada's own sets, synthesized: IRON, WIRE, TABLE, MOTOR (0.9.8: in the
+                        places of the CC0 PIANO, TRANH, FLUTE, SAX, so a saved SET keeps its number)
+  assets/samples-cc0/   Versilian Studios samples (CC0): hand percussion for the GM kit
   gen_waves.py          Felucca's own drum sounds (the Hügelton Sample Pack)
 One SAMPLE preset is written per set.
 
@@ -28,8 +29,9 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import gen_sets  # noqa: E402
 import sampleio as sio  # noqa: E402
-from sampleio import detect_hz, hz_to_midi, ima_encode, key_split, onset, peak, read_any_wav, resample  # noqa: E402
+from sampleio import ima_encode, key_split, onset, peak, read_any_wav, resample  # noqa: E402
 
 SRC = Path(__file__).resolve().parents[1]
 GENDIR = SRC / "build" / "genwav"
@@ -37,14 +39,8 @@ CACHE = SRC / "build" / "gen_samples.cache"
 CC0 = SRC / "assets" / "samples-cc0"
 TR = 22050                                   # stored sample rate
 
-# set -> kind ("oneshot" decaying, "sus" looped sustain, "kit" one sample per key).
+# set kinds: "oneshot" decaying, "sus" looped sustain, "kit" one sample per key.
 # The other slots are user sets loaded from the web editor.
-CC0_SETS = [("PIANO", "oneshot"), ("TRANH", "oneshot"), ("FLUTE", "sus"), ("SAX", "sus"), ("KIT", "kit")]
-MEASURED_TUNING = ("TRANH",)                 # recordings not at A440 (the dan tranh is ~+35 ct)
-
-KIT_BASE = 53                     # F3, the lowest FM-1 key
-
-NOTE = {"C": 0, "C#": 1, "D": 2, "D#": 3, "E": 4, "F": 5, "F#": 6, "G": 7, "G#": 8, "A": 9, "A#": 10, "B": 11}
 
 # GM drum map (General MIDI percussion, channel 10): role -> [(lo, hi, root)].
 # One sample can serve several GM notes; a range is pitched around its root.
@@ -73,7 +69,7 @@ BREAK_HITS = [(0, "kick", 1.0), (0, "chh", 0.55), (2, "kick", 0.7), (2, "chh", 0
 SLC_GRID, SLC_AUTO = 128, 32                 # eng_slice.c slc_src_t
 
 # Jangada 0.8.1: the category of each factory set's preset (core.h PC_*); a set not named here: none (or PERC, a kit)
-SET_CAT = {"PIANO": "KEYS", "TRANH": "PLUCK", "FLUTE": "LEAD", "SAX": "LEAD", "PERC": "PERC"}
+SET_CAT = {"IRON": "PLUCK", "WIRE": "PLUCK", "TABLE": "PAD", "MOTOR": "DRONE", "PERC": "PERC"}
 
 ENV = {"wave":(5, 80, 100, 50), "kit": (0, 127, 127, 60), "multi": (0, 85, 0, 75),
        "oneshot": (0, 127, 127, 70), "sus": (12, 80, 120, 60)}
@@ -82,67 +78,10 @@ _wavs = {}
 
 
 def wav(path):
-    """read_any_wav, once per file and run (the CC0 pass reads every file twice)"""
+    """read_any_wav, once per file and run"""
     if path not in _wavs:
         _wavs[path] = read_any_wav(path)
     return _wavs[path]
-
-
-def name_note(name):
-    """'_C#3' in a CC0 file name -> (octave, pitch class)"""
-    m = re.search(r"_([A-G]#?)(-?\d)", name)
-    return (int(m.group(2)), NOTE[m.group(1)]) if m else None
-
-
-def cc0_entries(setname, kind):
-    """-> [(file name, int16 samples at TR, loop or None, root)]"""
-    files = sorted((CC0 / setname).glob("*.wav"))
-    out = []
-    if kind != "kit":
-        # octave convention of this set (C4 = 60 or C3 = 60): YIN votes, the names give the notes
-        votes = {1: 0, 2: 0}
-        for p in files:
-            nn = name_note(p.name)
-            if not nn:
-                continue
-            sr, x = wav(p)
-            det = hz_to_midi(detect_hz(x[onset(x):], sr))
-            for o in (1, 2):
-                if abs(det - ((nn[0] + o) * 12 + nn[1])) < 1.0:
-                    votes[o] += 1
-        conv = 2 if votes[2] >= votes[1] else 1
-    for k, p in enumerate(files):
-        sr, x = wav(p)
-        x = x[max(0, onset(x) - 16):]
-        nn = name_note(p.name)
-        if kind == "kit":
-            root = KIT_BASE + k
-        elif nn:
-            root = (nn[0] + conv) * 12 + nn[1]
-            if setname in MEASURED_TUNING:              # tuned off A440: the measured pitch near the named note
-                det = hz_to_midi(detect_hz(x, sr))
-                if abs(det - root) < 1.0:
-                    root = det
-        else:
-            root = hz_to_midi(detect_hz(x, sr))
-        x = resample(x, sr, TR)
-        keep = {"oneshot": 1.0, "sus": 0.95, "kit": 0.6}[kind]
-        x = x[:int(keep * TR)]
-        n = len(x)
-        if kind == "sus":                            # crossfaded sustain loop in the steady part
-            ls, le, xf = int(0.40 * TR), n - 1, int(0.06 * TR)
-            for i in range(xf):
-                a = i / xf
-                x[le - xf + i] = x[le - xf + i] * (1 - a) + x[ls - xf + i] * a
-            loop = (ls, le)
-        else:
-            fade = int(0.08 * TR)
-            for i in range(fade):
-                x[n - fade + i] *= 1 - i / fade
-            loop = None
-        pk = peak(x)
-        out.append((p.name, [int(v * 30000 / pk) for v in x], loop, root))
-    return out
 
 
 def gm_role(name):
@@ -274,15 +213,15 @@ class Builder:
         self.sets.append(("PERC", z0, len(self.zones) - z0))
         self.kinds["PERC"] = "kit"
 
-    def cc0_set(self, name, kind):
-        entries = []
-        for k, (_, s, loop, root) in enumerate(cc0_entries(name, kind)):
+    def gen_set(self, name, kind, entries):
+        """a gen_sets.py set: (int16 samples, loop or None, root)"""
+        out = []
+        for s, loop, root in entries:
             ls, le = loop if loop else (len(s), len(s))
             off, st = self.add(s, ls)
-            entries.append(dict(off=off, n=len(s), ls=ls, le=le, looped=bool(loop), sr=TR,
-                                root16=int(round(root * 16)), pred=st[0], idx=st[1],
-                                key=KIT_BASE + k if kind == "kit" else None))
-        self.add_set(name, kind, entries)
+            out.append(dict(off=off, n=len(s), ls=ls, le=le, looped=bool(loop), sr=gen_sets.TR,
+                            root16=int(round(root * 16)), pred=st[0], idx=st[1]))
+        self.add_set(name, kind, out)
 
     def header(self):
         zones, sets, blob = self.zones, self.sets, self.blob
@@ -318,10 +257,10 @@ class Builder:
             cat = SET_CAT.get(name, "PERC" if k == "kit" else None)   # Jangada 0.8.1: the PRESETS filter
             cat = f", CAT({cat})" if cat else ""
             L.append(f'    {{"{name}", {{{i}, 0, 0, {loop}, 127, 0, 0, 0}}, {{{a}, {d}, {s_}, {r}}}, 0, 0{cat}}},')
-        piano = next((i for i, (n, _, _) in enumerate(named) if n == "PIANO"), None)
-        if piano is not None:                    # Jangada: dark piano textures (after the set presets)
-            L.append(f'    {{"QUIET KEYS", {{{piano}, 0, 0, 1, 80, 0, 0, 0}}, {{0, 127, 127, 90}}, 0, 0, FX(0, 10, 45, 100), CAT(KEYS)}},')
-            L.append(f'    {{"BROKEN KEY", {{{piano}, -12, 90, 1, 70, 0, 60, 0}}, {{0, 127, 127, 70}}, 0, 0, FX(40, 0, 50, 70), CAT(KEYS)}},')
+        idx = {n: i for i, (n, _, _) in enumerate(named)}
+        if "IRON" in idx and "MOTOR" in idx:     # Jangada 0.9.8: textures of its own sets (after the set presets)
+            L.append(f'    {{"SCRAP BELL", {{{idx["IRON"]}, -12, 40, 0, 90, 0, 50, 0}}, {{0, 127, 127, 80}}, 0, 0, FX(30, 0, 40, 90), CAT(PERC)}},')
+            L.append(f'    {{"ENGINE ROOM", {{{idx["MOTOR"]}, -12, 0, 1, 70, 0, 70, 0}}, {{40, 90, 127, 90}}, 0, 0, FX(20, 30, 30, 110), CAT(DRONE)}},')
         L.append("};")
         names = ", ".join(f'"{n}"' for n, _, _ in named)
         L.append("#define SMP_SET_NAMES_INIT " + names)
@@ -354,7 +293,7 @@ def input_key(have_cc0):
     """hash of everything the header depends on"""
     h = hashlib.sha256()
     here = Path(__file__).resolve().parent
-    for p in (here / "gen_samples.py", here / "sampleio.py"):
+    for p in (here / "gen_samples.py", here / "gen_sets.py", here / "sampleio.py"):
         h.update(p.read_bytes())
     h.update(repr((sys.version_info[:2], have_cc0, os.environ.get("FELUCCA_SLICE") == "1")).encode())   # sum() differs across versions
     files = sorted(GENDIR.glob("*.wav"))
@@ -381,10 +320,8 @@ def main(out):
     except (OSError, ValueError):
         pass
     b = Builder()
-    if have_cc0:
-        for name, kind in CC0_SETS:
-            if kind != "kit":                       # the CC0 KIT feeds the GM kit
-                b.cc0_set(name, kind)
+    for name, kind, make in gen_sets.SETS:          # Jangada's own, first: the numbers of the old CC0 sets
+        b.gen_set(name, kind, make())
     b.gm_kit(have_cc0)
     if os.environ.get("FELUCCA_SLICE") == "1":       # SLICE's BREAK: only when that engine is built
         b.slice_break()                             # last: the sets' offsets stay as they were

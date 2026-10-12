@@ -2,7 +2,9 @@
  * Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments */
 /* GRAIN: a granular engine over the SAMPLE material. Felucca's own design.
  *
- * Source: the SAMPLE sets (built in, IMA ADPCM in flash) and the user slots USR1..3 (XIP), the
+ * Source: the SAMPLE sets (built in, IMA ADPCM in flash; Jangada 0.9.8: its own, synthesized by
+ * tools/gen_sets.py: IRON, WIRE, TABLE (a wavetable sweep: POS walks the timbre), MOTOR; and PERC)
+ * and the user slots USR1..3 (XIP), the
  * same zones across the keyboard as SAMPLE: a note picks its zone, its pitch sets the grain
  * playback rate against the zone's root. Needs eng_sample.c (zones, ADPCM tables, pow2_q16).
  *
@@ -431,8 +433,8 @@ static const preset_t GRAIN_PRESETS[] = {
     /* Jangada: drones */
     {"DRONE DUST", {2, 50, 100, 120, -12, 90, 70, 70}, {110, 90, 127, 118}, 0, 0, FX(20, 30, 50, 120), ARP(7, 9, 1, 127),
      SET({P_AHOLD, 1}, {P_LRATE, 7}, {P_M1SRC, 1}, {P_M1DST, 4}, {P_M1AMT, 30}), CAT(DRONE)},
-    /* Jangada DRONES that evolve (drone.c): ash of a piano, an octave down; the walks wander through the
-     * recording (SHP moves POS) and the grain size, the tension thickens and scatters it over 8 bars */
+    /* Jangada DRONES that evolve (drone.c): ash of a struck plate (IRON), an octave down; the walks wander
+     * through the sound (SHP moves POS) and the grain size, the tension thickens and scatters it over 8 bars */
     {"CINZA", {0, 60, 110, 100, -12, 70, 40, 60}, {120, 90, 127, 120}, 0, 0, FX(15, 40, 45, 125), ARP(7, 9, 1, 127),
      SET({P_AHOLD, 1}, {P_EVOL, 127}, {P_TENS, 80}, {P_TRAMP, 4}), CAT(DRONE)},
 };

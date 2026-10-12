@@ -40,7 +40,7 @@ assets, is entirely governed by the GPL.
 
 | What | Licence | Where |
 | --- | --- | --- |
-| Instrument samples (Versilian Studios VSCO-2 CE, VCSL) | CC0 1.0 | `assets/samples-cc0/`, provenance in `ATTRIBUTION.txt` there |
+| Hand percussion samples of the PERC kit (Versilian Studios VCSL) | CC0 1.0 | `assets/samples-cc0/`, provenance in `ATTRIBUTION.txt` there |
 | Inter Tight (Copyright 2022 The Inter Project Authors, <https://github.com/rsms/inter>): the firmware's UI font, rasterised at build time by `tools/gen_aa_font.py` (after Felucca 1.0) | SIL OFL 1.1 | `assets/fonts/InterTight[wght].ttf`, `assets/fonts/OFL-InterTight.txt`, `LICENSES/OFL-InterTight.txt` |
 | Fukiai icon font (Hügelton Instruments): the firmware's parameter icons, rasterised at build time by `tools/gen_aa_icons.py` (after Felucca 1.0), and the web editor | MIT | `assets/fonts/fukiai.ttf` (the version of Felucca 1.0), `web/fukiai.ttf`, `LICENSES/MIT-Fukiai.txt`, `web/FUKIAI-LICENSE.txt` |
 | Terminus font 8x16 (ter-u16n): only the README banner (`tools/make_banner.py`); the firmware no longer uses it | SIL OFL 1.1 | `assets/fonts/ter-u16n.bdf`, `assets/fonts/Terminus-LICENSE.txt` |
