@@ -704,12 +704,13 @@ static void ui_input(void)
     if (vis_shown() && (s = panel_enc(EN_SELECT)) != 0)
         vis_select(s);                              /* the visualiser: SELECT its style */
     if ((s = panel_enc(EN_SELECT)) != 0) {          /* SELECT knob = global tempo, with GLO held (0.9.8, issue #4: */
-        if (layer_now() == LY_MIX) {                /* a stray turn no longer changes the whole rhythm) */
+        if (layer_now() == LY_MIX || (ui.home && !layer_now())) {   /* a stray turn on a page no longer changes */
+                                                    /* the whole rhythm); 0.9.9: alone on HOME too */
             song.g[G_BPM] = (int16_t)clamp(song.g[G_BPM] + accel(EN_SELECT, s, 200), GP[G_BPM].min, GP[G_BPM].max);
             ui.bpm_t = 40;                          /* the header's BPM lights up; no message over the header */
             ly.used = 1;                            /* (GLO let go: no tap) */
         } else {
-            ui_message("BPM: GLO + SELECT");
+            ui_message("BPM: HOME, OR GLO + SELECT");
         }
     }
     if (layer_now()) {                                  /* Jangada: a layer has the knobs */

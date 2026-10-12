@@ -191,7 +191,9 @@ int main(void){
     * locks it open, as HOME while held */
    int16_t bpm = song.g[G_BPM]; uint32_t pr, g = 1u << panel.btn[B_GLO];
    ly.btn = ly.lock = 0; ui.menu = 0; ui.confirm = 0; panel = PANEL_DEFAULT; fm1_in.buttons = 0; ui.home = 1;
-   enc_turn(EN_SELECT, 3); ui_input(); assert(song.g[G_BPM] == bpm);           /* alone: nothing */
+   enc_turn(EN_SELECT, 3); ui_input(); assert(song.g[G_BPM] > bpm);            /* 0.9.9: alone on HOME, yes */
+   song.g[G_BPM] = bpm; ui.home = 0;
+   enc_turn(EN_SELECT, 3); ui_input(); assert(song.g[G_BPM] == bpm);           /* alone on a page: nothing */
    ly.lock = LY_MIX; enc_turn(EN_SELECT, 3); ui_input(); assert(song.g[G_BPM] > bpm);
    ly.lock = 0; song.g[G_BPM] = bpm; ly.tap_btn = 0;
    fm1_ms = 5000; pr = g; fm1_in.buttons = g; layers_input(&pr, fm1_ms);       /* tap ... */
@@ -205,7 +207,7 @@ int main(void){
    fm1_ms += 900; pr = g; fm1_in.buttons = g; layers_input(&pr, fm1_ms);
    fm1_ms += 100; pr = 0; fm1_in.buttons = 0; layers_input(&pr, fm1_ms); assert(!ly.lock);
    ly.btn = ly.lock = 0; ui.home = 0;
-   printf("%-46s ok\n", "GLO + SELECT: BPM; a double tap locks a layer");
+   printf("%-46s ok\n", "SELECT: BPM on HOME, else GLO + SELECT; 2 taps lock");
  }
  /* engine layer */
  layer_key(LY_ENGINE,key_of_white(6),1,0); assert(t->eng_req==6);

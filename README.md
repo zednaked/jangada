@@ -294,7 +294,7 @@ inside it.
 | Hold | Keys | Knobs 1 · 2 · 3 · 4 |
 |---|---|---|
 | **FX** | the 16 punch-in effects; black keys **F#3 REV THROW**, **G#3 ECHO THROW** | FILT · DUST · DUCK · TAPE |
-| **GLO** | 1–4 mute, 5–8 solo, 9 held = a fill, 10 = the next bar a fill, 14 = MIDI LEARN, the last one tap tempo; **SELECT** turns the BPM (alone it doesn't, since 0.9.8) | levels of tracks 1–4 |
+| **GLO** | 1–4 mute, 5–8 solo, 9 held = a fill, 10 = the next bar a fill, 14 = MIDI LEARN, the last one tap tempo; **SELECT** turns the BPM (alone only on HOME, since 0.9.9) | levels of tracks 1–4 |
 | **SEQ** | the 16 steps of the page (empty = set, set = press and release clears); black keys: page, shift, half / double, transpose, **F#5 held erases** what the playhead passes | NOTE · DIV · SWG · LEN; steps held: NOTE · RTCH · CHNC · FLAG |
 | **SCL** | any key = the key of the song | CHRD · SCL · QNT · TRN |
 | **EDIT** | the track's engine; the last one = track 4 DRUM / SYNTH | PRST · VOICE · GLIDE · LVL |

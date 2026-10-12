@@ -296,7 +296,7 @@ valendo dentro dela.
 | Segure | Teclas | Knobs 1 · 2 · 3 · 4 |
 |---|---|---|
 | **FX** | os 16 efeitos punch-in; pretas **F#3 REV THROW**, **G#3 ECHO THROW** | FILT · DUST · DUCK · TAPE |
-| **GLO** | 1–4 mute, 5–8 solo, 9 segurada = virada (fill), 10 = o próximo compasso é virada, 14 = MIDI LEARN, a última tap tempo; o **SELECT** muda o BPM (sozinho não muda, desde a 0.9.8) | nível das trilhas 1–4 |
+| **GLO** | 1–4 mute, 5–8 solo, 9 segurada = virada (fill), 10 = o próximo compasso é virada, 14 = MIDI LEARN, a última tap tempo; o **SELECT** muda o BPM (sozinho só na HOME, desde a 0.9.9) | nível das trilhas 1–4 |
 | **SEQ** | os 16 passos da página (vazio = cria, cheio = apertar e soltar apaga); pretas: página, deslocar, metade / dobro, transpor, **F#5 segurada apaga** o que o playhead passa | NOTE · DIV · SWG · LEN; com passos segurados: NOTE · RTCH · CHNC · FLAG |
 | **SCL** | qualquer tecla = o tom da música | CHRD · SCL · QNT · TRN |
 | **EDIT** | o motor da trilha; a última = trilha 4 DRUM / SYNTH | PRST · VOICE · GLIDE · LVL |
