@@ -68,16 +68,19 @@ static void draw_menu(void)
             cv_text(4, 46, &FONT_S, "GITHUB.COM/ZEDNAKED/JANGADA", C_AMB);
             cv_text(4, 60, &FONT_S, "FORK OF FELUCCA BY", C_GRAY);
             cv_text(cv_text(4, 73, &FONT_S, "LEO KUROSHITA", C_HI) + 8, 73, &FONT_S, "H\xDCGELTON", C_AMB);   /* Latin-1 U-umlaut */
-            cv_text(cv_text(4, 86, &FONT_S, "+ SLOOP", C_HI) + 8, 86, &FONT_S, "ISOD89", C_AMB);
+            {   /* the other forks: SLOOP, Melodee and X0X (the second core) */
+                int32_t x = cv_text(cv_text(4, 86, &FONT_S, "+ SLOOP", C_HI) + 6, 86, &FONT_S, "ISOD89", C_AMB);
+                cv_text(cv_text(x + 8, 86, &FONT_S, "+ MELODEE", C_HI) + 8, 86, &FONT_S, "+ X0X", C_HI);
+            }
             cv_text(4, 99, &FONT_S, "GPL-3.0, NO WARRANTY", C_HI);
             {   /* the credits, on a card */
-                static const char *const CR[7] = {"FM6: MSFA / DEXED (APACHE)", "PHASE: CRISPYZEBRA (GPL)",
+                static const char *const CR[8] = {"FM6: MSFA / DEXED (APACHE)", "PHASE: CRISPYZEBRA (GPL)",
                                                   "VOICE: REF. KLATTSCH (MIT)", "SAMPLES: VERSILIAN (CC0)",
                                                   "+ H\xDCGELTON SAMPLE PACK", "FONT: INTER TIGHT (OFL)",
-                                                  "ICONS: FUKIAI (MIT)"};
-                cv_card(2, 117, 236, 92);
-                for (i = 0; i < 7u; i++)
-                    cv_text(10, 119 + (int32_t)i * 12, &FONT_S, CR[i], C_GRAY);
+                                                  "ICONS: FUKIAI (MIT)", "IDEAS: GOSPODINDILLY-OPS"};
+                cv_card(2, 114, 236, 92);
+                for (i = 0; i < 8u; i++)
+                    cv_text(10, 115 + (int32_t)i * 11, &FONT_S, CR[i], C_GRAY);
             }
         } else {
             static const char *const HINT[MI_COUNT] = {
