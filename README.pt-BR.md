@@ -24,7 +24,7 @@ A felucca é o barco à vela do Nilo; a jangada é a nossa.
 **[Ouça](#ouça)** ·
 **[Releases](https://github.com/zednaked/jangada/releases)**
 
-> **Alfa.** Use por sua conta e risco. A área de boot do FM-1 nunca é tocada, e dá para voltar ao
+> Use por sua conta e risco. A área de boot do FM-1 nunca é tocada, e dá para voltar ao
 > firmware oficial a qualquer momento.
 
 <p align="center"><img src="docs/screens.png" alt="Telas da Jangada: HOME, TRACKS, DRONE, as camadas, KIT, DIST, MASTER, FM6, menu" width="100%"></p>
@@ -112,7 +112,7 @@ FM-1, e nada sai do seu navegador.
 
 ## Instalar
 
-Versão atual: **[Jangada 1.0](https://github.com/zednaked/jangada/releases/tag/v1.0)** (alfa).
+Versão atual: **[Jangada 1.0](https://github.com/zednaked/jangada/releases/tag/v1.0)**.
 Conecte o FM-1 direto no computador por um cabo USB **de dados**.
 
 **Mac / Windows / Linux, pelo navegador**: abra o

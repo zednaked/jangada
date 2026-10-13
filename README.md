@@ -25,7 +25,7 @@ A *felucca* is a Nile sailboat; a *jangada* is the Brazilian one.
 **[Listen](#listen)** ·
 **[Releases](https://github.com/zednaked/jangada/releases)**
 
-> **Alpha.** Use at your own risk. The FM-1's boot area is never touched, and you can go back to the
+> Use at your own risk. The FM-1's boot area is never touched, and you can go back to the
 > official firmware at any time.
 
 <p align="center"><img src="docs/screens.png" alt="Jangada screens: HOME, TRACKS, DRONE, the layers, KIT, DIST, MASTER, FM6, menu" width="100%"></p>
@@ -113,7 +113,7 @@ and nothing leaves your browser.
 
 ## Install
 
-Current version: **[Jangada 1.0](https://github.com/zednaked/jangada/releases/tag/v1.0)** (alpha).
+Current version: **[Jangada 1.0](https://github.com/zednaked/jangada/releases/tag/v1.0)**.
 Plug the FM-1 straight into the computer with a USB **data** cable.
 
 **Mac / Windows / Linux, in the browser**: open the
