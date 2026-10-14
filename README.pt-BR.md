@@ -13,7 +13,7 @@
 **Firmware alternativo para o M-VAVE FM-1, com sotaque escuro, industrial e brasileiro.**
 
 Drones que respiram e evoluem sozinhos, ferrugem, fita gasta, máquinas e manguebeat, num synth de bolso
-baratinho. Dez motores de síntese (FM de 6 operadores que conversa com o Dexed, um analógico com
+baratinho. Treze motores de síntese (FM de 6 operadores que conversa com o Dexed, um analógico com
 superwave e filtro ladder no estilo Moog), quatro trilhas, matriz de modulação, kits de bateria próprios, efeitos para tocar ao vivo.
 
 Um fork do [Felucca](https://github.com/hugelton/Felucca) de Leo Kuroshita (Hügelton Instruments).

@@ -13,7 +13,7 @@
 **Alternative firmware for the M-VAVE FM-1, with a dark, industrial and Brazilian accent.**
 
 Drones that breathe and evolve on their own, rust, worn tape, machines and manguebeat, on a €70
-pocket synth. Ten synth engines (a 6-operator FM that talks to Dexed, a superwave analog with a
+pocket synth. Thirteen synth engines (a 6-operator FM that talks to Dexed, a superwave analog with a
 Moog-style ladder filter), four
 tracks, a modulation matrix, our own drum kits, effects made to be played live.
 
