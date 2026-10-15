@@ -6,7 +6,8 @@
  * v5 (Jangada) = backup / restore, cmds 34-36 (editor_backup.c); INFO ends with the version;
  * v6 (Jangada 0.5) = the backup carries the FM6 patch bank (ids 8, 9); the FM6 patches, cmds 68-71
  * (editor_fm6.c, as Felucca 1.0 numbers them; 72 commits a staged bank half), advertised by INFO's 46 02 nfactory nbank);
- * v7 (Jangada 0.6) = two FM6 banks (INFO's 46 03 8 64: B1..B64), the backup carries bank 2 too (ids 10, 11).
+ * v7 (Jangada 0.6) = two FM6 banks (INFO's 46 03 8 64: B1..B64), the backup carries bank 2 too (ids 10, 11);
+ * v8 (Jangada 1.0.1) = TRACK_SOUND (37, editor_sound.c): a track's sound in one frame, read and written back.
  *   F0 7D 46 4C cmd args.. F7     (7D = non-commercial ID, "FL")
  * Values are 14 bit, two 7-bit bytes LSB first, offset by 8192 (so -8192..8191).
  * Every request gets a reply with the same cmd; 23/24/26 are also pushed
@@ -23,8 +24,8 @@ enum { ED_INFO = 1, ED_GET, ED_SET, ED_DUMP, ED_DESC, ED_STEP_GET, ED_STEP_SET, 
        ED_TRACK_PARAM, ED_TRACK_CHANGED,                                        /* v4: any track's parameters */
        ED_BK_LIST = 34, ED_BK_GET, ED_BK_PUT };                                 /* v5: backup / restore (33: SLOOP's
                                                                                  * DRUM_STEP, not here) */
-#define ED_PROTO 7u                                                              /* INFO's protocol byte (v7, Jangada
-                                                                                 * 0.6: the backup has both FM6 banks) */
+#define ED_PROTO 8u                                                              /* INFO's protocol byte (v8, Jangada
+                                                                                 * 1.0.1: TRACK_SOUND) */
 
 /* Jangada 0.6: 1024 (was 600): FM6_LIST of 8 + 64 slots is up to 5 + 2 + 72 x 12 + 1 = 872 bytes */
 static uint8_t ed_out[1024];
@@ -276,6 +277,7 @@ static const param_desc_t *ed_desc(uint32_t scope, uint32_t id, int16_t **vp)
 
 #include "editor_backup.c"                             /* v5: backup / restore */
 #include "editor_fm6.c"                                /* the FM6 patches and the bank (Jangada 0.5) */
+#include "editor_sound.c"                              /* v8: a track's sound in one frame (Jangada 1.0.1) */
 
 static void ed_handle(const uint8_t *f, uint32_t n)   /* f: the bytes between F0 and F7 */
 {
@@ -285,7 +287,8 @@ static void ed_handle(const uint8_t *f, uint32_t n)   /* f: the bytes between F0
     int16_t *vp;
     const param_desc_t *d;
     ed_begin(cmd);
-    if (ed_backup(cmd, a, na) || ed_fm6_handle(cmd, a, na)) {   /* v5: backup / restore; the FM6 patches */
+    if (ed_backup(cmd, a, na) || ed_fm6_handle(cmd, a, na) || ed_sound(cmd, a, na)) {   /* v5: backup / restore; the
+                                                                                         * FM6 patches; v8: a sound */
         ed_send();
         return;
     }

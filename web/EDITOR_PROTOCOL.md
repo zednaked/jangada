@@ -4,7 +4,8 @@ The firmware side is `firmware/src/editor.c`. Commands 16-26 (user presets and l
 adds the FM6 patch bank to the backup (objects 8, 9) and the FM6 patch commands 68-72 (`firmware/src/editor_fm6.c`,
 numbered as Felucca 1.0 numbers them; 72 and PUT target 3, the staged bank half, came after 0.5: INFO says `46 02`;
 see "FM6 patches"); v7 (Jangada 0.6) has two FM6 banks of 32 (B1..B64, INFO says `46 03 08 40`) and adds the
-second bank to the backup (objects 10, 11).
+second bank to the backup (objects 10, 11); v8 (Jangada 1.0.1) adds `TRACK_SOUND` (37): a track's sound in one
+frame, read and sent back (`firmware/src/editor_sound.c`, see "v8: a track's sound").
 
 **v3 (four tracks):** the device has four tracks: 1..3 are synth parts, 4 is the drum track. One
 of them is *selected* (the TRACKS page on the device, or `TRACK`). Every v1 / v2 command acts on the
@@ -247,6 +248,30 @@ object), a sample slot at most 80 KiB.
 - **"JNG2"** (Jangada 0.9) is "JNG1" with each track's values one signed byte each (every track parameter is
   -128..127; the globals stay two bytes): the worst-case project left room for new parameters. The firmware reads
   both and writes "JNG2"; a backup taken with 0.8.2 restores on 0.9 (its projects are "JNG1"), not the other way.
+
+## v8 (Jangada 1.0.1): a track's sound
+
+For a DAW or a librarian that keeps a synth's *edit buffer* with the song: one request reads what a track plays
+now, and that reply, sent back as it is, makes the track play it again. Nothing is written to flash.
+
+| cmd (v8) | Request args | Reply args |
+| --- | --- | --- |
+| 37 TRACK_SOUND | track (get), or track, engine, count, count × (key, v14) [, FM6 patch] (put) | track, engine, count (2 × 7 bit, LSB first), count × (key, v14), then for an FM6 track its 128-byte patch (as `FM6_GET` target 0) |
+
+- **Keys, not positions.** Each value travels with its stable key (`firmware/src/keys.h`, the keys the user
+  presets and projects store), so a dump taken today still loads after a firmware update that adds or moves
+  parameters: an unknown key is skipped, a missing one takes the engine's default, every value is clamped to
+  its range for that engine.
+- **A put is a preset load:** the engine and the sound change; the mix (`LEVEL`, `PAN`, `MUTE`) and the
+  pattern parameters (`LEN`, `DIV`, `SWING`, `GATE`, and `FILT`, `STRUM`, `VLEAD`) stay as the device has
+  them, and the steps are never touched. The reply is a dump of the sound after the put. On the selected
+  track the editor gets a `RELOAD` push.
+- **FM6:** the patch after the values is the track's own patch (an edit from Dexed or the editor included);
+  `PTCH` comes back as dumped and does not reload over it. A put of engine FM6 without the patch takes `PTCH`'s.
+- **No reply:** the drum track (get answers with engine byte NENGINES and no patch; put is refused), a track ≥
+  NTRK, an engine ≥ NENGINES, a frame whose length is not 3 + 3 × count (+ 128 for FM6) after the track.
+- Example, track 1: request `F0 7D 46 4C 25 00 F7`; the reply `F0 7D 46 4C 25 00 …  F7` (about 330 bytes, about
+  460 with an FM6 patch) is the frame to send back. Wait for the reply (one request at a time).
 
 ## FM6 patches (68-71, Jangada 0.5; after Felucca 1.0)
 

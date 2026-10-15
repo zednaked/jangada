@@ -41,6 +41,9 @@ run "user presets (UP_PUT parser, bank round trip, versions)" "$OUT/upreset_test
 $CC -w -Ibuild/gen -Ifirmware/src -o "$OUT/backup_test" tests/backup_test.c -lm
 run "backup / restore: editor protocol v5..v7 against simulated flash (Jangada)" "$OUT/backup_test"
 
+$CC -w -Ibuild/gen -Ifirmware/src -o "$OUT/sound_test" tests/sound_test.c -lm
+run "TRACK_SOUND: a track's sound read in one frame and sent back (editor protocol v8, Jangada; issue #7)" "$OUT/sound_test"
+
 $CC -w -Ibuild/gen -Ifirmware/src -o "$OUT/dx7_test" tests/dx7_test.c -lm
 run "DX7 SysEx for FM6: voice, banks of 32, parameters live, dumps; the bank voices in PRESETS (Jangada, after Melodee / SLOOP)" "$OUT/dx7_test"
 
