@@ -382,6 +382,13 @@ record opens the **TRACKS** view: BPM, bar.beat, one row per track with its step
   HOME → USB AUDIO: the level follows MASTER, or FULL. On Linux:
   `arecord -D hw:Jangada -f S16_LE -r 44100 -c 2 take.wav`. Since 0.9.7 the audio interface comes before
   MIDI in the descriptors, so macOS 15 and earlier show the audio input too.
+- **In a DAW or a mixer** (1.0.1, editor protocol v8): a host reads a track's whole sound in one SysEx
+  frame and sends it back later (`F0 7D 46 4C 60 <track> F7`, [#7](https://github.com/zednaked/jangada/issues/7)),
+  sets many parameters in one frame and reads any engine's parameter names. [Nirbija](https://zednaked.github.io/nirbija-site/)
+  uses it: the FM-1 is an instrument of the mixer, its four tracks in an editor, its project kept in the
+  session, its sounds changed by scenes on the bar line. The protocol: [web/EDITOR_PROTOCOL.md](web/EDITOR_PROTOCOL.md).
+
+![The FM-1 in Nirbija: a step sequencer playing it, and its four tracks read from the device](docs/nirbija-fm1.png)
 
 ### Screen, lights and menu
 - Antialiased font (Inter Tight), icons, cards; the **CHOQUE** palette (hot pink) by default, and **NIGHT** (true black, green).

@@ -387,6 +387,14 @@ gravar abre a tela **TRACKS**: BPM, compasso.beat, uma linha por trilha com pass
   HOME → USB AUDIO: o nível segue o MASTER, ou FULL. No Linux:
   `arecord -D hw:Jangada -f S16_LE -r 44100 -c 2 take.wav`. Desde a 0.9.7 a interface de áudio vem antes
   do MIDI nos descritores, e o macOS 15 e anteriores mostram a entrada de áudio também.
+- **Num DAW ou num mixer** (1.0.1, protocolo do editor v8): o programa lê o som inteiro de uma trilha num
+  frame SysEx e devolve depois (`F0 7D 46 4C 60 <trilha> F7`, [#7](https://github.com/zednaked/jangada/issues/7)),
+  muda vários parâmetros num frame só e lê os nomes dos parâmetros de qualquer motor. O
+  [Nirbija](https://zednaked.github.io/nirbija-site/) usa isso: o FM-1 vira um instrumento do mixer, as
+  quatro trilhas num editor, o projeto guardado na sessão, os sons trocados pelas cenas na virada do
+  compasso. O protocolo: [web/EDITOR_PROTOCOL.md](web/EDITOR_PROTOCOL.md).
+
+![O FM-1 no Nirbija: um step sequencer tocando, e as quatro trilhas lidas do aparelho](docs/nirbija-fm1.png)
 
 ### Tela, luzes e menu
 - Fonte suavizada (Inter Tight), ícones, cards; paleta **CHOQUE** (rosa-choque) como padrão, e **NIGHT** (preto puro, verde).
