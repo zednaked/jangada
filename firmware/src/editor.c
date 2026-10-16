@@ -7,7 +7,9 @@
  * v6 (Jangada 0.5) = the backup carries the FM6 patch bank (ids 8, 9); the FM6 patches, cmds 68-71
  * (editor_fm6.c, as Felucca 1.0 numbers them; 72 commits a staged bank half), advertised by INFO's 46 02 nfactory nbank);
  * v7 (Jangada 0.6) = two FM6 banks (INFO's 46 03 8 64: B1..B64), the backup carries bank 2 too (ids 10, 11);
- * v8 (Jangada 1.0.1) = TRACK_SOUND (37, editor_sound.c): a track's sound in one frame, read and written back.
+ * v8 (Jangada 1.0.1) = Jangada's own numbers from 96 up (Felucca and SLOOP use up to 81): TRACK_SOUND (96,
+ * editor_sound.c), a track's sound in one frame, read and written back; TRACK_PARAMS (97), several parameters of any
+ * tracks in one frame; ENG_DESC (98), DESC of an engine's parameters whatever the tracks play.
  *   F0 7D 46 4C cmd args.. F7     (7D = non-commercial ID, "FL")
  * Values are 14 bit, two 7-bit bytes LSB first, offset by 8192 (so -8192..8191).
  * Every request gets a reply with the same cmd; 23/24/26 are also pushed
@@ -22,10 +24,12 @@ enum { ED_INFO = 1, ED_GET, ED_SET, ED_DUMP, ED_DESC, ED_STEP_GET, ED_STEP_SET, 
        ED_WATCH, ED_CHANGED, ED_RELOAD, ED_PING, ED_STEP_CHANGED,              /* v2: live sync */
        ED_TRACK, ED_TRACK_MIX, ED_TRACK_DUMP, ED_TRACK_STEP,                    /* v3: tracks */
        ED_TRACK_PARAM, ED_TRACK_CHANGED,                                        /* v4: any track's parameters */
-       ED_BK_LIST = 34, ED_BK_GET, ED_BK_PUT };                                 /* v5: backup / restore (33: SLOOP's
+       ED_BK_LIST = 34, ED_BK_GET, ED_BK_PUT,
+       ED_TRACK_PARAMS = 97, ED_ENG_DESC };                                     /* v8 (96: TRACK_SOUND, editor_sound.c) */                                 /* v5: backup / restore (33: SLOOP's
                                                                                  * DRUM_STEP, not here) */
 #define ED_PROTO 8u                                                              /* INFO's protocol byte (v8, Jangada
-                                                                                 * 1.0.1: TRACK_SOUND) */
+                                                                                 * 1.0.1: TRACK_SOUND, TRACK_PARAMS,
+                                                                                 * ENG_DESC) */
 
 /* Jangada 0.6: 1024 (was 600): FM6_LIST of 8 + 64 slots is up to 5 + 2 + 72 x 12 + 1 = 872 bytes */
 static uint8_t ed_out[1024];
@@ -253,13 +257,41 @@ static void ed_sync(void)                                /* main loop */
 
 /* descriptor of parameter id of track t: the engine parameters of the engine it asked for
  * (t->engine follows in the audio ISR, after a short fade) */
-static const param_desc_t *ed_tdesc(const track_t *t, uint32_t id)   /* the static ones: an engine's */
+static const param_desc_t *ed_edesc(uint32_t e, uint32_t id)         /* the static ones: an engine's */
 {                                                                     /* desc hook is the device display only */
     if (id >= P_E0 && id < P_E0 + NEDIT)
-        return &ENGINES[t->eng_req % NENGINES]->edit[id - P_E0];
+        return &ENGINES[e % NENGINES]->edit[id - P_E0];
     if (id == P_M1DST || id == P_M2DST || id == P_M3DST || id == P_M4DST)
-        return mod_dst_desc(ENGINES[t->eng_req % NENGINES]);   /* Jangada: as the device shows them */
+        return mod_dst_desc(ENGINES[e % NENGINES]);    /* Jangada: as the device shows them */
     return &TP[id];
+}
+static const param_desc_t *ed_tdesc(const track_t *t, uint32_t id) { return ed_edesc(t->eng_req, id); }
+
+/* DESC's reply after scope / id (DESC, ENG_DESC) */
+static void ed_desc_out(const param_desc_t *d)
+{
+    uint32_t i;
+    ed_b(d->fmt);
+    ed_v(d->min);
+    ed_v(d->max);
+    ed_v(d->def);
+    ed_str(d->label, 8);
+    ed_str(d->unit, 8);
+    if (d->fmt == F_ENUM && d->names)
+        for (i = 0; i <= (uint32_t)(d->max - d->min) && i < 16u; i++)
+            ed_str(d->names[i], 8);
+}
+
+/* TRACK_PARAM / TRACK_PARAMS: a parameter of track k (as SET: clamped; a fixed value stays); -> its value */
+static int16_t ed_tparam_set(uint32_t k, uint32_t id, int32_t v)
+{
+    track_t *t = &trk[k];
+    const param_desc_t *d = ed_tdesc(t, id);
+    if (d->max > d->min)
+        t->p[id] = (int16_t)clamp(v, d->min, d->max);
+    ed_known(k, id);
+    ui.force = 1;
+    return t->p[id];
 }
 /* descriptor and value slot of (scope, id): scope 0 = the selected track, 1 = global */
 static const param_desc_t *ed_desc(uint32_t scope, uint32_t id, int16_t **vp)
@@ -344,15 +376,7 @@ static void ed_handle(const uint8_t *f, uint32_t n)   /* f: the bytes between F0
             return;
         ed_b(a[0]);
         ed_b(a[1]);
-        ed_b(d->fmt);
-        ed_v(d->min);
-        ed_v(d->max);
-        ed_v(d->def);
-        ed_str(d->label, 8);
-        ed_str(d->unit, 8);
-        if (d->fmt == F_ENUM && d->names)
-            for (i = 0; i <= (uint32_t)(d->max - d->min) && i < 16u; i++)
-                ed_str(d->names[i], 8);
+        ed_desc_out(d);
         break;
     case ED_STEP_GET:
     case ED_STEP_SET: {
@@ -643,23 +667,38 @@ static void ed_handle(const uint8_t *f, uint32_t n)   /* f: the bytes between F0
         ed_b(st->vel);
         break;
     }
-    case ED_TRACK_PARAM: {                                 /* track, id [, v14] -> track, id, v14 */
-        track_t *t;
+    case ED_TRACK_PARAM:                                   /* track, id [, v14] -> track, id, v14 */
         if (na < 2u || a[0] >= NTRK || a[1] >= P_COUNT)
             return;
-        t = &trk[a[0]];
-        d = ed_tdesc(t, a[1]);
-        if (na >= 4u) {
-            if (d->max > d->min)                           /* as SET: clamped; a fixed value stays */
-                t->p[a[1]] = (int16_t)clamp(ed_rv(a + 2), d->min, d->max);
-            ed_known(a[0], a[1]);
-            ui.force = 1;
-        }
+        if (na >= 4u)
+            ed_tparam_set(a[0], a[1], ed_rv(a + 2));
         ed_b(a[0]);
         ed_b(a[1]);
-        ed_v(t->p[a[1]]);
+        ed_v(trk[a[0]].p[a[1]]);
+        break;
+    case ED_TRACK_PARAMS: {                                /* v8: n, n x (track, id, v14) -> n, n x (track, id, v14) */
+        uint32_t k;
+        if (na < 1u || na != 1u + 4u * a[0])
+            return;
+        for (k = 0; k < a[0]; k++)                         /* all or nothing: one bad entry, no reply */
+            if (a[1 + 4u * k] >= NTRK || a[2 + 4u * k] >= P_COUNT)
+                return;
+        ed_b(a[0]);
+        for (k = 0; k < a[0]; k++) {
+            const uint8_t *q = a + 1 + 4u * k;
+            ed_b(q[0]);
+            ed_b(q[1]);
+            ed_v(ed_tparam_set(q[0], q[1], ed_rv(q + 2)));
+        }
         break;
     }
+    case ED_ENG_DESC:                                      /* v8: engine, id -> engine, id, as DESC */
+        if (na < 2u || a[0] >= NENGINES || a[1] >= P_COUNT)
+            return;
+        ed_b(a[0]);
+        ed_b(a[1]);
+        ed_desc_out(ed_edesc(a[0], a[1]));
+        break;
     default:
         return;
     }

@@ -1,14 +1,17 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
-/* Jangada 1.0.1 (issue #7): TRACK_SOUND, editor protocol v8 (firmware/src/editor_sound.c): a track's sound read in
- * one frame and written back from that frame as it is: the engine and every parameter, an FM6 track's own patch
- * too; the mix and the pattern parameters kept, keys the firmware does not know skipped, missing ones the
- * engine's default, values clamped; the drum track and malformed frames refused (no reply).
+/* Jangada 1.0.1, editor protocol v8 through editor.c's own ed_handle. TRACK_SOUND (96, issue #7,
+ * firmware/src/editor_sound.c): a track's sound read in one frame and written back from that frame as it is: the
+ * engine and every parameter, an FM6 track's own patch too; the mix and the pattern parameters kept, keys the
+ * firmware does not know skipped, missing ones the engine's default, values clamped; the drum track and malformed
+ * frames refused (no reply). TRACK_PARAMS (97): several tracks' parameters in one frame, all or nothing.
+ * ENG_DESC (98): any engine's descriptions with no track playing it.
  * Build: cc -w -Ibuild/gen -Ifirmware/src tests/sound_test.c -lm */
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#define FELUCCA_OTA 1                                /* usb.c: the SysEx frames editor.c uses */
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -87,19 +90,23 @@ static void fl_plain_window_init(void) {}
 #include "project.c"
 #include "fm6_bank.c"
 
-/* editor.c's part TRACK_SOUND uses */
+/* the whole editor (editor.c, with editor_backup.c, editor_fm6.c and editor_sound.c): its replies land in rep */
 static uint8_t rep[1024];
-static uint32_t rep_n;
-static void ed_b(uint32_t v) { if (rep_n < sizeof rep) rep[rep_n++] = (uint8_t)(v & 127u); }
-static void ed_v(int32_t v)
+static uint32_t rep_n, sent;
+static int host_wire_send(const uint8_t *p, uint32_t n)   /* F0 7D 46 4C cmd .. F7 -> rep: the bytes after cmd */
 {
-    uint32_t u = (uint32_t)(clamp(v, -8192, 8191) + 8192);
-    ed_b(u);
-    ed_b(u >> 7);
+    sent = 1;
+    rep_n = n >= 6u ? n - 6u : 0;
+    memcpy(rep, p + 5, rep_n);
+    return 0;
 }
-static int32_t ed_rv(const uint8_t *p) { return (int32_t)(p[0] | p[1] << 7) - 8192; }
-static uint32_t ed_eng(const track_t *t) { return is_drum(t) ? NENGINES : t->eng_req % NENGINES; }
-#include "editor_sound.c"
+static void fl_inval(uint32_t a, uint32_t n) { (void)a; (void)n; }   /* the sample slots: not used here */
+static int fl_erase4k(uint32_t a, uint32_t *took) { (void)a; *took = 0; return 0; }
+static int fl_write(uint32_t a, const void *p, uint32_t n) { (void)a; (void)p; (void)n; return 0; }
+static void audio_silence(void) {}
+#define ota_wire_send host_wire_send
+#include "editor.c"
+#undef ota_wire_send
 
 static int fails;
 static void check(const char *what, int ok)
@@ -128,10 +135,27 @@ static void felucca_init(void)
     song.sel = 0;
 }
 
-static int call(const uint8_t *a, uint32_t n)       /* -> replied */
+static int ask(uint32_t cmd, const uint8_t *a, uint32_t n)   /* a request frame through ed_handle -> replied */
 {
-    rep_n = 0;
-    return ed_sound(ED_SOUND, a, n);
+    static uint8_t f[700];
+    f[0] = 0x7D;
+    f[1] = 0x46;
+    f[2] = 0x4C;
+    f[3] = (uint8_t)cmd;
+    memcpy(f + 4, a, n);
+    rep_n = sent = 0;
+    ed_handle(f, n + 4u);
+    return (int)sent;
+}
+static int call(const uint8_t *a, uint32_t n) { return ask(ED_SOUND, a, n); }
+static void v14(uint8_t *p, int32_t v) { p[0] = (uint8_t)((v + 8192) & 127); p[1] = (uint8_t)((v + 8192) >> 7); }
+static int has_str(const uint8_t *p, uint32_t n, const char *s)   /* s, 0-terminated, somewhere in the reply */
+{
+    uint32_t k = (uint32_t)strlen(s) + 1u, i;
+    for (i = 0; i + k <= n; i++)
+        if (!memcmp(p + i, s, k))
+            return 1;
+    return 0;
 }
 static uint8_t dump[1024];
 static uint32_t dump_n;
@@ -248,6 +272,56 @@ int main(void)
     check("refused: a patch after the values of an engine other than FM6", !call(dump, dump_n + FM6_PACKED));
     check("the frame fits the device's SysEx buffer (640) with the header, FM6 patch included",
           5u + 1u + 4u + 3u * P_COUNT + FM6_PACKED + 1u <= 640u);
+
+
+    /* INFO: protocol 8, then the FM6 tag as before */
+    check("INFO: protocol 8 (TRACK_SOUND, TRACK_PARAMS, ENG_DESC), the FM6 tag after it",
+          ask(1, a, 0) && rep_n > 6u && rep[rep_n - 5u] == 8 && rep[rep_n - 4u] == 0x46);
+    check("the numbers are Jangada's own (96..98), clear of Felucca's and SLOOP's (up to 81)",
+          ED_SOUND == 96 && ED_TRACK_PARAMS == 97 && ED_ENG_DESC == 98);
+
+    /* TRACK_PARAMS: several tracks' parameters in one frame */
+    felucca_init();
+    a[0] = 3;
+    a[1] = 0, a[2] = P_ATK, v14(a + 3, 20);
+    a[5] = 2, a[6] = P_REV, v14(a + 7, 500);           /* clamped to 127 */
+    a[9] = 1, a[10] = P_E0, v14(a + 11, 3);
+    {
+        int e1 = (int)ed_tdesc(&trk[1], P_E0)->max, want = 3 > e1 ? e1 : 3;
+        check("TRACK_PARAMS: three tracks at once, each clamped as SET, the values back in order",
+              ask(ED_TRACK_PARAMS, a, 13) && rep_n == 13u && rep[0] == 3 && trk[0].p[P_ATK] == 20 &&
+                  trk[2].p[P_REV] == 127 && trk[1].p[P_E0] == want && ed_rv(rep + 3) == 20 && ed_rv(rep + 7) == 127 &&
+                  rep[9] == 1 && rep[10] == P_E0 && ed_rv(rep + 11) == want);
+    }
+    memcpy(keep, trk[0].p, sizeof keep);
+    a[0] = 2;
+    a[1] = 0, a[2] = P_ATK, v14(a + 3, 99);
+    a[5] = NTRK, a[6] = P_REV, v14(a + 7, 1);
+    i = ask(ED_TRACK_PARAMS, a, 9);
+    a[5] = 0;
+    n = ask(ED_TRACK_PARAMS, a, 8);
+    check("TRACK_PARAMS: one bad entry or a short frame -> no reply, nothing set",
+          !i && !n && !memcmp(keep, trk[0].p, sizeof keep));
+    a[0] = 0, a[1] = P_ATK, v14(a + 2, 33);
+    check("TRACK_PARAM (v4) as before through the shared setter",
+          ask(ED_TRACK_PARAM, a, 4) && rep_n == 4u && trk[0].p[P_ATK] == 33 && ed_rv(rep + 2) == 33);
+
+    /* ENG_DESC: any engine's parameters, whatever the tracks play */
+    a[0] = ENGI_FM6, a[1] = P_E0;
+    check("ENG_DESC: FM6's E0 is ALG 0..32 with no track playing FM6",
+          trk[0].eng_req != ENGI_FM6 && trk[1].eng_req != ENGI_FM6 && trk[2].eng_req != ENGI_FM6 &&
+              ask(ED_ENG_DESC, a, 2) && rep[0] == ENGI_FM6 && rep[1] == P_E0 && ed_rv(rep + 3) == 0 &&
+              ed_rv(rep + 5) == 32 && has_str(rep, rep_n, "ALG"));
+    a[0] = 0, a[1] = P_E0;
+    check("ENG_DESC: ANALOG's E0 is WAVE, an enum with its names (SAW ..)",
+          ask(ED_ENG_DESC, a, 2) && rep[2] == F_ENUM && has_str(rep, rep_n, "WAVE") && has_str(rep, rep_n, "SAW"));
+    a[0] = 0, a[1] = P_ATK;
+    i = ask(ED_ENG_DESC, a, 2) && has_str(rep, rep_n, "ATK");
+    a[0] = NENGINES;
+    n = ask(ED_ENG_DESC, a, 2);
+    a[0] = 0, a[1] = P_COUNT;
+    check("ENG_DESC: a track parameter (ATK) too; an engine or id out of range -> no reply",
+          i && !n && !ask(ED_ENG_DESC, a, 2));
 
     printf("sound: %s\n", fails ? "FAILED" : "all ok");
     return fails != 0;

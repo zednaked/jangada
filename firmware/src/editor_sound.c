@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
 /* Jangada 1.0.1 (issue #7, lfrancis): a track's sound in one frame, for a DAW or a librarian that keeps a synth's
- * edit buffer with the song and sends it back later (editor protocol v8, cmd 37, web/EDITOR_PROTOCOL.md):
+ * edit buffer with the song and sends it back later (editor protocol v8, cmd 96, web/EDITOR_PROTOCOL.md):
  *   get  track                                        -> track, engine, count (2 x 7 bit), count x (key, v14),
  *                                                        then (an FM6 track) its 128-byte packed patch
  *   put  track, engine, count, count x (key, v14) [, patch]   -> the same as get, after the sound is in
@@ -10,7 +10,7 @@
  * a preset load (upreset.c up_load): the mix and the pattern parameters (param_kept) stay as they are, the pattern
  * is never touched. An FM6 put without the patch takes PTCH's. The drum track, an engine out of range or a frame
  * of the wrong length get no reply. Included by editor.c. */
-enum { ED_SOUND = 37 };
+enum { ED_SOUND = 96 };                          /* Jangada's own numbers start at 96 (editor.c) */
 
 static void ed_sound_out(uint32_t k)
 {
