@@ -21,6 +21,7 @@ A fork of [Felucca](https://github.com/hugelton/Felucca) by Leo Kuroshita (Hüge
 A *felucca* is a Nile sailboat; a *jangada* is the Brazilian one.
 
 **[Play it in the browser](https://zednaked.github.io/jangada/webapp/studio/)** ·
+**[Play it from a mixer](#play-it-from-a-mixer)** ·
 **[Install](https://zednaked.github.io/jangada/)** ·
 **[Listen](#listen)** ·
 **[Releases](https://github.com/zednaked/jangada/releases)**
@@ -94,6 +95,17 @@ The **[Jangada Studio](https://zednaked.github.io/jangada/webapp/studio/)** runs
 WebAssembly, sample for sample the same as the device: pick a track and a preset, play with the
 computer keyboard (or a MIDI keyboard), hold drones, run the sequencer, turn the master. No FM-1 needed,
 and nothing leaves your browser.
+
+## Play it from a mixer
+
+![The FM-1 in Nirbija: a step sequencer playing it, and its four tracks read from the device](docs/nirbija-fm1.png)
+
+Plug the FM-1 into [Nirbija](https://github.com/zednaked/Nirbija), a Linux mixer, and it becomes one of
+its instruments: the four tracks in an editor on screen, each engine's parameters read from the device and
+moving both ways, the whole project saved with the session, a track's sound swapped by a scene on the bar
+line, and a step sequencer per track. Both sides speak Jangada's own SysEx protocol (1.0.1), opened after a
+user asked to keep the synth's edit buffer with their DAW projects ([#7](https://github.com/zednaked/jangada/issues/7)).
+Any host can use it: [web/EDITOR_PROTOCOL.md](web/EDITOR_PROTOCOL.md).
 
 ## By the numbers
 
@@ -384,12 +396,8 @@ record opens the **TRACKS** view: BPM, bar.beat, one row per track with its step
   MIDI in the descriptors, so macOS 15 and earlier show the audio input too.
 - **In a DAW or a mixer** (1.0.1, editor protocol v8): a host reads a track's whole sound in one SysEx
   frame and sends it back later (`F0 7D 46 4C 60 <track> F7`, [#7](https://github.com/zednaked/jangada/issues/7)),
-  sets many parameters in one frame and reads any engine's parameter names. [Nirbija](https://zednaked.github.io/nirbija-site/)
-  uses it (0.6.0): the FM-1 is an instrument of the mixer, its four tracks in an editor, its project kept in
-  the session, its sounds changed by scenes on the bar line, and a step sequencer per track (DRUMS names
-  the grid's rows after the kit). The protocol: [web/EDITOR_PROTOCOL.md](web/EDITOR_PROTOCOL.md).
-
-![The FM-1 in Nirbija: a step sequencer playing it, and its four tracks read from the device](docs/nirbija-fm1.png)
+  sets many parameters in one frame and reads any engine's parameter names. [Nirbija](#play-it-from-a-mixer)
+  uses it (0.6.0). The protocol: [web/EDITOR_PROTOCOL.md](web/EDITOR_PROTOCOL.md).
 
 ### Screen, lights and menu
 - Antialiased font (Inter Tight), icons, cards; the **CHOQUE** palette (hot pink) by default, and **NIGHT** (true black, green).

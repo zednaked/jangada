@@ -20,6 +20,7 @@ Um fork do [Felucca](https://github.com/hugelton/Felucca) de Leo Kuroshita (Hüg
 A felucca é o barco à vela do Nilo; a jangada é a nossa.
 
 **[Toque no navegador](https://zednaked.github.io/jangada/webapp/studio/)** ·
+**[Toque de um mixer](#toque-de-um-mixer)** ·
 **[Instale](https://zednaked.github.io/jangada/)** ·
 **[Ouça](#ouça)** ·
 **[Releases](https://github.com/zednaked/jangada/releases)**
@@ -93,6 +94,18 @@ O **[Jangada Studio](https://zednaked.github.io/jangada/webapp/studio/)** roda o
 WebAssembly, amostra por amostra igual ao aparelho: escolha trilha e preset, toque com o teclado do
 computador (ou um teclado MIDI), segure drones, rode o sequenciador, mexa no master. Não precisa do
 FM-1, e nada sai do seu navegador.
+
+## Toque de um mixer
+
+![O FM-1 no Nirbija: um step sequencer tocando, e as quatro trilhas lidas do aparelho](docs/nirbija-fm1.png)
+
+Ligue o FM-1 no [Nirbija](https://github.com/zednaked/Nirbija), um mixer para Linux, e ele vira um dos
+seus instrumentos: as quatro trilhas num editor na tela, os parâmetros de cada motor lidos do aparelho e
+mexendo nos dois sentidos, o projeto inteiro salvo com a sessão, o som de uma trilha trocado por uma cena na
+virada do compasso, e um step sequencer por trilha. Os dois lados falam o protocolo SysEx da própria
+Jangada (1.0.1), aberto depois que um usuário pediu para guardar o edit buffer do synth junto com os
+projetos do DAW ([#7](https://github.com/zednaked/jangada/issues/7)). Qualquer programa pode usar:
+[web/EDITOR_PROTOCOL.md](web/EDITOR_PROTOCOL.md).
 
 ## Em números
 
@@ -390,12 +403,7 @@ gravar abre a tela **TRACKS**: BPM, compasso.beat, uma linha por trilha com pass
 - **Num DAW ou num mixer** (1.0.1, protocolo do editor v8): o programa lê o som inteiro de uma trilha num
   frame SysEx e devolve depois (`F0 7D 46 4C 60 <trilha> F7`, [#7](https://github.com/zednaked/jangada/issues/7)),
   muda vários parâmetros num frame só e lê os nomes dos parâmetros de qualquer motor. O
-  [Nirbija](https://zednaked.github.io/nirbija-site/) usa isso (0.6.0): o FM-1 vira um instrumento do
-  mixer, as quatro trilhas num editor, o projeto guardado na sessão, os sons trocados pelas cenas na
-  virada do compasso, e um step sequencer por trilha (DRUMS dá às linhas os nomes das peças do kit). O
-  protocolo: [web/EDITOR_PROTOCOL.md](web/EDITOR_PROTOCOL.md).
-
-![O FM-1 no Nirbija: um step sequencer tocando, e as quatro trilhas lidas do aparelho](docs/nirbija-fm1.png)
+  [Nirbija](#toque-de-um-mixer) usa isso (0.6.0). O protocolo: [web/EDITOR_PROTOCOL.md](web/EDITOR_PROTOCOL.md).
 
 ### Tela, luzes e menu
 - Fonte suavizada (Inter Tight), ícones, cards; paleta **CHOQUE** (rosa-choque) como padrão, e **NIGHT** (preto puro, verde).
