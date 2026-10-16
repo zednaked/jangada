@@ -390,9 +390,10 @@ gravar abre a tela **TRACKS**: BPM, compasso.beat, uma linha por trilha com pass
 - **Num DAW ou num mixer** (1.0.1, protocolo do editor v8): o programa lê o som inteiro de uma trilha num
   frame SysEx e devolve depois (`F0 7D 46 4C 60 <trilha> F7`, [#7](https://github.com/zednaked/jangada/issues/7)),
   muda vários parâmetros num frame só e lê os nomes dos parâmetros de qualquer motor. O
-  [Nirbija](https://zednaked.github.io/nirbija-site/) usa isso: o FM-1 vira um instrumento do mixer, as
-  quatro trilhas num editor, o projeto guardado na sessão, os sons trocados pelas cenas na virada do
-  compasso. O protocolo: [web/EDITOR_PROTOCOL.md](web/EDITOR_PROTOCOL.md).
+  [Nirbija](https://zednaked.github.io/nirbija-site/) usa isso (0.6.0): o FM-1 vira um instrumento do
+  mixer, as quatro trilhas num editor, o projeto guardado na sessão, os sons trocados pelas cenas na
+  virada do compasso, e um step sequencer por trilha (DRUMS dá às linhas os nomes das peças do kit). O
+  protocolo: [web/EDITOR_PROTOCOL.md](web/EDITOR_PROTOCOL.md).
 
 ![O FM-1 no Nirbija: um step sequencer tocando, e as quatro trilhas lidas do aparelho](docs/nirbija-fm1.png)
 
