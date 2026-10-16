@@ -113,7 +113,7 @@ and nothing leaves your browser.
 
 ## Install
 
-Current version: **[Jangada 1.0](https://github.com/zednaked/jangada/releases/tag/v1.0)**.
+Current version: **[Jangada 1.0.1](https://github.com/zednaked/jangada/releases/tag/v1.0.1)**.
 Plug the FM-1 straight into the computer with a USB **data** cable.
 
 **Mac / Windows / Linux, in the browser**: open the

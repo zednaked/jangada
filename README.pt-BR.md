@@ -112,7 +112,7 @@ FM-1, e nada sai do seu navegador.
 
 ## Instalar
 
-Versão atual: **[Jangada 1.0](https://github.com/zednaked/jangada/releases/tag/v1.0)**.
+Versão atual: **[Jangada 1.0.1](https://github.com/zednaked/jangada/releases/tag/v1.0.1)**.
 Conecte o FM-1 direto no computador por um cabo USB **de dados**.
 
 **Mac / Windows / Linux, pelo navegador**: abra o
