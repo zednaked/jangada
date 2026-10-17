@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-only
  * Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments */
-/* Menu (HOME held): COLOR, SPEAKER (the low cut for the small speaker), LIGHTS, KEYS, NOTES (the panel
- * in the dark), USB AUDIO (the level the computer records), NEW PROJECT, ABOUT.
+/* Menu (HOME held): COLOR, SPEAKER EQ (FLAT / LOW CUT for the small speaker: an EQ on the whole output, not a
+ * speaker switch, #8), LIGHTS, KEYS, NOTES (the panel in the dark), USB AUDIO (the level the computer records), NEW PROJECT, ABOUT.
  * Jangada: ZOOM and HARDWARE CALIBRATION left the menu (calibration: OCT- + OCT+ held at power-on).
  * LIGHTS, KEYS, NOTES and USB AUDIO: Jangada, after SLOOP 2.3 (settings of the FM-1, panel.c). MIDI OUT
  * (KEYS / SEQ: the sequencer and the arp too) and MIDI IN (NOTES / CLOCK: the clock only): Jangada 0.7, after
@@ -10,7 +10,7 @@
 /* ------------------------------------------------------------ menu --- */
 enum { MI_COLOR, MI_SPEAKER, MI_LIGHTS, MI_KEYS, MI_NOTES, MI_USB, MI_MOUT, MI_MIN, MI_LEARN, MI_CPU2, MI_NEW,
        MI_ABOUT, MI_COUNT };
-static const char *const MI_NAME[MI_COUNT] = {"COLOR", "SPEAKER", "LIGHTS", "KEYS", "NOTES", "USB AUDIO",
+static const char *const MI_NAME[MI_COUNT] = {"COLOR", "SPEAKER EQ", "LIGHTS", "KEYS", "NOTES", "USB AUDIO",
                                               "MIDI OUT", "MIDI IN", "MIDI LEARN", "2ND CORE", "NEW PROJECT", "ABOUT"};
 static const char *const CPU2_NAME[CPU2_N] = {"AUTO", "OFF", "BOOST"};
 static const char *const LIGHTS_NAME[LIGHTS_N] = {"OFF", "LOW", "MID", "HIGH"};
@@ -84,14 +84,14 @@ static void draw_menu(void)
             }
         } else {
             static const char *const HINT[MI_COUNT] = {
-                "", "ON: LESS BASS (SPEAKER)", "BUTTONS GLOW IN THE DARK", "KEYS GLOW TOO (WITH LIGHTS)",
+                "", "LOW CUT: LESS BASS (ALL OUTPUTS)", "BUTTONS GLOW IN THE DARK", "KEYS GLOW TOO (WITH LIGHTS)",
                 "SOUNDING NOTES LIGHT THEIR KEYS", "", "", "", "OCT+ CLEARS EVERY CC (GLO+14 LEARNS)", "",
                 "EVERY TRACK BACK TO START", ""};
             const char *hint = HINT[ui.menu_sel % MI_COUNT];
             for (i = 0; i < MI_COUNT; i++) {          /* a row card each, the selected one lit */
                 int32_t y = 3 + (int32_t)i * MI_DY;
                 int sel = i == ui.menu_sel;
-                const char *v = i == MI_SPEAKER ? (settings.lowcut ? "LOW CUT ON" : "OFF") :
+                const char *v = i == MI_SPEAKER ? (settings.lowcut ? "LOW CUT" : "FLAT") :
                                 i == MI_LIGHTS ? LIGHTS_NAME[lights_lvl % LIGHTS_N] :
                                 i == MI_KEYS ? KEYS_NAME[lights_keys % KEYS_N] :
                                 i == MI_NOTES ? (lights_notes ? "ON" : "OFF") :

@@ -401,7 +401,7 @@ record opens the **TRACKS** view: BPM, bar.beat, one row per track with its step
 
 ### Screen, lights and menu
 - Antialiased font (Inter Tight), icons, cards; the **CHOQUE** palette (hot pink) by default, and **NIGHT** (true black, green).
-- Menu (hold **HOME**): COLOR, SPEAKER (a low cut for the speaker), **LIGHTS** (the buttons glow
+- Menu (hold **HOME**): COLOR, SPEAKER EQ (FLAT / LOW CUT: less bass for the small speaker; it reaches the headphones and USB too), **LIGHTS** (the buttons glow
   dimly, for playing in the dark), **KEYS** (lights the C keys, the white ones or the track's **SCALE**, its root
   brighter), **NOTES** (sounding
   notes light their keys), USB AUDIO, MIDI OUT, MIDI IN, NEW PROJECT, ABOUT.

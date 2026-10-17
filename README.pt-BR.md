@@ -407,7 +407,7 @@ gravar abre a tela **TRACKS**: BPM, compasso.beat, uma linha por trilha com pass
 
 ### Tela, luzes e menu
 - Fonte suavizada (Inter Tight), ícones, cards; paleta **CHOQUE** (rosa-choque) como padrão, e **NIGHT** (preto puro, verde).
-- Menu (segure **HOME**): COLOR, SPEAKER (corta graves para o alto-falante), **LIGHTS** (os botões
+- Menu (segure **HOME**): COLOR, SPEAKER EQ (FLAT / LOW CUT: menos grave para o alto-falante; vale também para o fone e o USB), **LIGHTS** (os botões
   brilham fraco, para tocar no escuro), **KEYS** (acende as teclas C, as brancas ou a **SCALE** da trilha, a tônica mais forte), **NOTES** (as
   notas que soam acendem as teclas), USB AUDIO, MIDI OUT, MIDI IN, NEW PROJECT, ABOUT.
 - Páginas sem gráfico (EDIT, DIST, CHORD, GLOBAL, SYSTEM…) mostram os quatro valores **grandes**, cada
