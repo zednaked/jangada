@@ -518,3 +518,5 @@ See [README.felucca.md](README.felucca.md) and [LICENSING.md](LICENSING.md) for 
 
 M-VAVE and FM-1 are trademarks of their respective owners. Jangada is not affiliated with or endorsed
 by them, nor by Felucca.
+
+You can also try Jangada in the browser, no flashing needed, in the free community [FM-1 Emulator](https://fm1-emulator.atst.tools/).
